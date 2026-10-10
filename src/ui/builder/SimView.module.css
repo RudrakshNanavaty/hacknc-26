@@ -1,0 +1,76 @@
+.view {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  height: 100%;
+  min-height: 0;
+}
+
+.canvasWrap {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+}
+
+.canvas {
+  display: block;
+  border-radius: var(--r-md);
+  border: var(--glass-border);
+  box-shadow: var(--shadow-panel);
+  touch-action: pan-y;
+}
+
+.buildable {
+  cursor: crosshair;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  justify-content: center;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: 2px var(--sp-2);
+  border-radius: var(--r-pill);
+  background: var(--glass-bg-strong);
+  border: var(--glass-border);
+  font-size: var(--fs-xs);
+  color: var(--c-ink-700);
+  font-variant-numeric: tabular-nums;
+}
+
+.status {
+  color: var(--c-aqua-700);
+  font-weight: 600;
+}
+
+.swatchLarva,
+.swatchSettled,
+.swatchFlow {
+  display: inline-block;
+  width: var(--sp-2);
+  height: var(--sp-2);
+  border-radius: var(--r-pill);
+}
+
+.swatchLarva {
+  background: var(--c-larva);
+}
+
+.swatchSettled {
+  background: var(--c-settled);
+}
+
+.swatchFlow {
+  width: var(--sp-3);
+  height: 2px;
+  background: var(--c-flow);
+}

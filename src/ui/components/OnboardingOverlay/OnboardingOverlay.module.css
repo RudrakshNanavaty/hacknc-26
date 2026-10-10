@@ -1,0 +1,30 @@
+.body p {
+  margin: 0 0 var(--sp-3);
+  color: var(--c-ink-700);
+  font-size: var(--fs-md);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
+}
+
+.dots {
+  display: flex;
+  gap: var(--sp-1);
+  margin-right: auto;
+}
+
+.dots i {
+  width: var(--sp-2);
+  height: var(--sp-2);
+  border-radius: var(--r-pill);
+  background: var(--c-ink-400);
+}
+
+.dots i.on {
+  background: var(--c-aqua-500);
+}

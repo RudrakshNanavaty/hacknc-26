@@ -1,36 +1,57 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ReefForge
 
-## Getting Started
+> Shape changes flow. Flow changes where coral larvae settle. Build a seabed profile and watch it happen.
 
-First, run the development server:
+ReefForge is a HackNC 2026 project: a browser-based scientific sandbox with a Frutiger Aero look. A player edits a **2D substrate profile**. A **lattice-Boltzmann flow solver** runs in a Web Worker, and **simulated larvae** drift, swim and settle. The score is **simulated settlement %**, compared against flat, ridge and recess baselines.
+
+It is a toy model with a falsifiable, pre-registered benchmark. It is **not** a validated restoration tool.
+
+---
+
+## Start here
+
+| If you are… | Read, in order |
+|---|---|
+| **New to the team** | This README → [`docs/WORKSTREAMS.md`](docs/WORKSTREAMS.md) → [`CONTRIBUTING.md`](CONTRIBUTING.md) |
+| **Working on the simulation or science** | [`docs/SCIENCE.md`](docs/SCIENCE.md) → [`docs/CONTRACTS.md`](docs/CONTRACTS.md) → [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) |
+| **Working on the builder or 3D scene** | [`docs/CONTRACTS.md`](docs/CONTRACTS.md) → [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) |
+| **Working on UI or styling** | [`.claude/skills/reefforge-ui/SKILL.md`](.claude/skills/reefforge-ui/SKILL.md) — **required before touching anything visual** |
+| **Pitching or demoing** | [`docs/DEMO.md`](docs/DEMO.md) |
+| **An AI coding agent** | [`CLAUDE.md`](CLAUDE.md) |
+
+Live status is in [`PROGRESS.md`](PROGRESS.md). Decisions are logged in [`DECISIONS.md`](DECISIONS.md).
+
+---
+
+## Quick start
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev          # app at http://localhost:5173
+npm test             # unit + regression tests
+npm run benchmark    # runs the pre-registered benchmark (see docs/SCIENCE.md)
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Optional environment variables, set in `.env.local` (never commit them):
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```
+VITE_GEMINI_API_KEY=...   # Gemini critic only; the app works without it
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+---
 
-## Learn More
+## The core loop
 
-To learn more about Next.js, take a look at the following resources:
+```
+Build profile → Simulate (worker) → Observe larvae → Compare vs baselines → Save record
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Everything in the repo exists to serve this loop. If a change doesn't help it, it waits until after the hackathon.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+---
 
-## Deploy on Vercel
+## Out of scope this weekend
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Real-time multiplayer, social profiles, NFC, authentication, native apps, touch building on mobile, 3D CFD, and the autonomous AI optimizer (before the benchmark has run).
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Don't stub these, and don't add placeholders for them. See `DECISIONS.md` D-001.

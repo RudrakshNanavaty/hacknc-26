@@ -1,0 +1,36 @@
+.panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border: var(--glass-border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-panel);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  overflow: hidden;
+  color: var(--c-ink-900);
+}
+
+.panel::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 60% 0;
+  background: var(--glass-sheen);
+  pointer-events: none;
+}
+
+.default {
+  background: var(--glass-bg);
+}
+
+.strong {
+  background: var(--glass-bg-strong);
+}
+
+.body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}

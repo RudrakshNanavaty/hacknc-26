@@ -1,0 +1,91 @@
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: grid;
+  place-items: center;
+  padding: var(--sp-4);
+  background: var(--c-overlay-scrim);
+}
+
+.dialog {
+  display: flex;
+  flex-direction: column;
+  width: min(480px, 100%);
+  max-height: calc(100vh - var(--sp-8));
+  border-radius: var(--r-lg);
+  border: var(--glass-border);
+  background: var(--glass-bg-strong);
+  box-shadow: var(--shadow-panel);
+  overflow: hidden;
+  color: var(--c-ink-900);
+}
+
+.dialog:focus {
+  outline: none;
+}
+
+.wide {
+  width: min(760px, 100%);
+}
+
+.bar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: calc(var(--sp-8) + var(--sp-1));
+  background: var(--titlebar-gradient);
+  border-bottom: var(--glass-border);
+  flex: none;
+}
+
+.title {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--c-ink-700);
+}
+
+.close {
+  position: absolute;
+  right: var(--sp-2);
+  display: grid;
+  place-items: center;
+  width: var(--sp-6);
+  height: var(--sp-6);
+  border: none;
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: var(--c-ink-500);
+  cursor: pointer;
+}
+
+.close:hover {
+  background: var(--c-coral-200);
+  color: var(--c-coral-700);
+}
+
+.close:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.body {
+  padding: var(--sp-4);
+  overflow: auto;
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-reduced-motion="true"]) .dialog {
+    animation: pop var(--dur-med) var(--ease-aero);
+  }
+}
+
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+}

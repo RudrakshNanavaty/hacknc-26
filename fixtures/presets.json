@@ -1,0 +1,184 @@
+{
+  "_note": "Reference profiles on a 136x64 tile of 0.25 mm cells (34 x 16 mm), periodic in x. Ridge: 4 ridges 1.0 mm wide, 2.5 mm tall, 7.5 mm apart edge-to-edge (Levenstein 2022 height and spacing; width UNVERIFIED). Recess (held-out): 4 square cavities 2.5 x 2.5 mm at the same pitch. Ridge and recess have identical exposed length by construction. Fixed before any simulation run (docs/PHASE_A.md).",
+  "presets": [
+    {
+      "id": "preset-flat",
+      "name": "Flat (baseline)",
+      "baseHeight": 12,
+      "segments": [
+        {
+          "id": "s1",
+          "kind": "flat",
+          "x": 0,
+          "width": 136,
+          "height": 0
+        }
+      ],
+      "source": "preset"
+    },
+    {
+      "id": "preset-ridge",
+      "name": "Ridge (calibration)",
+      "baseHeight": 12,
+      "segments": [
+        {
+          "id": "s1",
+          "kind": "flat",
+          "x": 0,
+          "width": 15,
+          "height": 0
+        },
+        {
+          "id": "s2",
+          "kind": "ridge",
+          "x": 15,
+          "width": 4,
+          "height": 10
+        },
+        {
+          "id": "s3",
+          "kind": "flat",
+          "x": 19,
+          "width": 30,
+          "height": 0
+        },
+        {
+          "id": "s4",
+          "kind": "ridge",
+          "x": 49,
+          "width": 4,
+          "height": 10
+        },
+        {
+          "id": "s5",
+          "kind": "flat",
+          "x": 53,
+          "width": 30,
+          "height": 0
+        },
+        {
+          "id": "s6",
+          "kind": "ridge",
+          "x": 83,
+          "width": 4,
+          "height": 10
+        },
+        {
+          "id": "s7",
+          "kind": "flat",
+          "x": 87,
+          "width": 30,
+          "height": 0
+        },
+        {
+          "id": "s8",
+          "kind": "ridge",
+          "x": 117,
+          "width": 4,
+          "height": 10
+        },
+        {
+          "id": "s9",
+          "kind": "flat",
+          "x": 121,
+          "width": 15,
+          "height": 0
+        }
+      ],
+      "source": "preset"
+    },
+    {
+      "id": "preset-recess",
+      "name": "Recess (held-out)",
+      "baseHeight": 12,
+      "segments": [
+        {
+          "id": "s1",
+          "kind": "flat",
+          "x": 0,
+          "width": 12,
+          "height": 0
+        },
+        {
+          "id": "s2",
+          "kind": "recess",
+          "x": 12,
+          "width": 10,
+          "height": -10
+        },
+        {
+          "id": "s3",
+          "kind": "flat",
+          "x": 22,
+          "width": 24,
+          "height": 0
+        },
+        {
+          "id": "s4",
+          "kind": "recess",
+          "x": 46,
+          "width": 10,
+          "height": -10
+        },
+        {
+          "id": "s5",
+          "kind": "flat",
+          "x": 56,
+          "width": 24,
+          "height": 0
+        },
+        {
+          "id": "s6",
+          "kind": "recess",
+          "x": 80,
+          "width": 10,
+          "height": -10
+        },
+        {
+          "id": "s7",
+          "kind": "flat",
+          "x": 90,
+          "width": 24,
+          "height": 0
+        },
+        {
+          "id": "s8",
+          "kind": "recess",
+          "x": 114,
+          "width": 10,
+          "height": -10
+        },
+        {
+          "id": "s9",
+          "kind": "flat",
+          "x": 124,
+          "width": 12,
+          "height": 0
+        }
+      ],
+      "source": "preset"
+    },
+    {
+      "id": "preset-step",
+      "name": "Step",
+      "baseHeight": 12,
+      "segments": [
+        {
+          "id": "s1",
+          "kind": "flat",
+          "x": 0,
+          "width": 68,
+          "height": 0
+        },
+        {
+          "id": "s2",
+          "kind": "step",
+          "x": 68,
+          "width": 68,
+          "height": 6
+        }
+      ],
+      "source": "preset"
+    }
+  ]
+}

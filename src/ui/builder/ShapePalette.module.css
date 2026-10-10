@@ -1,0 +1,54 @@
+.palette {
+  display: grid;
+  gap: var(--sp-2);
+  padding: var(--sp-2);
+}
+
+.tool {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  padding: var(--sp-2) 0 var(--sp-1);
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  background: transparent;
+  color: var(--c-ink-700);
+  font-family: var(--font-ui);
+  cursor: pointer;
+  transition: transform var(--dur-fast) var(--ease-aero);
+}
+
+.tool:hover {
+  background: var(--glass-bg-strong);
+}
+
+.tool:active {
+  transform: translateY(1px);
+}
+
+.tool:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.selected {
+  background: var(--c-aqua-100);
+  border-color: var(--c-aqua-500);
+  color: var(--c-aqua-700);
+  box-shadow: var(--shadow-button);
+}
+
+.label {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+}
+
+.key {
+  position: absolute;
+  top: 2px;
+  right: var(--sp-1);
+  font-family: var(--font-ui);
+  font-size: var(--fs-xs);
+  color: var(--c-ink-500);
+}

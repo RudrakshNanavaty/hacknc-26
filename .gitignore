@@ -1,38 +1,16 @@
 # dependencies
 /node_modules
-/.pnp
-.pnp.js
 
-# testing
+# build / test output
+/dist
 /coverage
+*.tsbuildinfo
 
-# production
-/.next
-/out
+# env (never commit keys)
+.env
+.env.*
+!.env.example
 
 # misc
 .DS_Store
-.env
-.env.*
-
-# vercel
-.vercel
-
-# logs
 npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-
-# typescript
-*.tsbuildinfo
-
-# next.js build output
-.next/
-
-# local next cache
-.next/cache
-
-# Optional: ignore package-lock.json or yarn.lock if not versioning lock files
-# package-lock.json
-# yarn.lock

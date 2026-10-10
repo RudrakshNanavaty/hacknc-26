@@ -1,0 +1,468 @@
+{
+  "rule": "eligible: ridge>flat with paired 95% CI excluding 0 and flat in [1,50]%; choose ratio closest (log) to 1.87; ties → lower cueAttachProb",
+  "seeds": [
+    1001,
+    1002,
+    1003,
+    1004,
+    1005,
+    1006,
+    1007,
+    1008,
+    1009,
+    1010
+  ],
+  "simVersion": "0.1.0",
+  "baseParams": {
+    "solver": "lbm-d2q9",
+    "tau": 0.5268,
+    "peakVelocity": 0.1,
+    "peakVelocityCmS": 4.5,
+    "periodSteps": 9888,
+    "phaseSamples": 48,
+    "spinupPeriods": 2,
+    "larvaPeriods": 3,
+    "larvaeCount": 2000,
+    "releaseBandCells": 20,
+    "swimSpeedMmS": 3,
+    "rotDiffusion": 1
+  },
+  "grid": [
+    {
+      "cueAttachProb": 0.05,
+      "attachMaxSpeedMmS": 2,
+      "flat": {
+        "n": 10,
+        "mean": 2.815,
+        "sd": 0.4479,
+        "lo": 2.4946,
+        "hi": 3.1354
+      },
+      "ridge": {
+        "n": 10,
+        "mean": 8.125,
+        "sd": 0.5969,
+        "lo": 7.6981,
+        "hi": 8.5519
+      },
+      "ridgeMinusFlat": {
+        "n": 10,
+        "mean": 5.31,
+        "sd": 0.6875,
+        "lo": 4.8182,
+        "hi": 5.8018
+      },
+      "ratio": 2.8863,
+      "eligible": true
+    },
+    {
+      "cueAttachProb": 0.05,
+      "attachMaxSpeedMmS": 5,
+      "flat": {
+        "n": 10,
+        "mean": 5.36,
+        "sd": 0.4019,
+        "lo": 5.0725,
+        "hi": 5.6475
+      },
+      "ridge": {
+        "n": 10,
+        "mean": 14.68,
+        "sd": 1.0026,
+        "lo": 13.9629,
+        "hi": 15.3971
+      },
+      "ridgeMinusFlat": {
+        "n": 10,
+        "mean": 9.32,
+        "sd": 1.1414,
+        "lo": 8.5035,
+        "hi": 10.1365
+      },
+      "ratio": 2.7388,
+      "eligible": true
+    },
+    {
+      "cueAttachProb": 0.05,
+      "attachMaxSpeedMmS": 10,
+      "flat": {
+        "n": 10,
+        "mean": 5.36,
+        "sd": 0.4019,
+        "lo": 5.0725,
+        "hi": 5.6475
+      },
+      "ridge": {
+        "n": 10,
+        "mean": 14.925,
+        "sd": 0.6705,
+        "lo": 14.4454,
+        "hi": 15.4046
+      },
+      "ridgeMinusFlat": {
+        "n": 10,
+        "mean": 9.565,
+        "sd": 0.7561,
+        "lo": 9.0242,
+        "hi": 10.1058
+      },
+      "ratio": 2.7845,
+      "eligible": true
+    },
+    {
+      "cueAttachProb": 0.05,
+      "attachMaxSpeedMmS": 20,
+      "flat": {
+        "n": 10,
+        "mean": 5.36,
+        "sd": 0.4019,
+        "lo": 5.0725,
+        "hi": 5.6475
+      },
+      "ridge": {
+        "n": 10,
+        "mean": 14.955,
+        "sd": 0.3947,
+        "lo": 14.6727,
+        "hi": 15.2373
+      },
+      "ridgeMinusFlat": {
+        "n": 10,
+        "mean": 9.595,
+        "sd": 0.4902,
+        "lo": 9.2444,
+        "hi": 9.9456
+      },
+      "ratio": 2.7901,
+      "eligible": true
+    },
+    {
+      "cueAttachProb": 0.1,
+      "attachMaxSpeedMmS": 2,
+      "flat": {
+        "n": 10,
+        "mean": 5.35,
+        "sd": 0.3859,
+        "lo": 5.074,
+        "hi": 5.626
+      },
+      "ridge": {
+        "n": 10,
+        "mean": 14.575,
+        "sd": 0.8985,
+        "lo": 13.9323,
+        "hi": 15.2177
+      },
+      "ridgeMinusFlat": {
+        "n": 10,
+        "mean": 9.225,
+        "sd": 0.8522,
+        "lo": 8.6154,
+        "hi": 9.8346
+      },
+      "ratio": 2.7243,
+      "eligible": true
+    },
+    {
+      "cueAttachProb": 0.1,
+      "attachMaxSpeedMmS": 5,
+      "flat": {
+        "n": 10,
+        "mean": 9.645,
+        "sd": 0.3362,
+        "lo": 9.4045,
+        "hi": 9.8855
+      },
+      "ridge": {
+        "n": 10,
+        "mean": 20.025,
+        "sd": 0.443,
+        "lo": 19.7081,
+        "hi": 20.3419
+      },
+      "ridgeMinusFlat": {
+        "n": 10,
+        "mean": 10.38,
+        "sd": 0.5277,
+        "lo": 10.0025,
+        "hi": 10.7575
+      },
+      "ratio": 2.0762,
+      "eligible": true
+    },
+    {
+      "cueAttachProb": 0.1,
+      "attachMaxSpeedMmS": 10,
+      "flat": {
+        "n": 10,
+        "mean": 9.645,
+        "sd": 0.3362,
+        "lo": 9.4045,
+        "hi": 9.8855
+      },
+      "ridge": {
+        "n": 10,
+        "mean": 20.64,
+        "sd": 0.8472,
+        "lo": 20.034,
+        "hi": 21.246
+      },
+      "ridgeMinusFlat": {
+        "n": 10,
+        "mean": 10.995,
+        "sd": 0.9607,
+        "lo": 10.3078,
+        "hi": 11.6822
+      },
+      "ratio": 2.14,
+      "eligible": true
+    },
+    {
+      "cueAttachProb": 0.1,
+      "attachMaxSpeedMmS": 20,
+      "flat": {
+        "n": 10,
+        "mean": 9.645,
+        "sd": 0.3362,
+        "lo": 9.4045,
+        "hi": 9.8855
+      },
+      "ridge": {
+        "n": 10,
+        "mean": 20.84,
+        "sd": 0.991,
+        "lo": 20.1311,
+        "hi": 21.5489
+      },
+      "ridgeMinusFlat": {
+        "n": 10,
+        "mean": 11.195,
+        "sd": 1.0618,
+        "lo": 10.4355,
+        "hi": 11.9545
+      },
+      "ratio": 2.1607,
+      "eligible": true
+    },
+    {
+      "cueAttachProb": 0.2,
+      "attachMaxSpeedMmS": 2,
+      "flat": {
+        "n": 10,
+        "mean": 9.925,
+        "sd": 0.7942,
+        "lo": 9.3569,
+        "hi": 10.4931
+      },
+      "ridge": {
+        "n": 10,
+        "mean": 24.34,
+        "sd": 1.3127,
+        "lo": 23.401,
+        "hi": 25.279
+      },
+      "ridgeMinusFlat": {
+        "n": 10,
+        "mean": 14.415,
+        "sd": 1.6861,
+        "lo": 13.2089,
+        "hi": 15.6211
+      },
+      "ratio": 2.4524,
+      "eligible": true
+    },
+    {
+      "cueAttachProb": 0.2,
+      "attachMaxSpeedMmS": 5,
+      "flat": {
+        "n": 10,
+        "mean": 17.06,
+        "sd": 0.7713,
+        "lo": 16.5083,
+        "hi": 17.6117
+      },
+      "ridge": {
+        "n": 10,
+        "mean": 29.205,
+        "sd": 0.8687,
+        "lo": 28.5836,
+        "hi": 29.8264
+      },
+      "ridgeMinusFlat": {
+        "n": 10,
+        "mean": 12.145,
+        "sd": 1.3891,
+        "lo": 11.1513,
+        "hi": 13.1387
+      },
+      "ratio": 1.7119,
+      "eligible": true
+    },
+    {
+      "cueAttachProb": 0.2,
+      "attachMaxSpeedMmS": 10,
+      "flat": {
+        "n": 10,
+        "mean": 17.06,
+        "sd": 0.7713,
+        "lo": 16.5083,
+        "hi": 17.6117
+      },
+      "ridge": {
+        "n": 10,
+        "mean": 30.41,
+        "sd": 1.145,
+        "lo": 29.591,
+        "hi": 31.229
+      },
+      "ridgeMinusFlat": {
+        "n": 10,
+        "mean": 13.35,
+        "sd": 1.5224,
+        "lo": 12.261,
+        "hi": 14.439
+      },
+      "ratio": 1.7825,
+      "eligible": true
+    },
+    {
+      "cueAttachProb": 0.2,
+      "attachMaxSpeedMmS": 20,
+      "flat": {
+        "n": 10,
+        "mean": 17.06,
+        "sd": 0.7713,
+        "lo": 16.5083,
+        "hi": 17.6117
+      },
+      "ridge": {
+        "n": 10,
+        "mean": 30.32,
+        "sd": 0.8973,
+        "lo": 29.6782,
+        "hi": 30.9618
+      },
+      "ridgeMinusFlat": {
+        "n": 10,
+        "mean": 13.26,
+        "sd": 1.1857,
+        "lo": 12.4118,
+        "hi": 14.1082
+      },
+      "ratio": 1.7773,
+      "eligible": true
+    },
+    {
+      "cueAttachProb": 0.4,
+      "attachMaxSpeedMmS": 2,
+      "flat": {
+        "n": 10,
+        "mean": 17.615,
+        "sd": 0.5632,
+        "lo": 17.2121,
+        "hi": 18.0179
+      },
+      "ridge": {
+        "n": 10,
+        "mean": 36.105,
+        "sd": 1.4504,
+        "lo": 35.0675,
+        "hi": 37.1425
+      },
+      "ridgeMinusFlat": {
+        "n": 10,
+        "mean": 18.49,
+        "sd": 1.1995,
+        "lo": 17.632,
+        "hi": 19.348
+      },
+      "ratio": 2.0497,
+      "eligible": true
+    },
+    {
+      "cueAttachProb": 0.4,
+      "attachMaxSpeedMmS": 5,
+      "flat": {
+        "n": 10,
+        "mean": 28.65,
+        "sd": 0.9936,
+        "lo": 27.9393,
+        "hi": 29.3607
+      },
+      "ridge": {
+        "n": 10,
+        "mean": 39.585,
+        "sd": 0.7219,
+        "lo": 39.0686,
+        "hi": 40.1014
+      },
+      "ridgeMinusFlat": {
+        "n": 10,
+        "mean": 10.935,
+        "sd": 1.2979,
+        "lo": 10.0066,
+        "hi": 11.8634
+      },
+      "ratio": 1.3817,
+      "eligible": true
+    },
+    {
+      "cueAttachProb": 0.4,
+      "attachMaxSpeedMmS": 10,
+      "flat": {
+        "n": 10,
+        "mean": 28.65,
+        "sd": 0.9936,
+        "lo": 27.9393,
+        "hi": 29.3607
+      },
+      "ridge": {
+        "n": 10,
+        "mean": 40.675,
+        "sd": 0.7224,
+        "lo": 40.1583,
+        "hi": 41.1917
+      },
+      "ridgeMinusFlat": {
+        "n": 10,
+        "mean": 12.025,
+        "sd": 1.5325,
+        "lo": 10.9288,
+        "hi": 13.1212
+      },
+      "ratio": 1.4197,
+      "eligible": true
+    },
+    {
+      "cueAttachProb": 0.4,
+      "attachMaxSpeedMmS": 20,
+      "flat": {
+        "n": 10,
+        "mean": 28.65,
+        "sd": 0.9936,
+        "lo": 27.9393,
+        "hi": 29.3607
+      },
+      "ridge": {
+        "n": 10,
+        "mean": 40.99,
+        "sd": 0.8875,
+        "lo": 40.3552,
+        "hi": 41.6248
+      },
+      "ridgeMinusFlat": {
+        "n": 10,
+        "mean": 12.34,
+        "sd": 1.4077,
+        "lo": 11.3331,
+        "hi": 13.3469
+      },
+      "ratio": 1.4307,
+      "eligible": true
+    }
+  ],
+  "chosen": {
+    "cueAttachProb": 0.2,
+    "attachMaxSpeedMmS": 10
+  }
+}

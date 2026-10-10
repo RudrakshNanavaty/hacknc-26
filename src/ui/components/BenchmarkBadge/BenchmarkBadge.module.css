@@ -1,0 +1,45 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  height: var(--sp-8);
+  padding: 0 var(--sp-3);
+  border-radius: var(--r-pill);
+  border: 1px solid transparent;
+  font-family: var(--font-ui);
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: var(--shadow-button);
+  white-space: nowrap;
+}
+
+.badge:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.dot {
+  width: var(--sp-2);
+  height: var(--sp-2);
+  border-radius: var(--r-pill);
+  background: currentColor;
+}
+
+.pass {
+  background: var(--c-leaf-200);
+  border-color: var(--c-leaf-500);
+  color: var(--c-leaf-700);
+}
+
+.fail {
+  background: var(--c-coral-200);
+  border-color: var(--c-coral-500);
+  color: var(--c-coral-700);
+}
+
+.pending {
+  background: var(--glass-bg-strong);
+  border-color: var(--c-ink-400);
+  color: var(--c-ink-700);
+}

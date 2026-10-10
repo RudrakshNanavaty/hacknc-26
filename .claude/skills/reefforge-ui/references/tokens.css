@@ -1,0 +1,113 @@
+/* ReefForge design tokens — canonical copy.
+   src/ui/tokens.css must match this file. Changes need UI-owner review. */
+
+:root {
+  /* ---------- Color: aqua (interactive) ---------- */
+  --c-aqua-100: #e3f7fd;
+  --c-aqua-200: #b8ebfa;
+  --c-aqua-400: #4cc3ee;
+  --c-aqua-500: #1fa8e0;
+  --c-aqua-600: #0d87c4;
+  --c-aqua-700: #0a6697;
+
+  /* ---------- Color: leaf (good / pass) ---------- */
+  --c-leaf-200: #c9f2b4;
+  --c-leaf-500: #5cbf2a;
+  --c-leaf-700: #3a8a14;
+
+  /* ---------- Color: coral (warning / fail) ---------- */
+  --c-coral-200: #ffd3c7;
+  --c-coral-500: #ff6f4f;
+  --c-coral-700: #c94124;
+
+  /* ---------- Color: sun (player highlight) ---------- */
+  --c-sun-300: #ffe58a;
+  --c-sun-500: #ffc21a;
+
+  /* ---------- Color: ink (text) ---------- */
+  --c-ink-900: #0d2a3a;
+  --c-ink-700: #23495e;
+  --c-ink-500: #4d7187;
+  --c-ink-400: #8aa6b6;
+  --c-white: #ffffff;
+
+  /* ---------- Water / scene ---------- */
+  --c-water-top: #7fe0ff;
+  --c-water-mid: #23b5e6;
+  --c-water-deep: #0a5f8f;
+
+  /* ---------- Sim view (canvas reads these at runtime) ---------- */
+  --c-sim-water: #e9f8fd;
+  --c-sim-water-deep: #c6ecf8;
+  --c-sand-300: #f1dfb4;
+  --c-sand-500: #d9b978;
+  --c-sand-700: #a8844a;
+  --c-larva: #ff8a3d;
+  --c-settled: #e0398f;
+  --c-flow: rgba(10, 102, 151, 0.55);
+  --c-release-band: rgba(76, 195, 238, 0.10);
+  --c-overlay-scrim: rgba(13, 42, 58, 0.35);
+
+  /* ---------- Glass ---------- */
+  --glass-bg: rgba(255, 255, 255, 0.55);
+  --glass-bg-strong: rgba(255, 255, 255, 0.78);
+  --glass-blur: 14px;
+  --glass-border: 1px solid rgba(255, 255, 255, 0.85);
+  --glass-sheen: linear-gradient(180deg, rgba(255,255,255,0.65) 0%, rgba(255,255,255,0.10) 40%, rgba(255,255,255,0) 41%);
+
+  /* ---------- Aqua gloss ---------- */
+  --aqua-gradient: linear-gradient(180deg, #8fdcff 0%, #2aa9e8 50%, #0b88cc 51%, #3cc0f5 100%);
+  --aqua-highlight: linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.15) 100%);
+  --titlebar-gradient: linear-gradient(180deg, #f7fbfd 0%, #d6e6ef 100%);
+
+  /* ---------- Radius ---------- */
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 16px;
+  --r-pill: 999px;
+
+  /* ---------- Shadow ---------- */
+  --shadow-panel: 0 8px 28px rgba(10, 70, 110, 0.25), 0 1px 0 rgba(255,255,255,0.9) inset;
+  --shadow-button: 0 2px 6px rgba(8, 80, 130, 0.35), 0 1px 0 rgba(255,255,255,0.6) inset;
+  --shadow-dock: 0 10px 30px rgba(5, 50, 80, 0.35);
+  --focus-ring: 0 0 0 3px rgba(31, 168, 224, 0.55);
+
+  /* ---------- Type ---------- */
+  --font-ui: "Segoe UI", "Frutiger", "Myriad Pro", "Hind", system-ui, sans-serif;
+  --font-mono-num: "Segoe UI", "Hind", system-ui, sans-serif; /* use font-variant-numeric: tabular-nums */
+  --fs-xs: 11px;
+  --fs-sm: 13px;
+  --fs-md: 15px;
+  --fs-lg: 20px;
+  --fs-score: 56px;
+
+  /* ---------- Space (4px scale) ---------- */
+  --sp-1: 4px;  --sp-2: 8px;  --sp-3: 12px;  --sp-4: 16px;  --sp-6: 24px;  --sp-8: 32px;
+
+  /* ---------- Layout ---------- */
+  --topbar-h: 48px;
+  --palette-w: 72px;
+  --metrics-w: 320px;
+  --dock-h: 64px;
+
+  /* ---------- Motion ---------- */
+  --dur-fast: 120ms;
+  --dur-med: 220ms;
+  --dur-slow: 400ms;
+  --ease-aero: cubic-bezier(0.22, 0.8, 0.3, 1);
+
+  /* ---------- Z layers ---------- */
+  --z-scene: 0;
+  --z-sim-overlay: 10;
+  --z-panel: 20;
+  --z-dock: 30;
+  --z-sheet: 40;
+  --z-toast: 50;
+  --z-modal: 60;
+}
+
+[data-reduced-motion="true"] {
+  --dur-fast: 0ms;
+  --dur-med: 0ms;
+  --dur-slow: 0ms;
+}

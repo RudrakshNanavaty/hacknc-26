@@ -1,0 +1,9 @@
+.list {
+  margin: 0;
+  padding-left: var(--sp-4);
+  display: grid;
+  gap: var(--sp-1);
+  font-size: var(--fs-xs);
+  color: var(--c-ink-700);
+  line-height: 1.4;
+}

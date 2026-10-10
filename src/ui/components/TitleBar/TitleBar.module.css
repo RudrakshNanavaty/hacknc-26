@@ -1,0 +1,40 @@
+.bar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: calc(var(--sp-6) + var(--sp-1));
+  flex: none;
+  background: var(--titlebar-gradient);
+  border-bottom: var(--glass-border);
+}
+
+.title {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--c-ink-700);
+  letter-spacing: 0.02em;
+}
+
+.collapse {
+  position: absolute;
+  right: var(--sp-1);
+  display: grid;
+  place-items: center;
+  width: var(--sp-6);
+  height: var(--sp-6);
+  border: none;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--c-ink-500);
+  cursor: pointer;
+}
+
+.collapse:hover {
+  background: var(--glass-bg);
+}
+
+.collapse:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}

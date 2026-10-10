@@ -1,0 +1,103 @@
+.shell {
+  position: relative;
+  display: grid;
+  grid-template-rows: var(--topbar-h) 1fr auto;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  font-family: var(--font-ui);
+}
+
+.backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-scene);
+  background: linear-gradient(180deg, var(--c-water-top), var(--c-water-mid) 55%, var(--c-water-deep));
+}
+
+.main {
+  position: relative;
+  z-index: var(--z-panel);
+  display: grid;
+  grid-template-columns: var(--palette-w) minmax(0, 1fr) var(--metrics-w);
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-3) 0;
+  min-height: 0;
+}
+
+.main.collapsed {
+  grid-template-columns: var(--palette-w) minmax(0, 1fr) auto;
+}
+
+.palette,
+.metrics {
+  min-height: 0;
+  max-height: 100%;
+}
+
+.palette {
+  align-self: start;
+}
+
+.center {
+  min-width: 0;
+  min-height: 0;
+  padding: var(--sp-2);
+  border-radius: var(--r-lg);
+  background: var(--glass-bg);
+  border: var(--glass-border);
+  box-shadow: var(--shadow-panel);
+}
+
+.expand {
+  align-self: start;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: var(--sp-3) var(--sp-1);
+  border-radius: var(--r-md);
+  border: var(--glass-border);
+  background: var(--glass-bg-strong);
+  box-shadow: var(--shadow-panel);
+  color: var(--c-ink-700);
+  font-family: var(--font-ui);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  writing-mode: vertical-rl;
+  cursor: pointer;
+}
+
+.expand:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.dockRow {
+  position: relative;
+  z-index: var(--z-dock);
+  display: flex;
+  justify-content: center;
+  padding-top: var(--sp-3);
+}
+
+@media (max-width: 1100px) and (min-width: 768px) {
+  .main {
+    grid-template-columns: var(--palette-w) minmax(0, 1fr) calc(var(--metrics-w) - var(--sp-8) * 2);
+  }
+}
+
+@media (max-width: 767px) {
+  .main {
+    grid-template-columns: minmax(0, 1fr);
+    padding: var(--sp-2) var(--sp-2) 0;
+  }
+
+  .center {
+    padding: var(--sp-1);
+  }
+
+  .dockRow {
+    padding-top: var(--sp-2);
+  }
+}

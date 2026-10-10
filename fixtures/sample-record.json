@@ -1,0 +1,66 @@
+{
+  "recordVersion": 2,
+  "createdAt": "2026-10-10T18:00:00.000Z",
+  "profile": {
+    "id": "preset-ridge",
+    "name": "Ridge (calibration)",
+    "baseHeight": 12,
+    "segments": [
+      { "id": "s1", "kind": "flat", "x": 0, "width": 15, "height": 0 },
+      { "id": "s2", "kind": "ridge", "x": 15, "width": 4, "height": 10 },
+      { "id": "s3", "kind": "flat", "x": 19, "width": 30, "height": 0 },
+      { "id": "s4", "kind": "ridge", "x": 49, "width": 4, "height": 10 },
+      { "id": "s5", "kind": "flat", "x": 53, "width": 30, "height": 0 },
+      { "id": "s6", "kind": "ridge", "x": 83, "width": 4, "height": 10 },
+      { "id": "s7", "kind": "flat", "x": 87, "width": 30, "height": 0 },
+      { "id": "s8", "kind": "ridge", "x": 117, "width": 4, "height": 10 },
+      { "id": "s9", "kind": "flat", "x": 121, "width": 15, "height": 0 }
+    ],
+    "source": "preset"
+  },
+  "config": {
+    "grid": { "nx": 136, "ny": 64, "cellSizeMm": 0.25 },
+    "params": {
+      "solver": "lbm-d2q9",
+      "tau": 0.5268,
+      "peakVelocity": 0.1,
+      "peakVelocityCmS": 4.5,
+      "periodSteps": 9888,
+      "phaseSamples": 48,
+      "spinupPeriods": 2,
+      "larvaPeriods": 3,
+      "larvaeCount": 2000,
+      "releaseBandCells": 20,
+      "swimSpeedMmS": 3,
+      "rotDiffusion": 1,
+      "cueAttachProb": 0.2,
+      "attachMaxSpeedMmS": 10
+    },
+    "seed": 42,
+    "simVersion": "0.0.0-fixture"
+  },
+  "physical": {
+    "dxMm": 0.25,
+    "dtS": 0.000556,
+    "periodS": 5.49,
+    "peakVelocityCmS": 4.5,
+    "refLengthMm": 2.5,
+    "reynolds": 112
+  },
+  "assumptions": [
+    "FIXTURE DATA — not a real simulation result",
+    "2D cross-section; real structures are 3D",
+    "Larval behavior simplified to swim + cue-gated attachment",
+    "Settlement only; no post-settlement survival"
+  ],
+  "results": {
+    "released": 2000,
+    "settled": 284,
+    "settlementPct": 14.2,
+    "normalizedScore": 8.94,
+    "exposedLength": 54,
+    "settledX": [16.5, 30.2, 48.1]
+  },
+  "baselines": { "flat": 7.6, "ridge": 14.2, "recess": 0 },
+  "diagnostics": { "massDriftPct": 0, "maxVelocity": 0.11, "diverged": false }
+}
