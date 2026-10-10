@@ -1,0 +1,38 @@
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
+
+# testing
+/coverage
+
+# production
+/.next
+/out
+
+# misc
+.DS_Store
+.env
+.env.*
+
+# vercel
+.vercel
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# typescript
+*.tsbuildinfo
+
+# next.js build output
+.next/
+
+# local next cache
+.next/cache
+
+# Optional: ignore package-lock.json or yarn.lock if not versioning lock files
+# package-lock.json
+# yarn.lock
