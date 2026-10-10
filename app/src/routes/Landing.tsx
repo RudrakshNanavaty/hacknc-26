@@ -111,11 +111,14 @@ export function Landing() {
 
   const reef = reefById(focus);
   const dive = () => {
-    if (!map || reduceMotion()) return navigate(`/dive/${reef.id}`);
+    // Reefs with a real-terrain world open it; the others go straight to the workshop.
+    const to = reef.world ? `/explore/${reef.id}` : `/dive/${reef.id}`;
+    if (!map || reduceMotion()) return navigate(to);
     const [w, s, e, n] = reef.bbox;
-    map.flyTo({ center: [(w + e) / 2, (s + n) / 2], zoom: 13.6, pitch: 62, bearing: 25, duration: 3200, curve: 1.6, essential: true });
-    setTimeout(() => setDiving(true), 2400);
-    setTimeout(() => navigate(`/dive/${reef.id}`), 3400);
+    const center = reef.world?.center ?? [(w + e) / 2, (s + n) / 2];
+    map.flyTo({ center, zoom: reef.world ? 17.2 : 13.6, pitch: 64, bearing: 25, duration: 3600, curve: 1.7, essential: true });
+    setTimeout(() => setDiving(true), 2800);
+    setTimeout(() => navigate(to), 3800);
   };
   const joinRoom = (e: FormEvent) => {
     e.preventDefault();

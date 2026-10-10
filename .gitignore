@@ -3,3 +3,5 @@ dist/
 .env
 server/.cache/
 .DS_Store
+pipeline/.venv/
+__pycache__/

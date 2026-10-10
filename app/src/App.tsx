@@ -1,5 +1,6 @@
 import { isReefId } from '@shared';
 import { Dive } from './routes/Dive';
+import { Explore } from './routes/Explore';
 import { Landing } from './routes/Landing';
 import { Play } from './routes/Play';
 import { Research } from './routes/Research';
@@ -13,6 +14,7 @@ export function App() {
   if (matchPath('/research', path)) return <Research />;
   // /solo/:reef is the old name of the dive.
   if ((params = matchPath('/dive/:reef', path) ?? matchPath('/solo/:reef', path)) && isReefId(params.reef)) return <Dive key={params.reef} reef={params.reef} />;
+  if ((params = matchPath('/explore/:reef', path)) && isReefId(params.reef)) return <Explore key={params.reef} reef={params.reef} />;
   if ((params = matchPath('/play/:code', path))) return <Play key={params.code} code={(params.code ?? '').toUpperCase()} />;
 
   return (

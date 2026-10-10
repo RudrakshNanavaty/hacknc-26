@@ -44,7 +44,24 @@ export interface Reef {
   sources: DataSource[];
   /** The reef's imagery extent [west, south, east, north]: the card's picture and where the dive lands. */
   bbox: [number, number, number, number];
+  /**
+   * An explorable underwater world built from this reef's real terrain (app/public/terrain/<id>/).
+   * `center` is the terrain window's centre [lon, lat], where the dive lands.
+   */
+  world?: { terrain: string; center: [number, number] };
 }
+
+/**
+ * Levenstein et al. (2022)'s flume conditions, used as the test water on reefs whose own near-bed
+ * flow is not derived yet. Labelled as such: it is published, but not measured at that reef.
+ */
+const REFERENCE_FLOW = (reef: string): Flow => ({
+  kind: 'oscillating',
+  peakCmS: 4.5,
+  periodS: 5.5,
+  provenance: 'published',
+  source: `Reference flume conditions from Levenstein et al. 2022 (PLOS ONE). Not measured at ${reef}: the site's near-bed flow is not derived yet.`,
+});
 
 export const REEFS: readonly Reef[] = [
   {
@@ -75,32 +92,38 @@ export const REEFS: readonly Reef[] = [
   },
   {
     id: 'heron-island',
-    name: 'Heron Island',
+    name: 'Heron Reef',
     region: 'Great Barrier Reef, Australia',
-    lat: -23.5123,
-    lon: 151.9553,
-    ready: false,
-    mission: { title: 'The Current Challenge', brief: 'Build a tile that holds up across the currents measured on this reef.' },
-    // Next: speed percentiles from the IMOS GBRHIS current meters (docs/scientific-data-audit.md).
-    flow: null,
+    lat: -23.450474,
+    lon: 151.923072,
+    ready: true,
+    mission: { title: 'The Current Challenge', brief: 'Explore the reef platform around Heron Island, pick a site and build a device for strong tidal currents.' },
+    // Tile water: the reference conditions until Heron's near-bed flow is derived (docs/simulation-plan.md §4).
+    // Measured context: IMOS GBRHIS current meter, 1.41 m above the bed: median 23.8, p90 45.0 cm/s.
+    flow: REFERENCE_FLOW('Heron Reef'),
     sources: [
-      { label: 'Currents: IMOS ANMN mooring GBRHIS (ADCP, 8.7 m)', url: 'https://thredds.aodn.org.au/thredds/catalog/IMOS/ANMN/QLD/GBRHIS/Velocity/catalog.html', provenance: 'measured', at: [151.9553, -23.5123] },
+      { label: 'Terrain: Geoscience Australia GBR 30 m depth model 2020 (Beaman), CC BY 4.0', url: 'https://doi.org/10.4225/25/5a207b36022d2', provenance: 'measured' },
+      { label: 'Imagery: Copernicus Sentinel-2 L2A, 10 m (contains modified Copernicus Sentinel data 2025)', url: 'https://registry.opendata.aws/sentinel-2-l2a-cogs/', provenance: 'measured' },
+      { label: 'Currents: IMOS ANMN mooring GBRHIS (AWAC, 8.7 m), CC BY 4.0', url: 'https://thredds.aodn.org.au/thredds/catalog/IMOS/ANMN/QLD/GBRHIS/Velocity/catalog.html', provenance: 'measured', at: [151.9553, -23.5123] },
     ],
     bbox: [151.88, -23.48, 151.98, -23.41],
+    world: { terrain: 'heron-island', center: [151.923072, -23.450474] },
   },
   {
     id: 'florida-keys',
-    name: 'Florida Keys',
-    region: 'Florida, USA',
-    lat: 24.546,
-    lon: -81.406,
-    ready: false,
-    mission: { title: 'The Recovery Mission', brief: 'Build a material-efficient tile that improves simulated settlement.' },
-    flow: null,
+    name: 'Eastern Dry Rocks',
+    region: 'Florida Keys, USA',
+    lat: 24.461168,
+    lon: -81.841361,
+    ready: true,
+    mission: { title: 'The Recovery Mission', brief: 'Swim a real scanned reef, choose a site on the measured seabed and build a material-efficient device.' },
+    flow: REFERENCE_FLOW('Eastern Dry Rocks'),
     sources: [
-      { label: 'Seafloor: NOAA NGS topobathy lidar, Florida Keys outer reef', url: 'https://www.fisheries.noaa.gov/inport/item/48373', provenance: 'measured' },
+      { label: 'Terrain + imagery: USGS SQUID-5 1 cm DEM and 5 mm orthomosaic, May 2021 (public domain)', url: 'https://doi.org/10.5066/P93RIIG9', provenance: 'measured', at: [-81.8419, 24.4607] },
+      { label: 'Heat stress: NOAA Coral Reef Watch, daily 5 km', url: 'https://coastwatch.noaa.gov/erddap/griddap/noaacrwdhwDaily', provenance: 'measured' },
     ],
-    bbox: [-81.46, 24.51, -81.36, 24.58],
+    bbox: [-81.8475, 24.4565, -81.8365, 24.4650],
+    world: { terrain: 'florida-keys', center: [-81.841361, 24.461168] },
   },
   {
     id: 'maldives',

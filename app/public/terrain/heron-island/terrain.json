@@ -1,0 +1,89 @@
+{
+  "site": "heron-island",
+  "generated": "2026-10-10T20:35:59+00:00",
+  "crs": "EPSG:32756",
+  "bounds": {
+    "minx": 389300.0,
+    "miny": 7405500.0,
+    "maxx": 390700.0,
+    "maxy": 7406900.0
+  },
+  "size_m": {
+    "x": 1400.0,
+    "y": 1400.0
+  },
+  "vertical_datum": "approximately mean sea level (GA GBR 30 m model)",
+  "elevation_units": "metres (negative = below the datum)",
+  "elevation_min_m": -37.469,
+  "elevation_max_m": -0.038,
+  "heightmaps": [
+    {
+      "file": "height_257.u16",
+      "preview": "height_257.png",
+      "width": 257,
+      "height": 257,
+      "encoding": "uint16 little-endian, row-major, row 0 = north"
+    },
+    {
+      "file": "height_129.u16",
+      "preview": "height_129.png",
+      "width": 129,
+      "height": 129,
+      "encoding": "uint16 little-endian, row-major, row 0 = north"
+    }
+  ],
+  "texture": {
+    "file": "texture.jpg",
+    "width": 1024,
+    "height": 1024,
+    "coverage": 1.0,
+    "source_meta": {
+      "crs": "EPSG:32756",
+      "res": [
+        10.0,
+        10.0
+      ],
+      "nodata": 0.0,
+      "dtype": "uint8",
+      "count": 3
+    }
+  },
+  "measured_fraction": 1.0,
+  "dem_source_meta": {
+    "crs": "EPSG:4326",
+    "res": [
+      0.00029999999999999856,
+      0.00029999999999999965
+    ],
+    "nodata": -9999.0,
+    "dtype": "float32",
+    "count": 1
+  },
+  "derivation": {
+    "elevation": "Resampled (bilinear) from the measured DEM onto this grid; gaps filled by inverse-distance interpolation (rasterio fillnodata) and flagged 0 in measured.png.",
+    "texture": "Resampled (area average) from the source imagery onto the same grid. No synthetic pixels."
+  },
+  "sources": [
+    {
+      "role": "elevation",
+      "label": "High-resolution depth model for the Great Barrier Reef, 30 m (2020 release, grid C)",
+      "citation": "Beaman, R.J., 2017. High-resolution depth model for the Great Barrier Reef - 30 m. Geoscience Australia, Canberra. Version 10 Nov 2020.",
+      "doi": "https://doi.org/10.4225/25/5a207b36022d2",
+      "url": "http://pid.geoscience.gov.au/dataset/ga/115066",
+      "license": "Creative Commons Attribution 4.0 International",
+      "attribution": "Geoscience Australia / R.J. Beaman (James Cook University)",
+      "crs": "WGS 84 (EPSG:4326), 0.0003 degree grid",
+      "vertical_datum": "approximately mean sea level, metres",
+      "note": "Not to be used for navigation.",
+      "provenance": "measured"
+    },
+    {
+      "role": "texture",
+      "label": "Copernicus Sentinel-2 L2A true colour (TCI), 10 m, scene S2C_56KLV_20250804_0_L2A",
+      "url": "https://registry.opendata.aws/sentinel-2-l2a-cogs/",
+      "license": "Copernicus Sentinel data terms: free, full and open access, including redistribution and modification",
+      "attribution": "Contains modified Copernicus Sentinel data 2025",
+      "provenance": "measured"
+    }
+  ]
+}

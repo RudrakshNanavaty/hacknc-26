@@ -1,0 +1,82 @@
+{
+  "site": "florida-keys",
+  "generated": "2026-10-10T20:42:40+00:00",
+  "crs": "EPSG:6346",
+  "bounds": {
+    "minx": 414700.0,
+    "miny": 2705515.0,
+    "maxx": 414760.0,
+    "maxy": 2705575.0
+  },
+  "size_m": {
+    "x": 60.0,
+    "y": 60.0
+  },
+  "vertical_datum": "NAVD88",
+  "elevation_units": "metres (negative = below the datum)",
+  "elevation_min_m": -8.286,
+  "elevation_max_m": -3.103,
+  "heightmaps": [
+    {
+      "file": "height_1025.u16",
+      "preview": "height_1025.png",
+      "width": 1025,
+      "height": 1025,
+      "encoding": "uint16 little-endian, row-major, row 0 = north"
+    },
+    {
+      "file": "height_513.u16",
+      "preview": "height_513.png",
+      "width": 513,
+      "height": 513,
+      "encoding": "uint16 little-endian, row-major, row 0 = north"
+    },
+    {
+      "file": "height_129.u16",
+      "preview": "height_129.png",
+      "width": 129,
+      "height": 129,
+      "encoding": "uint16 little-endian, row-major, row 0 = north"
+    }
+  ],
+  "texture": null,
+  "measured_fraction": 0.995,
+  "dem_source_meta": {
+    "crs": "EPSG:6346",
+    "res": [
+      0.01,
+      0.01
+    ],
+    "nodata": -32767.0,
+    "dtype": "float32",
+    "count": 1
+  },
+  "derivation": {
+    "elevation": "Resampled (bilinear) from the measured DEM onto this grid; gaps filled by inverse-distance interpolation (rasterio fillnodata) and flagged 0 in measured.png.",
+    "texture": null
+  },
+  "sources": [
+    {
+      "role": "elevation",
+      "label": "SQUID-5 bathymetric DEM, 1 cm, Eastern Dry Rocks (Florida Keys), May 2021",
+      "citation": "Hatcher, G.A., Kranenburg, C.J., Warrick, J.A., Bosse, S.T., Zawada, D.G., Yates, K.K., Johnson, S.A., 2022, Overlapping seabed images and location data acquired using the SQUID-5 system at Eastern Dry Rocks coral reef, Florida, in May 2021, with derived point cloud, digital elevation model and orthomosaic of submerged topography: U.S. Geological Survey data release",
+      "doi": "https://doi.org/10.5066/P93RIIG9",
+      "url": "https://cmgds.marine.usgs.gov/data-releases/datarelease/10.5066-P93RIIG9/",
+      "license": "Public domain (USGS). Freely redistributable with metadata and source attribution.",
+      "attribution": "U.S. Geological Survey",
+      "crs": "NAD83(2011) / UTM zone 17N (EPSG:6346)",
+      "vertical_datum": "NAVD88, metres",
+      "accuracy": "SfM model error < 3 cm horizontal, < 4 cm vertical (metadata)",
+      "provenance": "measured"
+    },
+    {
+      "role": "texture",
+      "label": "SQUID-5 orthomosaic, 5 mm, Eastern Dry Rocks (Florida Keys), May 2021",
+      "doi": "https://doi.org/10.5066/P93RIIG9",
+      "url": "https://cmgds.marine.usgs.gov/data-releases/datarelease/10.5066-P93RIIG9/",
+      "license": "Public domain (USGS). Freely redistributable with metadata and source attribution.",
+      "attribution": "U.S. Geological Survey",
+      "provenance": "measured"
+    }
+  ]
+}

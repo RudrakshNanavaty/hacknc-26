@@ -33,3 +33,19 @@ WITH NO DATA;
 SELECT add_continuous_aggregate_policy('reef_hourly',
   start_offset => INTERVAL '30 days', end_offset => INTERVAL '1 hour',
   schedule_interval => INTERVAL '5 minutes', if_not_exists => TRUE);
+
+-- Devices placed on the real-terrain reefs: where (projected coordinates) and what (the design).
+CREATE TABLE IF NOT EXISTS deployments (
+  id          uuid             PRIMARY KEY,
+  reef        text             NOT NULL,
+  player_id   text             NOT NULL,
+  name        text             NOT NULL,
+  easting     double precision NOT NULL,
+  northing    double precision NOT NULL,
+  crs         text             NOT NULL,
+  elevation   double precision NOT NULL,
+  slope_deg   double precision NOT NULL,
+  design      jsonb            NOT NULL,
+  updated_at  timestamptz      NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS deployments_reef ON deployments (reef, updated_at DESC);

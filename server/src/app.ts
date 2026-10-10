@@ -3,6 +3,7 @@ import { REEFS, isReefId } from '@shared';
 import { type ExperimentStore, MemoryStore } from './db/store';
 import { BadExperiment, buildExperiment } from './experiments';
 import { registerHeat } from './heat';
+import { type DeploymentStore, MemoryDeployments, registerDeployments } from './deployments';
 import { lanAddresses } from './net';
 import { roomServer } from './roomSocket';
 import { type Gemini, gemini as defaultGemini } from './ai/gemini';
@@ -11,18 +12,21 @@ import { registerVoice, voiceReady } from './voice';
 export interface ServerOptions {
   /** Where experiments go. Defaults to memory. */
   store?: ExperimentStore;
+  /** Where deployed devices go. Defaults to memory. */
+  deployments?: DeploymentStore;
   gemini?: Gemini;
 }
 
 const RECENT_LIMIT = 20;
 
 /** Builds the server without listening, so tests can inject requests. */
-export function buildServer({ store = new MemoryStore(), gemini = defaultGemini }: ServerOptions = {}) {
+export function buildServer({ store = new MemoryStore(), deployments = new MemoryDeployments(), gemini = defaultGemini }: ServerOptions = {}) {
   const app = Fastify({ logger: { level: process.env.LOG_LEVEL ?? 'info' } });
 
   app.get('/api/health', async () => ({ ok: true, voice: voiceReady(), ai: gemini.ready(), store: store.kind }));
   registerVoice(app);
   registerHeat(app);
+  registerDeployments(app, deployments);
 
   // Where phones join a room: PUBLIC_URL (our domain or a tunnel) when set, else this machine's LAN
   // address. The page adds its own port, since in development it is served by Vite, not here.
