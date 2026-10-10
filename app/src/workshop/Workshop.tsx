@@ -209,7 +209,7 @@ export function Workshop({ reef, seed, corner, primary, onTest, readOnly: locked
               <div className="h-full rounded-full transition-[width]" style={{ width: `${Math.min(100, (material / MATERIAL_BUDGET) * 100)}%`, background: material > MATERIAL_BUDGET * 0.9 ? 'linear-gradient(90deg,#ffb36b,#ff6b5a)' : 'linear-gradient(90deg,#9be85a,#36c1ef)' }} />
             </div>
             <div className="mt-2 flex items-center justify-between gap-2">
-              <span className="text-13 text-white/80">{pieces.length} piece{pieces.length === 1 ? '' : 's'}, 0.5 mm voxels</span>
+              <span className="text-13 text-white/80" title="1 voxel = 0.5 mm">{pieces.length} piece{pieces.length === 1 ? '' : 's'}</span>
               <button className="btn min-h-10 px-3" aria-expanded={menu} aria-haspopup="dialog" onClick={() => setMenu((m) => !m)}>{Icon.save}<span>Designs</span></button>
             </div>
           </div>
