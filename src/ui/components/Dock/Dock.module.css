@@ -2,13 +2,14 @@
   display: flex;
   align-items: flex-end;
   gap: var(--sp-2);
-  height: var(--dock-h);
-  padding: var(--sp-1) var(--sp-4) var(--sp-1);
+  padding: var(--sp-1) var(--sp-4);
   border-radius: var(--r-lg) var(--r-lg) 0 0;
   background: linear-gradient(180deg, var(--glass-bg-strong), var(--glass-bg));
   border: var(--glass-border);
   border-bottom: none;
   box-shadow: var(--shadow-dock);
+  padding-bottom: calc(var(--sp-1) + env(safe-area-inset-bottom, 0px));
+  height: calc(var(--dock-h) + env(safe-area-inset-bottom, 0px));
 }
 
 .primary {
@@ -27,6 +28,9 @@
   color: var(--c-ink-700);
   cursor: pointer;
   border-radius: var(--r-md);
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .item:focus-visible {
@@ -45,8 +49,14 @@
   transition: transform var(--dur-fast) var(--ease-aero);
 }
 
-.item:hover:not(:disabled) .icon {
-  transform: scale(1.15);
+@media (hover: hover) and (pointer: fine) {
+  .item:hover:not(:disabled) .icon {
+    transform: scale(1.15);
+  }
+}
+
+.item:active:not(:disabled) .icon {
+  transform: scale(var(--press-scale));
 }
 
 .label {

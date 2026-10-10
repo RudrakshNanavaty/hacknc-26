@@ -17,6 +17,7 @@ import { Modal } from "../components/Modal/Modal";
 import { OnboardingOverlay } from "../components/OnboardingOverlay/OnboardingOverlay";
 import { Toast } from "../components/Toast/Toast";
 import { BenchmarkView } from "../views/BenchmarkView";
+import { LeaderboardView } from "../views/LeaderboardView";
 import { PresetPicker } from "../views/PresetPicker";
 import { RecordsView } from "../views/RecordsView";
 import { RecordView } from "../views/RecordView";
@@ -39,7 +40,7 @@ function useIsMobile() {
   return m;
 }
 
-type Sheet = "none" | "records" | "record" | "presets" | "results" | "benchmark";
+type Sheet = "none" | "records" | "record" | "presets" | "results" | "benchmark" | "leaderboard";
 
 export function AppShell() {
   const mobile = useIsMobile();
@@ -137,6 +138,7 @@ export function AppShell() {
     { id: "save", label: "Save", icon: "save", onClick: save, disabled: !s.record, tone: "leaf", shortcut: "Ctrl+S" },
     { id: "records", label: "Compare", icon: "records", onClick: () => setSheet("records") },
     { id: "record", label: "Record", icon: "file", onClick: () => setSheet("record"), disabled: !s.record },
+    { id: "leaderboard", label: "Leaderboard", icon: "trophy", onClick: () => setSheet("leaderboard"), tone: "sun" },
     { id: "help", label: "Help", icon: "help", onClick: () => s.set({ onboarding: 1 }), tone: "sun", shortcut: "?" },
   ];
   const mobileItems: DockItem[] = [
@@ -207,6 +209,11 @@ export function AppShell() {
       {sheet === "records" && (
         <Modal title="Saved designs" onClose={() => setSheet("none")} wide>
           <RecordsView onLoad={loadRecord} onError={(m) => s.notify(m, "fail")} />
+        </Modal>
+      )}
+      {sheet === "leaderboard" && (
+        <Modal title="Beat the Recess · leaderboard" onClose={() => setSheet("none")} wide>
+          <LeaderboardView profile={profile} onLoad={loadProfile} />
         </Modal>
       )}
       {sheet === "record" && s.record && (

@@ -15,6 +15,7 @@ export function useRunner() {
   const run = useCallback((p: Profile, s: number) => {
     const set = useApp.getState().set;
     lastProgress.current = -1;
+    const t0 = performance.now();
     set({ status: "running", progress: 0, stage: "flow", error: null });
     startRun(p, appConfig(s), {
       onProgress(step, total, stage) {
@@ -24,6 +25,7 @@ export function useRunner() {
         set({ progress: step / total, ...(stage ? { stage } : {}) });
       },
       onDone(record) {
+        if (import.meta.env.DEV) console.debug(`[run] ${p.name} seed ${s}: ${Math.round(performance.now() - t0)} ms`);
         set({ record, stale: false, status: "done", progress: 1 });
       },
       onError(message) {

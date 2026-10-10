@@ -1,7 +1,7 @@
 .toast {
   position: fixed;
   left: 50%;
-  bottom: calc(var(--dock-h) + var(--sp-8));
+  bottom: calc(var(--dock-h) + var(--sp-8) + env(safe-area-inset-bottom, 0px));
   z-index: var(--z-toast);
   transform: translateX(-50%);
   padding: var(--sp-2) var(--sp-4);
@@ -27,15 +27,16 @@
   border-left: var(--sp-1) solid var(--c-coral-500);
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  :root:not([data-reduced-motion="true"]) .toast {
-    animation: rise var(--dur-med) var(--ease-aero);
-  }
+/* Transitions + @starting-style, not keyframes: toasts can arrive rapidly and must retarget. */
+.toast {
+  transition:
+    opacity var(--dur-med) var(--ease-aero),
+    transform var(--dur-med) var(--ease-aero);
 }
 
-@keyframes rise {
-  from {
+@starting-style {
+  .toast {
     opacity: 0;
-    transform: translate(-50%, var(--sp-2));
+    transform: translate(-50%, var(--enter-shift));
   }
 }

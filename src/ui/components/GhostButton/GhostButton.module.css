@@ -10,15 +10,21 @@
   font-family: var(--font-ui);
   font-weight: 600;
   cursor: pointer;
-  transition: transform var(--dur-fast) var(--ease-aero);
+  transition: transform var(--dur-fast) var(--ease-aero), background-color var(--dur-fast) ease;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
-.button:hover:not(:disabled) {
-  background: var(--c-aqua-100);
+@media (hover: hover) and (pointer: fine) {
+  .button:hover:not(:disabled) {
+    background: var(--c-aqua-100);
+  }
 }
 
 .button:active:not(:disabled) {
-  transform: translateY(1px);
+  transform: scale(var(--press-scale));
+  background: var(--c-aqua-100);
 }
 
 .button:focus-visible {

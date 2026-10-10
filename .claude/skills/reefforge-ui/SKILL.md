@@ -53,6 +53,8 @@ ReefForge looks like **a marine-science workstation from an alternate 2007**: Le
 **Baseline bars always use the same order and colors:** flat `--c-ink-400`, ridge `--c-aqua-400`, recess `--c-aqua-700`, yours `--c-sun-500`.
 
 ## Motion
+Motion and touch details follow Emil Kowalski's skills (https://github.com/emilkowalski/skills: `emil-design-eng`, `review-animations`, `mobile-native`). Concretely: strong ease-out `--ease-aero`, UI under 300 ms, `:active` → `scale(var(--press-scale))` on every pressable, hover gated behind `@media (hover: hover) and (pointer: fine)`, enter with `@starting-style` transitions (not keyframes), never `scale(0)`, and reduced motion keeps fades but drops movement.
+
 - Use `--dur-fast` 120 ms for hover and press, `--dur-med` 220 ms for panels and sheets, and `--dur-slow` 400 ms for score count-ups.
 - Easing is always `--ease-aero`.
 - Wrap all decorative motion (bubbles, sheen sweeps, caustics) in `@media (prefers-reduced-motion: no-preference)`, and respect the in-app toggle (`data-reduced-motion`).

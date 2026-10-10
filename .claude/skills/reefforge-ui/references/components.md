@@ -36,10 +36,11 @@ Status key: ☐ planned · ◐ in progress · ✅ done. Change the status as you
 | `BaselineBars` | ✅ | `flat`, `ridge`, `recess`, `yours` | Fixed order and fixed colors (see SKILL.md). |
 | `BenchmarkBadge` | ✅ | `status`, `ciText` | Clicking it opens `AssumptionsList`. |
 | `AssumptionsList` | ✅ | `items: string[]` | Fed from `ExperimentRecord.assumptions`. |
-| `CriticCard` | ☐ (stretch, not built) | `text`, `loading` | Gemini output. Always labeled "AI explanation". |
+| `CriticCard` | ✅ | `text`, `loading` | Gemini output. Always labeled "AI explanation". |
 
 ## Overlays
 | Component | Status | Props / variants | Notes |
 |---|---|---|---|
+| `LeaderboardView` | ✅ | `profile`, `onLoad` | Local "Beat the Recess" board inside a `Modal`; surface-budget meter, 5-seed evaluation in a second worker. |
 | `Modal` | ✅ | `title`, `onClose`, `wide?` | Centered dialog over a scrim; Escape / scrim click closes. Hosts presets, records, benchmark, onboarding and mobile results. |
 | `OnboardingOverlay` | ✅ | `step` | 3 steps: what you see, what the score means, why to trust it. |

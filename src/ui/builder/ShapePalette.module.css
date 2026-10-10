@@ -17,14 +17,18 @@
   font-family: var(--font-ui);
   cursor: pointer;
   transition: transform var(--dur-fast) var(--ease-aero);
+  user-select: none;
+  -webkit-user-select: none;
 }
 
-.tool:hover {
-  background: var(--glass-bg-strong);
+@media (hover: hover) and (pointer: fine) {
+  .tool:hover {
+    background: var(--glass-bg-strong);
+  }
 }
 
 .tool:active {
-  transform: translateY(1px);
+  transform: scale(var(--press-scale));
 }
 
 .tool:focus-visible {

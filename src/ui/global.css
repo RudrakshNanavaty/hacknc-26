@@ -11,6 +11,18 @@ body,
   height: 100%;
 }
 
+html {
+  -webkit-tap-highlight-color: transparent; /* we provide our own :active feedback */
+  -webkit-text-size-adjust: 100%;
+  overscroll-behavior: none; /* an app, not a document: no pull-to-refresh over the sim */
+}
+
+button,
+a,
+[role="button"] {
+  touch-action: manipulation; /* no double-tap-zoom wait */
+}
+
 body {
   font-family: var(--font-ui);
   color: var(--c-ink-900);

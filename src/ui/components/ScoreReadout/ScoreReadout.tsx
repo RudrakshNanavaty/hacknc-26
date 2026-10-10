@@ -2,6 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import { useApp } from "../../../state/store";
 import styles from "./ScoreReadout.module.css";
 
+const durSlowMs = () =>
+  parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--dur-slow")) || 0;
+
 /** The largest number on screen. Counts up over --dur-slow (instant with reduced motion). */
 export function ScoreReadout({
   pct,
@@ -20,7 +23,8 @@ export function ScoreReadout({
 
   useEffect(() => {
     if (pct === null) return;
-    if (reduced) {
+    const duration = durSlowMs();
+    if (reduced || duration === 0) {
       setShown(pct);
       from.current = pct;
       return;
@@ -29,7 +33,7 @@ export function ScoreReadout({
     const a = from.current;
     let raf = 0;
     const tick = (now: number) => {
-      const t = Math.min(1, (now - start) / 400);
+      const t = Math.min(1, (now - start) / duration);
       const e = 1 - (1 - t) ** 3;
       setShown(a + (pct - a) * e);
       if (t < 1) raf = requestAnimationFrame(tick);

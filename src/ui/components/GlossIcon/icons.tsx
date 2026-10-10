@@ -21,6 +21,7 @@ const paths = {
   presets: <path d="M4 5h7v6H4zM13 5h7v6h-7zM4 13h7v6H4zM13 13h7v6h-7z" />,
   results: <path d="M5 20V10M12 20V4M19 20v-7" />,
   file: <path d="M6 3h8l4 4v14H6zM14 3v4h4" />,
+  trophy: <path d="M8 4h8v5a4 4 0 0 1-8 0zM8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M9 21h6M10 17h4" />,
 } as const;
 
 export type IconName = keyof typeof paths;

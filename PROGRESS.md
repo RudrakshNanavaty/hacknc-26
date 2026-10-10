@@ -18,6 +18,9 @@ Update this file every time you merge. Add one line per change, newest first. Ag
 | solo | build/phase-b | — |
 
 ## Done (newest first)
+- Stretch: local "Beat the Recess" leaderboard (5 fixed seeds, 54 mm surface budget, second worker) — exercised end to end in the browser (D-017).
+- Stretch: Gemini critic card with grounding check; tested against a stubbed fetch; live call needs your key in `.env.local` (D-016).
+- Polish: motion/touch pass per Emil Kowalski's skills (D-019); worker scheduling + persistent flow cache + preset pre-warm (D-018).
 - Benchmark: held-out recess run → FAIL, reported with diagnosis in docs/VERIFICATION.md; regression snapshot written.
 - Docs: SCIENCE.md modelling table and source statuses filled in; component catalog statuses updated.
 - UI: Frutiger Aero shell (ChallengeBar, Shapes palette, SimView canvas, Metrics panel, Dock), onboarding, presets, save/compare/import/export of records, record view with re-run, benchmark view, decorative R3F backdrop + extrusion, mobile layout.
@@ -27,10 +30,10 @@ Update this file every time you merge. Add one line per change, newest first. Ag
 - Phase A spec: `docs/PHASE_A.md`.
 
 ## Stretch board (only after H16, in this order)
-1. "Beat the Recess" async leaderboard — not started
-2. Gemini propose → simulate → revise loop (iteration-capped) — not started (critic itself also not built)
+1. "Beat the Recess" leaderboard — ✅ local-only (D-017)
+2. Gemini critic — ✅ (D-016); propose → simulate → revise loop — not started
 
 ## Open risks
-- Interactive run of a new geometry takes about 7 s, against the 3 s budget (D-013).
+- Interactive run of a new geometry takes about 7 s in Node timing, and about 3× longer in an unfocused Chrome tab (D-013, D-018). Re-measure on the demo laptop with the tab focused.
 - The speed gate barely binds at the frozen value, so attachment is mostly a per-encounter probability (D-014).
 - The recess hypothesis has no mm-scale empirical source (PHASE_A §1).

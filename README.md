@@ -36,11 +36,12 @@ npm run benchmark -- heldout         # 30-seed recess test → benchmark/results
 npm run benchmark:regress            # same seed → same output
 ```
 
-Optional environment variables, set in `.env.local` (never commit them):
+Optional environment variables, set in `.env.local` (already created, gitignored; never commit it):
 
 ```
 VITE_USE_MOCK_SIM=false   # true = fixture-driven mock worker for UI work
-VITE_GEMINI_API_KEY=...   # Gemini critic (stretch, not built); the app works without it
+VITE_GEMINI_API_KEY=...   # Gemini critic; the card is hidden without it
+VITE_GEMINI_MODEL=gemini-3.8-flash   # optional override
 ```
 
 ---

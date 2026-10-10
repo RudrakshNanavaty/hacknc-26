@@ -44,6 +44,8 @@
 | Compare | Point at the **Compared with baselines** bars: Flat / Ridge / Recess / **Yours** (sun color). |
 | Benchmark | Click the **Benchmark** badge (top right). Show the prediction, the pass rule, the CI, and "what this does not show". |
 | Record | Dock → **Record**. Show seed, parameters and version, then **Re-run from this record**. The result is the same number. |
+| Critic (optional) | Metrics → **Explain this result**. Point out the "AI explanation" label and that scores come from the simulator. Skip this if no key is set (the card is hidden). |
+| Leaderboard | Dock → **Leaderboard**. Show the surface budget meter, submit a design, point at "below/≈/beats" with its CI. |
 | Future | Closing slide only. There is no button for it. |
 
 Shortcuts: `1–4` tools · `Ctrl+Z / Ctrl+Y` undo/redo · `Enter` or `R` re-run · `F` flow arrows · `Ctrl+S` save · `?` help.

@@ -46,6 +46,13 @@
 - UI checked at 1291×565 and in a 390 px frame. Not yet checked on a 1920×1080 projector or a real phone.
 - The canvas is not keyboard-operable for building (mouse only, as scoped). Shortcuts select tools and run.
 
+## Stretch features built after the core
+| Feature | Status | Evidence |
+|---|---|---|
+| Gemini critic | ✅ code + tests; **live call untested** (no key in this session) | `tests/critic-request.test.ts` (stubbed fetch: header auth, JSON schema, error path, grounding flag); hidden when no key |
+| Local leaderboard | ✅ exercised in browser | flat + 1 recess → 18.8% [17.8, 19.7] on seeds 201–205, "below recess"; delete works |
+| Persistent flow cache / pre-warm | ✅ | `benchmark:regress` still OK (bit-identical) |
+
 ## Not built
-- Gemini critic and agent loop (stretch). "Beat the Recess" leaderboard (stretch). BottomSheet: mobile uses a modal instead. Potential-flow fallback: not needed, since the LBM passed H6.
+- Gemini propose→simulate→revise agent loop (stretch). BottomSheet: mobile uses a modal instead. Potential-flow fallback: not needed, since the LBM passed H6.
 - Out of scope per D-001: multiplayer, auth, social, native apps, touch building, 3D CFD.

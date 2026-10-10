@@ -60,9 +60,15 @@
   cursor: pointer;
 }
 
-.close:hover {
-  background: var(--c-coral-200);
-  color: var(--c-coral-700);
+@media (hover: hover) and (pointer: fine) {
+  .close:hover {
+    background: var(--c-coral-200);
+    color: var(--c-coral-700);
+  }
+}
+
+.close:active {
+  transform: scale(var(--press-scale));
 }
 
 .close:focus-visible {
@@ -77,15 +83,21 @@
   line-height: 1.5;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  :root:not([data-reduced-motion="true"]) .dialog {
-    animation: pop var(--dur-med) var(--ease-aero);
-  }
+/* Modals stay centered (origin: center) and enter from 0.96 + opacity, never scale(0). */
+.dialog,
+.scrim {
+  transition:
+    opacity var(--dur-med) var(--ease-aero),
+    transform var(--dur-med) var(--ease-aero);
 }
 
-@keyframes pop {
-  from {
+@starting-style {
+  .dialog {
     opacity: 0;
-    transform: scale(0.97);
+    transform: scale(var(--enter-scale));
+  }
+
+  .scrim {
+    opacity: 0;
   }
 }

@@ -91,10 +91,14 @@
   --dock-h: 64px;
 
   /* ---------- Motion ---------- */
-  --dur-fast: 120ms;
-  --dur-med: 220ms;
-  --dur-slow: 400ms;
-  --ease-aero: cubic-bezier(0.22, 0.8, 0.3, 1);
+  --dur-fast: 140ms;  /* press feedback, hover */
+  --dur-med: 200ms;   /* panels, dialogs, toasts entering */
+  --dur-slow: 280ms;  /* score count-up, bar growth (kept under 300 ms) */
+  --dur-exit: 120ms;  /* exits are faster than enters */
+  --ease-aero: cubic-bezier(0.23, 1, 0.32, 1); /* strong ease-out (emil-design-eng) */
+  --press-scale: 0.97;  /* :active feedback on every pressable */
+  --enter-scale: 0.96;  /* dialogs enter from here + opacity, never scale(0) */
+  --enter-shift: 8px;   /* toasts rise this far */
 
   /* ---------- Z layers ---------- */
   --z-scene: 0;
@@ -106,8 +110,10 @@
   --z-modal: 60;
 }
 
+/* Reduced motion = fewer, gentler animations, not zero: keep fades, drop movement. */
 [data-reduced-motion="true"] {
-  --dur-fast: 0ms;
-  --dur-med: 0ms;
   --dur-slow: 0ms;
+  --press-scale: 1;
+  --enter-scale: 1;
+  --enter-shift: 0px;
 }

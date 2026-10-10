@@ -5,6 +5,7 @@ import { DEFAULT_GRID } from "../../../sim/params";
 import { useApp } from "../../../state/store";
 import { AssumptionsList } from "../AssumptionsList/AssumptionsList";
 import { BaselineBars } from "../BaselineBars/BaselineBars";
+import { CriticCard } from "../CriticCard/CriticCard";
 import { GhostButton } from "../GhostButton/GhostButton";
 import { ScoreReadout } from "../ScoreReadout/ScoreReadout";
 import { Toggle } from "../Toggle/Toggle";
@@ -50,6 +51,12 @@ export function MetricsPanel({ showExtrusion = true }: { showExtrusion?: boolean
               : "Calibration not frozen yet: scores are provisional."}
         </p>
       </section>
+
+      {record && !stale && status !== "running" && (
+        <section className={styles.section}>
+          <CriticCard record={record} />
+        </section>
+      )}
 
       <section className={styles.section}>
         <h3 className={styles.h}>Run</h3>

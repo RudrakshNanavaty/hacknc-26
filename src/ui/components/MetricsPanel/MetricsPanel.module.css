@@ -67,6 +67,12 @@ summary.h {
   color: var(--c-ink-900);
 }
 
+@media (pointer: coarse) {
+  .seed input {
+    font-size: 16px; /* below 16px iOS zooms the page on focus */
+  }
+}
+
 .seed input:focus-visible {
   outline: none;
   box-shadow: var(--focus-ring);

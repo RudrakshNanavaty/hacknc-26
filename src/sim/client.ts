@@ -67,3 +67,46 @@ export function subscribeFrames(l: FrameListener): () => void {
 }
 
 export const isMockSim = useMock;
+
+/**
+ * Evaluate one profile on several seeds in a dedicated worker, so a leaderboard
+ * evaluation never cancels (or is cancelled by) the interactive run.
+ */
+let evalWorker: SimWorkerLike | null = null;
+let evalCounter = 0;
+
+export async function evaluateSeeds(
+  profile: Profile,
+  configs: SimConfig[],
+  onSeedDone: (done: number, total: number) => void,
+  signal?: AbortSignal,
+): Promise<ExperimentRecord[]> {
+  evalWorker ??= createWorker();
+  const w = evalWorker;
+  const records: ExperimentRecord[] = [];
+  for (const config of configs) {
+    if (signal?.aborted) throw new Error("Evaluation cancelled");
+    const runId = `eval-${++evalCounter}`;
+    const record = await new Promise<ExperimentRecord>((resolve, reject) => {
+      const onAbort = () => {
+        w.postMessage({ type: "cancel", runId });
+        reject(new Error("Evaluation cancelled"));
+      };
+      signal?.addEventListener("abort", onAbort, { once: true });
+      w.onmessage = ({ data }: { data: WorkerResponse }) => {
+        if (data.runId !== runId) return;
+        if (data.type === "done") {
+          signal?.removeEventListener("abort", onAbort);
+          resolve(data.record);
+        } else if (data.type === "error") {
+          signal?.removeEventListener("abort", onAbort);
+          reject(new Error(data.message));
+        }
+      };
+      w.postMessage({ type: "run", runId, profile, config });
+    });
+    records.push(record);
+    onSeedDone(records.length, configs.length);
+  }
+  return records;
+}

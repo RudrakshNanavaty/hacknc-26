@@ -12,6 +12,14 @@
   cursor: pointer;
   box-shadow: var(--shadow-button);
   white-space: nowrap;
+  transition: transform var(--dur-fast) var(--ease-aero);
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.badge:active {
+  transform: scale(var(--press-scale));
 }
 
 .badge:focus-visible {
