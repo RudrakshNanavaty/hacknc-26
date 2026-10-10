@@ -17,8 +17,10 @@
   --coral: #ff7a6b;
   --lilac: #b79cff;
 
-  --font-display: "Nunito", "Segoe UI", "Frutiger", system-ui, sans-serif;
-  --font-body: "Nunito Sans", "Segoe UI", "Frutiger", system-ui, sans-serif;
+  /* Geist for all UI and data; Nunito only for the ReefForge wordmark. */
+  --font-display: "Geist Variable", system-ui, sans-serif;
+  --font-body: "Geist Variable", system-ui, sans-serif;
+  --font-brand: "Nunito", system-ui, sans-serif;
 
   --focus-ring: 0 0 0 3px var(--white), 0 0 0 6px var(--aqua);
 }
@@ -39,6 +41,7 @@
 
   --font-display: var(--font-display);
   --font-body: var(--font-body);
+  --font-brand: var(--font-brand);
 
   /* Type scale (px): text-13 ... text-72. */
   --text-13: 13px;

@@ -137,7 +137,7 @@ export function Landing() {
           <div className="glass flex items-center gap-3 px-4 py-2.5">
             <span className="orb h-10 w-10 shrink-0" aria-hidden />
             <div>
-              <h1 className="font-display text-32 leading-none font-black text-ink">
+              <h1 className="font-brand text-32 leading-none font-black text-ink">
                 Reef<span className="text-aqua-deep">Forge</span>
               </h1>
               <p className="text-13 font-semibold text-ink/80">Build for fun. Discover for real.</p>
