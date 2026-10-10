@@ -345,10 +345,20 @@ export function Explore({ reef: id }: { reef: ReefId }) {
         <section className="glass absolute top-24 right-2 max-h-[70vh] w-80 max-w-[calc(100vw-1rem)] overflow-y-auto p-4 text-15 sm:right-4" aria-label="What is real here">
           <h2 className="font-display text-24 font-black">What’s real here</h2>
           <p className="mt-1 text-13 text-ink/75">{style.resolution}</p>
-          <p className="mt-2 font-bold">Measured <ProvenanceTag p="measured" /></p>
-          <ul className="mt-1 list-disc space-y-1 pl-5">{style.real.map((t) => <li key={t}>{t}</li>)}</ul>
-          <p className="mt-2 font-bold">Generated (artwork)</p>
-          <ul className="mt-1 list-disc space-y-1 pl-5">{style.generated.map((t) => <li key={t}>{t}</li>)}</ul>
+          {(() => {
+            // The panel follows the files actually loaded: no imagery file means generated colours.
+            const imagery = /orthomosaic|Sentinel|colours/i;
+            const real = terrain.meta.texture ? style.real : style.real.filter((t) => !imagery.test(t));
+            const generated = terrain.meta.texture ? style.generated : ['Seabed colours (the real imagery is not loaded for this world yet)', ...style.generated];
+            return (
+              <>
+                <p className="mt-2 font-bold">Measured <ProvenanceTag p="measured" /></p>
+                <ul className="mt-1 list-disc space-y-1 pl-5">{real.map((t) => <li key={t}>{t}</li>)}</ul>
+                <p className="mt-2 font-bold">Generated (artwork)</p>
+                <ul className="mt-1 list-disc space-y-1 pl-5">{generated.map((t) => <li key={t}>{t}</li>)}</ul>
+              </>
+            );
+          })()}
           <p className="mt-2 text-13">
             Survey window: {terrain.meta.crs}, {terrain.meta.size_m.x} × {terrain.meta.size_m.y} m, elevation {terrain.meta.elevation_min_m} to {terrain.meta.elevation_max_m} m ({terrain.meta.vertical_datum}). {(terrain.meta.measured_fraction * 100).toFixed(1)}% measured.
           </p>
