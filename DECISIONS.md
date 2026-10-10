@@ -19,6 +19,14 @@ Log every non-obvious choice. Use this format: **ID · decision · why · altern
 ---
 <!-- add new decisions below -->
 
+**D-021 · ReefForge 2.0 uses explicit Build / Simulate / Results modes.** Mission comparisons pair full experiment records under the same seed and conditions. Fabricated surface length is the build allowance, not physical mass. Numerical scoring and the frozen benchmark remain unchanged. User-requested gameplay architecture supersedes the old auto-run layout. · solo
+
+**D-022 · Playwright is a development-only browser test dependency.** The browser connector has no connected browser; local Chromium automation provides executable UI checks and screenshot artifacts. No new runtime dependency or backend. · solo
+
+**D-023 · Current Clash pairs reference 4.5 cm/s with exploratory 3 cm/s forcing.** Scale lattice and physical velocities together; dt, viscosity, period, calibration and biological rules stay fixed. Gate on the minimum paired gain. No benchmark files changed. Correct the pipeline's previously hardcoded condition assumption string to use its existing physical mapping; this metadata defect would otherwise mislabel alternate environments. · solo
+
+**D-024 · Cap absolute shaped area at 30 mm² as well as 54 mm exposed surface.** An entirely lifted periodic bed costs no extra exposed wall length. Charging both added and excavated area closes that loophole and preserves all four reference presets. Area is sum(abs(height) × width) × cellSize², not volume or mass. The two visible limits apply to all edit/import/preset/history paths. · solo
+
 **D-007 · Solo build: one person owns all four streams.** Stream folder boundaries are kept for code organization. Every review step (contracts, `benchmark/`, tokens) becomes a self-review against the written checklists, and the result gets logged in `PROGRESS.md`. *Why:* the team is one person. *Rejected:* rewriting the team-process docs, which stay valid if others join. · solo
 
 **D-008 · The Next.js 16 / Tailwind / shadcn / bun scaffold was replaced with the stack in `docs/ARCHITECTURE.md`** (Vite, React 18, strict TS, npm). *Why:* the team docs are the source of truth, and a client-only sim app gets nothing from SSR. *Rejected:* keeping Next.js with a client-only page. · solo

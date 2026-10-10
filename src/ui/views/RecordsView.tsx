@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import type { ExperimentRecord } from "../../contracts";
+import type { MissionAttempt } from "../../experiment/missions";
 import { deleteRecord, exportRecordJson, listRecords, parseRecord, type SavedRecord } from "../../experiment/storage";
 import { GhostButton } from "../components/GhostButton/GhostButton";
 import styles from "./views.module.css";
 
 /** Saved designs side by side, with load / export / delete / import. */
-export function RecordsView({ onLoad, onError }: { onLoad(r: ExperimentRecord): void; onError(msg: string): void }) {
+export function RecordsView({ onLoad, onError }: { onLoad(r: ExperimentRecord, mission?: MissionAttempt): void; onError(msg: string): void }) {
   const [items, setItems] = useState<SavedRecord[] | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const refresh = () => listRecords().then(setItems, () => setItems([]));
@@ -49,7 +50,7 @@ export function RecordsView({ onLoad, onError }: { onLoad(r: ExperimentRecord): 
                 <td>{it.record.results.normalizedScore?.toFixed(1) ?? "—"}</td>
                 <td>{it.record.config.seed}</td>
                 <td className={styles.rowActions}>
-                  <GhostButton size="sm" onClick={() => onLoad(it.record)}>
+                  <GhostButton size="sm" onClick={() => onLoad(it.record, it.mission)}>
                     Load
                   </GhostButton>
                   <GhostButton size="sm" icon="download" aria-label={`Export ${it.name}`} onClick={() => exportRecordJson(it.record, `${it.name}.json`)} />

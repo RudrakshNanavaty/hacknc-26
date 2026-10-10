@@ -9,7 +9,7 @@ export function RecordView({ record, onRerun }: { record: ExperimentRecord; onRe
   return (
     <div className={styles.stack}>
       <p>
-        Everything needed to reproduce this run: geometry, grid, physical scale, frozen parameters, simulator version and seed.
+        Everything needed to reproduce this run: geometry, grid, physical scale, recorded parameters, simulator version and seed.
         The same record always gives the same result.
       </p>
       <dl className={styles.kv}>

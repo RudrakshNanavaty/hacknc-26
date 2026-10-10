@@ -18,6 +18,7 @@ Update this file every time you merge. Add one line per change, newest first. Ag
 | — | build/phase-b | Nothing in flight. Ready for handoff (see HANDOFF.md) |
 
 ## Done (newest first)
+- ReefForge 2.0: explicit Build/Simulate/Results, two paired-control missions, surface + shaped-area constraints, improved builder, compact research access, frame sampling/playback, responsive controls and save/replay. Final unit suite: 42/42; all 3 desktop/mobile browser scenarios passed, including both currents and saved paired records. Executed checks and screenshots: `docs/REEFFORGE_2_VERIFICATION.md`.
 - UI v2: refined Frutiger Aero redesign — rail, stage card with settlement strip, results hierarchy, 6-item dock, Library dialog (D-020).
 - Stretch: local "Beat the Recess" leaderboard (5 fixed seeds, 54 mm surface budget, second worker) — exercised end to end in the browser (D-017).
 - Stretch: Gemini critic card with grounding check; tested against a stubbed fetch; live call needs your key in `.env.local` (D-016).

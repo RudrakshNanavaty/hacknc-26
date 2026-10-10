@@ -68,6 +68,14 @@ export function subscribeFrames(l: FrameListener): () => void {
 
 export const isMockSim = useMock;
 
+/** Explicit cancellation leaves solver parameters and numerical scheduling intact. */
+export function cancelRun() {
+  if (worker && currentRun) worker.postMessage({ type: "cancel", runId: currentRun });
+  currentRun = null;
+  handlers = null;
+  lastFrame = null;
+}
+
 /**
  * Evaluate one profile on several seeds in a dedicated worker, so a leaderboard
  * evaluation never cancels (or is cancelled by) the interactive run.

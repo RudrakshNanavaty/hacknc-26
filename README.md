@@ -21,6 +21,8 @@ It is a toy model with a falsifiable, pre-registered benchmark. It is **not** a 
 
 **Picking this up? Start with [`HANDOFF.md`](HANDOFF.md).** Live status is in [`PROGRESS.md`](PROGRESS.md). Decisions are logged in [`DECISIONS.md`](DECISIONS.md). Results and what was verified are in [`docs/VERIFICATION.md`](docs/VERIFICATION.md).
 
+**ReefForge 2.0:** choose **First Settlement** or **Current Clash**, build within the visible fabrication allowances, explicitly run the experiment, review a matched flat comparison and improve. The critical audit and revised design are in [`docs/REEFFORGE_2.md`](docs/REEFFORGE_2.md); current test evidence and limitations are in [`docs/REEFFORGE_2_VERIFICATION.md`](docs/REEFFORGE_2_VERIFICATION.md). Scientific benchmark status is in **Research**, independently of mission success.
+
 ---
 
 ## Quick start
@@ -51,7 +53,7 @@ VITE_GEMINI_MODEL=gemini-3.8-flash   # optional override
 ## The core loop
 
 ```
-Build profile → Simulate (worker) → Observe larvae → Compare vs baselines → Save record
+Choose mission → Build profile → Run experiment (worker) → Analyze matched control → Improve → Complete challenge
 ```
 
 Everything in the repo exists to serve this loop. If a change doesn't help it, it waits until after the hackathon.

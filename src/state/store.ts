@@ -1,11 +1,24 @@
 import { create } from "zustand";
 import type { ExperimentRecord, Profile } from "../contracts";
-import { historyInit, historyPush, historyRedo, historyUndo, preset, type History, type Tool } from "../geometry";
+import { historyInit, historyPush, historyRedo, historyUndo, preset, TOOL_DEFAULTS, type History, type Tool } from "../geometry";
+import { buildError, type MissionAttempt, type MissionId, type FlowCondition } from "../experiment/missions";
 
 export type RunStatus = "idle" | "running" | "done" | "error";
 
 /** UI state only. Solver state lives in the worker; frames bypass React entirely. */
 interface AppState {
+  mission: MissionId;
+  activeCondition: FlowCondition;
+  resultCondition: number;
+  animationSpeed: number;
+  baselineRun: boolean;
+  mode: "build" | "simulate" | "results";
+  taskLabel: string;
+  attempt: MissionAttempt | null;
+  attempts: MissionAttempt[];
+  toolWidth: number;
+  toolHeight: number;
+  selectedColumn: number | null;
   history: History<Profile>;
   tool: Tool;
   seed: number;
@@ -22,7 +35,7 @@ interface AppState {
   onboarding: number; // 0 = hidden, 1..3 = step
   toast: { text: string; tone: "info" | "pass" | "fail" } | null;
 
-  setProfile(p: Profile): void;
+  setProfile(p: Profile): boolean;
   undo(): void;
   redo(): void;
   setTool(t: Tool): void;
@@ -34,8 +47,10 @@ interface AppState {
 const prefersReducedMotion = () =>
   typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
 
-export const useApp = create<AppState>((set) => ({
-  history: historyInit(preset("ridge")),
+export const useApp = create<AppState>((set, get) => ({
+  mission: "first", activeCondition: "reference", resultCondition: 0, animationSpeed: 1, baselineRun: false,
+  mode: "build", taskLabel: "", attempt: null, attempts: [], toolWidth: 4, toolHeight: 10, selectedColumn: null,
+  history: historyInit(preset("flat")),
   tool: "ridge",
   seed: 1,
   status: "idle",
@@ -44,16 +59,24 @@ export const useApp = create<AppState>((set) => ({
   error: null,
   record: null,
   stale: false,
-  showFlow: true,
+  showFlow: false,
   reducedMotion: prefersReducedMotion(),
   metricsCollapsed: false,
   onboarding: 0,
   toast: null,
 
-  setProfile: (p) => set((s) => ({ history: historyPush(s.history, p), stale: s.record !== null })),
-  undo: () => set((s) => ({ history: historyUndo(s.history), stale: s.record !== null })),
-  redo: () => set((s) => ({ history: historyRedo(s.history), stale: s.record !== null })),
-  setTool: (tool) => set({ tool }),
+  setProfile: (p) => {
+    const s = get();
+    if (s.status === "running") return false;
+    const error = buildError(p);
+    if (error) { set({ error, toast: { text: error, tone: "fail" } }); return false; }
+    if (JSON.stringify(p) === JSON.stringify(s.history.present)) return true;
+    set({ history: historyPush(s.history, structuredClone(p)), stale: s.record !== null, mode: "build", selectedColumn: null, error: null });
+    return true;
+  },
+  undo: () => set((s) => s.status === "running" ? {} : ({ history: historyUndo(s.history), stale: s.record !== null, mode: "build", selectedColumn: null, error: null })),
+  redo: () => set((s) => s.status === "running" || (s.history.future[0] && buildError(s.history.future[0])) ? {} : ({ history: historyRedo(s.history), stale: s.record !== null, mode: "build", selectedColumn: null, error: null })),
+  setTool: (tool) => set({ tool, toolWidth: TOOL_DEFAULTS[tool].width, toolHeight: TOOL_DEFAULTS[tool].height, selectedColumn: null }),
   setSeed: (seed) => set({ seed }),
   set: (partial) => set(partial),
   notify: (text, tone = "info") => set({ toast: { text, tone } }),

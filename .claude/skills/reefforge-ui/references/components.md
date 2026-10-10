@@ -5,6 +5,17 @@ Check this list before you build anything new. Update it in the same PR whenever
 Status key: ☐ planned · ◐ in progress · ✅ done. Change the status as you work.
 
 ## Shell and layout
+ReefForge 2.0 (D-021) supersedes the permanent rail/results/dock layout below. `AppShell` now owns Build, Simulate and Results modes. Existing components remain available; legacy `MetricsPanel`, `ChallengeBar`, `Dock` and `OnboardingOverlay` are not mounted by the gameplay shell.
+
+| Current component | Status | Role |
+|---|---|---|
+| `AppShell` v2.0 | done | Mission selection, mode-specific panels, inline onboarding, research/library dialogs and footer actions |
+| `BuildControls` | done | Reuses horizontal ShapePalette and GhostButton; dimensions, keyboard placement, selection/delete/reset, surface and shaped-area meters |
+| `Stage` v2.0 | done | Authoritative 2D canvas, honest condition label, progress, flow toggle and sampled-animation speed |
+| `SimView` v2.0 | done | Budget-aware previews, snapped placement, sampled larvae, settlement glow and horizontal map; no scene writes to scoring |
+| `Modal` | extended | Focus trap, Escape and focus return |
+| `Toggle` | fixed | Label-sized checkbox hit target with non-intercepting decoration |
+
 | Component | Status | Props / variants | Notes |
 |---|---|---|---|
 | `AppShell` | ✅ | — | Owns the regions and the CSS grid (rail · stage · results, dock row). Nothing else positions top-level regions. Also hosts all dialogs. |

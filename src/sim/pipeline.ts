@@ -137,7 +137,11 @@ export function* runExperiment(
     profile,
     config,
     physical: phys,
-    assumptions: ASSUMPTIONS,
+    // Conditions must describe the actual configuration (including exploratory missions).
+    // This corrects metadata only; all numerical code and frozen parameters are unchanged.
+    assumptions: ASSUMPTIONS.map((a, i) => i === 1
+      ? `Oscillatory wave-driven flow, ${phys.peakVelocityCmS} cm/s peak, ${phys.periodS.toFixed(2)} s period, Re ≈ ${phys.reynolds.toFixed(0)} on 2.5 mm features`
+      : a),
     results: {
       released: larvaResult.released,
       settled: larvaResult.settled,

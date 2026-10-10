@@ -1,20 +1,20 @@
 .rail {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   gap: var(--sp-2);
   padding: var(--sp-2);
 }
 
 .group {
-  display: grid;
+  display: flex;
   gap: var(--sp-1);
 }
 
 .sep {
-  width: 60%;
-  margin: var(--sp-1) auto;
+  width: 1px;
+  margin: var(--sp-1);
   border: none;
-  border-top: 1px solid var(--c-hairline-strong);
+  border-left: 1px solid var(--c-hairline-strong);
 }
 
 .tool {
@@ -22,7 +22,7 @@
   justify-items: center;
   gap: 2px;
   min-height: calc(var(--sp-8) + var(--sp-2));
-  padding: var(--sp-2) 0;
+  padding: var(--sp-2);
   border: none;
   border-radius: var(--r-md);
   background: transparent;

@@ -46,7 +46,11 @@ tests/            unit, regression (same seed gives same output)
 | AI | Takes an `ExperimentRecord` and returns text. It cannot write to the store or to records. |
 
 ## Re-running on edit
-Wait 300 ms after a builder edit settles. Then send `cancel` for the previous `runId`, followed by a new `run`. The UI shows the last completed record, dimmed, until the new one arrives.
+ReefForge 2.0 uses explicit Build → Simulate → Results modes (D-021). Edits never run the worker automatically. `src/experiment/missions.ts` enforces surface and shaped-area budgets and evaluates mission outcomes separately from numerical settlement. `useRunner` sequences matched flat/design experiments for each declared mission condition, using the existing worker protocol. Cancellation invalidates a generation as well as cancelling the active worker run.
+
+`MissionAttempt` wraps full `ExperimentRecord` objects; it does not modify their scores. Saved records can include the full paired mission bundle in IndexedDB. Record replay uses the saved configuration, not just its seed. Frames still bypass React, with a bounded playback queue whose display speed never changes computation.
+
+Research dialogs retain the scientific benchmark, diagnostics, assumptions and record exports. See `REEFFORGE_2.md` for the game design and UI architecture.
 
 ## Performance budget
 | Item | Budget |

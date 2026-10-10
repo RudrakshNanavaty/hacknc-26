@@ -4,6 +4,8 @@
 # build / test output
 /dist
 /coverage
+/test-results
+/playwright-report
 *.tsbuildinfo
 
 # env (never commit keys)
