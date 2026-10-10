@@ -1,73 +1,46 @@
 @import "tailwindcss";
 
-/* Window height, for screens that must fit without scrolling (the title): `tall` keeps the 120 px
-   display type, `short` (laptops with toolbars, phones) steps down a size. */
-@custom-variant tall (@media (min-height: 900px));
-@custom-variant short (@media (max-height: 699px));
-
-/* Design tokens from docs/DESIGN.md. Defined once here; Tailwind reads them through
-   @theme inline below, and deck.gl / MapLibre read them at runtime (src/tokens.ts). */
+/* ReefForge's Frutiger Aero look: glossy glass, aqua gel buttons, sky-to-ocean gradients, bubbles,
+   and optimistic greens. Colour tokens are defined once here; Tailwind reads them through @theme
+   inline below, and MapLibre / three.js read them at runtime (src/tokens.ts). */
 :root {
-  --chalk: #dce4e1;
-  --bond: #f7f9f8;
-  --ink: #1e2a47;
-  --flood: #0078bf;
-  --alarm: #ff48b0;
-  --signal: #ffc628;
-  --safe: #00a95c;
-  --flood-deep: #00508a;
+  --ink: #0b3954; /* text: deep navy */
+  --white: #ffffff;
+  --foam: #eefaff;
+  --sky: #8fd8ff;
+  --aqua: #19b6e6;
+  --aqua-deep: #0a7bb8;
+  --abyss: #063a5b;
+  --leaf: #6fd13a;
+  --leaf-deep: #2f9a12;
+  --sun: #ffe066;
+  --coral: #ff7a6b;
+  --lilac: #b79cff;
 
-  /* Night storm palette (DESIGN.md): the basemap only; the inks above stay the same. */
-  --storm-land: #172440;
-  --storm-street: #2d416b;
-  --storm-building: #22355a;
-  --storm-label: #a6b6d0;
-  --storm-water: #2a9deb;
-  --storm-glow: #7ccbff;
+  --font-display: "Nunito", "Segoe UI", "Frutiger", system-ui, sans-serif;
+  --font-body: "Nunito Sans", "Segoe UI", "Frutiger", system-ui, sans-serif;
 
-  /* The world (DESIGN.md "Color direction"): a realistic city and storm water under the
-     printed instruments. The 3D buildings, their shadows and windows, and the storm water read
-     only these. Planning keeps the --flood preview. */
-  --foam: #e9e4d2;
-  --sky-day: #c9d8e6;
-  --sky-night: #2d416b;
-  --wall-day: #d9d4c9;
-  --wall-night: #2a3550;
-  --glass-day: #5d6f80;
-  --glass-night: #1a2236;
-  --window-lit: #ffd28a;
-  --shadow: #1b2333; /* drawn at about 25% */
-
-  /* Noto Sans Devanagari sets Bharat News' Hindi; Latin names inside it keep the first face. */
-  --font-display: "Big Shoulders Display", "Noto Sans Devanagari", "Arial Narrow", sans-serif;
-  --font-body: "Public Sans", "Noto Sans Devanagari", system-ui, sans-serif;
-
-  /* Outline weight for pieces, panels and rules. */
-  --rule: 2.5px;
-  /* The only shadows in the system: hard, offset, ink. Map pieces take 3 px; tray pieces and HUD
-     plates take 5 px. */
-  --piece-shadow: 3px 3px 0 var(--ink);
-  --plate-shadow: 5px 5px 0 var(--ink);
-  /* 3 px signal ring with an ink ring outside it. */
-  --focus-ring: 0 0 0 3px var(--signal), 0 0 0 6px var(--ink);
+  --focus-ring: 0 0 0 3px var(--white), 0 0 0 6px var(--aqua);
 }
 
 @theme inline {
-  --color-chalk: var(--chalk);
-  --color-bond: var(--bond);
   --color-ink: var(--ink);
-  --color-flood: var(--flood);
-  --color-alarm: var(--alarm);
-  --color-signal: var(--signal);
-  --color-safe: var(--safe);
-  --color-flood-deep: var(--flood-deep);
-  --color-storm-land: var(--storm-land);
-  --color-storm-label: var(--storm-label);
+  --color-white: var(--white);
+  --color-foam: var(--foam);
+  --color-sky: var(--sky);
+  --color-aqua: var(--aqua);
+  --color-aqua-deep: var(--aqua-deep);
+  --color-abyss: var(--abyss);
+  --color-leaf: var(--leaf);
+  --color-leaf-deep: var(--leaf-deep);
+  --color-sun: var(--sun);
+  --color-coral: var(--coral);
+  --color-lilac: var(--lilac);
 
   --font-display: var(--font-display);
   --font-body: var(--font-body);
 
-  /* Type scale (px): text-13 ... text-120. */
+  /* Type scale (px): text-13 ... text-72. */
   --text-13: 13px;
   --text-13--line-height: 1.4;
   --text-15: 15px;
@@ -75,18 +48,13 @@
   --text-18: 18px;
   --text-18--line-height: 1.35;
   --text-24: 24px;
-  --text-24--line-height: 1.15;
+  --text-24--line-height: 1.2;
   --text-32: 32px;
-  --text-32--line-height: 1;
+  --text-32--line-height: 1.05;
   --text-48: 48px;
-  --text-48--line-height: 0.95;
+  --text-48--line-height: 1;
   --text-72: 72px;
-  --text-72--line-height: 0.9;
-  --text-120: 120px;
-  --text-120--line-height: 0.85;
-
-  --shadow-piece: var(--piece-shadow);
-  --shadow-plate: var(--plate-shadow);
+  --text-72--line-height: 0.95;
 }
 
 html,
@@ -97,11 +65,15 @@ body,
 }
 
 body {
-  background: var(--chalk);
   color: var(--ink);
   font-family: var(--font-body);
   font-size: 15px;
   -webkit-font-smoothing: antialiased;
+  /* Sky at the top, sea below, a soft sun glare: the Aero backdrop behind every page. */
+  background:
+    radial-gradient(ellipse 70% 45% at 20% -5%, rgba(255, 255, 255, 0.9), transparent 60%),
+    linear-gradient(180deg, #d8f4ff 0%, var(--sky) 28%, var(--aqua) 62%, var(--aqua-deep) 88%, var(--abyss) 100%);
+  background-attachment: fixed;
 }
 
 :focus-visible {
@@ -113,54 +85,178 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-/* Planning juice (DESIGN.md "Game pieces"): the coverage ring and the +N chip when a piece lands,
-   the timer's last 30 seconds. All of them are anchored by translate(-50%, ...) on their point. */
-@keyframes ring-pulse {
-  from {
-    transform: translate(-50%, -50%) scale(0.25);
-    opacity: 0.95;
-  }
-  to {
-    transform: translate(-50%, -50%) scale(1);
-    opacity: 0;
-  }
+/* Frosted glass: the panels everything sits on. */
+.glass {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.82) 0%, rgba(255, 255, 255, 0.52) 100%);
+  backdrop-filter: blur(16px) saturate(1.5);
+  -webkit-backdrop-filter: blur(16px) saturate(1.5);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  border-radius: 22px;
+  box-shadow:
+    0 10px 36px rgba(3, 60, 100, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -14px 28px rgba(160, 220, 255, 0.18);
 }
-@keyframes chip-float {
+
+/* Glass over the underwater scene: darker, so white text reads on moving water. */
+.glass-sea {
+  background: linear-gradient(180deg, rgba(20, 110, 160, 0.55) 0%, rgba(4, 50, 82, 0.55) 100%);
+  backdrop-filter: blur(14px) saturate(1.4);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  border: 1px solid rgba(190, 240, 255, 0.55);
+  border-radius: 20px;
+  color: var(--white);
+  box-shadow:
+    0 10px 30px rgba(0, 20, 40, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+
+/* Gel buttons: a pill with the classic top-half shine. */
+.aero-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  border-radius: 999px;
+  padding: 0.55rem 1.1rem;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 15px;
+  color: var(--ink);
+  border: 1px solid rgba(10, 100, 150, 0.35);
+  background: linear-gradient(180deg, #ffffff 0%, #eaf8ff 46%, #c9ecff 52%, #e2f6ff 100%);
+  box-shadow:
+    inset 0 1px 0 #ffffff,
+    0 2px 8px rgba(3, 60, 100, 0.25);
+  cursor: pointer;
+  transition: transform 0.12s ease, filter 0.12s ease, box-shadow 0.12s ease;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.aero-btn:hover {
+  filter: brightness(1.05) saturate(1.1);
+  box-shadow:
+    inset 0 1px 0 #ffffff,
+    0 4px 14px rgba(3, 60, 100, 0.3),
+    0 0 0 3px rgba(255, 255, 255, 0.35);
+}
+.aero-btn:active {
+  transform: translateY(1px) scale(0.98);
+}
+.aero-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  filter: grayscale(0.4);
+}
+.aero-btn[aria-pressed="true"] {
+  background: linear-gradient(180deg, #fff7c2 0%, #ffe680 46%, #ffd23f 52%, #ffe57a 100%);
+  border-color: rgba(160, 110, 0, 0.45);
+}
+.aero-btn-aqua {
+  color: var(--white);
+  text-shadow: 0 1px 1px rgba(0, 50, 90, 0.5);
+  border-color: rgba(0, 70, 120, 0.55);
+  background: linear-gradient(180deg, #b8f0ff 0%, #39c3ee 46%, #0b9ad6 52%, #33bdeb 100%);
+}
+.aero-btn-go {
+  color: #10380a;
+  border-color: rgba(30, 100, 10, 0.5);
+  background: linear-gradient(180deg, #e2ffc4 0%, #9be85a 46%, #5cc21b 52%, #86df45 100%);
+}
+.aero-btn-coral {
+  color: var(--white);
+  text-shadow: 0 1px 1px rgba(120, 20, 10, 0.45);
+  border-color: rgba(150, 40, 20, 0.5);
+  background: linear-gradient(180deg, #ffd2c8 0%, #ff8f7d 46%, #f2604a 52%, #ff8a77 100%);
+}
+.aero-btn-lg {
+  padding: 0.8rem 1.6rem;
+  font-size: 18px;
+}
+.aero-btn-icon {
+  padding: 0.5rem;
+  width: 2.6rem;
+  height: 2.6rem;
+}
+
+/* A glossy orb (reef pins, avatars). */
+.orb {
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 35% 28%, rgba(255, 255, 255, 0.95) 0 18%, transparent 40%),
+    radial-gradient(circle at 50% 60%, var(--aqua) 0%, var(--aqua-deep) 70%);
+  box-shadow:
+    0 4px 14px rgba(0, 40, 80, 0.45),
+    inset 0 -4px 8px rgba(0, 40, 90, 0.35);
+}
+.orb-sun {
+  background:
+    radial-gradient(circle at 35% 28%, rgba(255, 255, 255, 0.95) 0 18%, transparent 40%),
+    radial-gradient(circle at 50% 60%, var(--sun) 0%, #f0a500 75%);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0 0.5rem;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.6;
+  white-space: nowrap;
+  border: 1px solid currentColor;
+}
+
+/* Rising bubbles (decoration: aria-hidden, pointer-events none). */
+@keyframes rise {
   0% {
-    transform: translate(-50%, -100%) scale(0.5);
+    transform: translate3d(0, 0, 0) scale(0.6);
     opacity: 0;
   }
-  14% {
-    transform: translate(-50%, -112%) scale(1.12);
-    opacity: 1;
-  }
-  28% {
-    transform: translate(-50%, -112%) scale(1);
-  }
-  75% {
-    opacity: 1;
+  10% {
+    opacity: 0.85;
   }
   100% {
-    transform: translate(-50%, -260%) scale(1);
+    transform: translate3d(var(--drift, 20px), -110vh, 0) scale(1.1);
     opacity: 0;
   }
 }
-@keyframes chip-pop {
+.bubble {
+  position: absolute;
+  bottom: -40px;
+  border-radius: 999px;
+  background: radial-gradient(circle at 32% 30%, rgba(255, 255, 255, 0.95) 0 12%, rgba(255, 255, 255, 0.15) 45%, rgba(255, 255, 255, 0.35) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  animation: rise linear infinite;
+  pointer-events: none;
+}
+
+/* The dive: the screen fills with bubbles and deepens to sea blue. */
+@keyframes dive-in {
   from {
-    transform: translate(-50%, -100%) scale(0.6);
+    opacity: 0;
   }
   to {
-    transform: translate(-50%, -100%) scale(1);
+    opacity: 1;
   }
 }
-@keyframes timer-pulse {
+.dive-veil {
+  animation: dive-in 0.9s ease-in forwards;
+  background: radial-gradient(ellipse at 50% 30%, rgba(120, 220, 255, 0.85), rgba(4, 60, 100, 0.98));
+}
+
+@keyframes pulse-glow {
   0%,
   100% {
-    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(255, 224, 102, 0.7), 0 4px 14px rgba(0, 40, 80, 0.45);
   }
   50% {
-    transform: scale(1.07);
+    box-shadow: 0 0 0 10px rgba(255, 224, 102, 0), 0 4px 14px rgba(0, 40, 80, 0.45);
   }
+}
+.pulse {
+  animation: pulse-glow 2s ease-in-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -170,22 +266,25 @@ body {
     animation-duration: 0s !important;
     transition-duration: 0s !important;
   }
+  .bubble {
+    display: none;
+  }
 }
 
-/* MapLibre's attribution: from a rounded white pill to a flat bond strip. Same selectors as
-   maplibre-gl.css, which loads first, so these win on order. */
+/* MapLibre's attribution as a small glass strip. */
 .maplibregl-ctrl.maplibregl-ctrl-attrib,
 .maplibregl-ctrl.maplibregl-ctrl-attrib.maplibregl-compact {
   margin: 0;
-  border-radius: 0;
-  background: var(--bond);
+  border-radius: 12px 0 0 0;
+  background: rgba(255, 255, 255, 0.75);
   color: var(--ink);
-  font: 13px/1.4 var(--font-body);
+  font: 12px/1.4 var(--font-body);
 }
 .maplibregl-ctrl-attrib a {
   color: var(--ink);
 }
-.maplibregl-ctrl-attrib.maplibregl-compact .maplibregl-ctrl-attrib-button {
-  border-radius: 0;
-  background-color: var(--bond);
+
+/* Range sliders in the replay bar. */
+input[type="range"].aero-range {
+  accent-color: var(--sun);
 }

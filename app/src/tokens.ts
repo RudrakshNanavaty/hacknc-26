@@ -1,33 +1,20 @@
-// Color tokens for code that cannot use CSS (deck.gl, MapLibre styles).
+// Color tokens for code that cannot use CSS (MapLibre styles, three.js materials).
 // Read from the :root custom properties in styles.css, so the hex values live in one place.
 
 export type RGB = [number, number, number];
 const NAMES = [
-  'chalk',
-  'bond',
   'ink',
-  'flood',
-  'flood-deep',
-  'alarm',
-  'signal',
-  'safe',
-  // Night storm palette (basemap only).
-  'storm-land',
-  'storm-street',
-  'storm-building',
-  'storm-label',
-  'storm-water',
-  'storm-glow',
-  // The world: realistic city and storm water (3D buildings, shadows, windows, murky water).
+  'white',
   'foam',
-  'sky-day',
-  'sky-night',
-  'wall-day',
-  'wall-night',
-  'glass-day',
-  'glass-night',
-  'window-lit',
-  'shadow',
+  'sky',
+  'aqua',
+  'aqua-deep',
+  'abyss',
+  'leaf',
+  'leaf-deep',
+  'sun',
+  'coral',
+  'lilac',
 ] as const;
 export type TokenName = (typeof NAMES)[number];
 

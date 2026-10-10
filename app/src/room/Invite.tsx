@@ -24,14 +24,14 @@ export function Invite({ code }: { code: string }) {
   const [svg, setSvg] = useState('');
   useEffect(() => {
     const t = tokens().hex;
-    QRCode.toString(url, { type: 'svg', margin: 1, color: { dark: t.ink, light: t.bond } }).then(setSvg, () => setSvg(''));
+    QRCode.toString(url, { type: 'svg', margin: 1, color: { dark: t.ink, light: t.white } }).then(setSvg, () => setSvg(''));
   }, [url]);
   return (
     <div className="flex items-center gap-4">
-      <div aria-label={`QR code to join room ${code}`} role="img" className="aspect-square w-32 shrink-0 border-(length:--rule) border-ink" dangerouslySetInnerHTML={{ __html: svg }} />
+      <div aria-label={`QR code to join room ${code}`} role="img" className="aspect-square w-32 shrink-0 overflow-hidden rounded-xl border border-white bg-white" dangerouslySetInnerHTML={{ __html: svg }} />
       <div className="min-w-0">
         <p className="text-15">Scan to join, or enter the code</p>
-        <p className="tabular font-display text-72 leading-none font-extrabold tracking-widest">{code}</p>
+        <p className="tabular font-display text-72 leading-none font-black tracking-widest text-aqua-deep">{code}</p>
         <p className="truncate text-13">{url.replace(/^https?:\/\//, '')}</p>
       </div>
     </div>

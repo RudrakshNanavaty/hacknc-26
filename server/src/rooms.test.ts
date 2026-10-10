@@ -1,13 +1,16 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { AddressInfo } from 'node:net';
 import WebSocket from 'ws';
-import { AVATARS, BRIEFING_SECONDS, BUILD_SECONDS, LOCK_GRACE_MS, flatTile, ridgedTile, type RoomState, type ServerMsg } from '@shared';
+import { AVATARS, BRIEFING_SECONDS, BUILD_SECONDS, LOCK_GRACE_MS, REEFS, evaluateDesign, flatTile, ridgedTile, type RoomState, type ServerMsg } from '@shared';
 import { buildServer } from './app';
 import { MemoryStore } from './db/store';
 import { RoomError, again, getOrCreateRoom, join, lock, pick, presence, rooms, setReef, start, tick, type Evaluator } from './rooms';
 
-const okEvaluator = (material: number, settlementRate: number | null): Evaluator => () => ({
-  result: { material, settlementRate, model: 'test', seed: 1 },
+const okEvaluator = (material: number, reached: number): Evaluator => () => ({
+  result: {
+    material, settlementRate: null, model: 'test', seed: 1,
+    prototype: { released: 300, reachedStructure: reached, structureContacts: reached, reachedFloor: 0, meanNearStructureS: 0, meanShelteredS: 0, durationS: 1 },
+  },
   design: flatTile(),
   experimentId: `exp-${material}`,
 });
@@ -35,7 +38,7 @@ describe('room state machine', () => {
     start(room, a, 1000);
     expect(room.phase).toBe('briefing');
     expect(() => join(room, 'Cy', AVATARS[3])).toThrow(/under way/);
-    expect(() => lock(room, a, flatTile(), okEvaluator(1, null), 2000)).toThrow(/over/);
+    expect(() => lock(room, a, flatTile(), okEvaluator(1, 0), 2000)).toThrow(/over/);
     const briefEnd = 1000 + BRIEFING_SECONDS * 1000;
     expect(tick(room, briefEnd - 1)).toBe(false);
     expect(tick(room, briefEnd)).toBe(true);
@@ -54,15 +57,15 @@ describe('room state machine', () => {
     expect(room.reef).toBe('kaneohe');
   });
 
-  it('ranks by settlement then material; a missing design ranks last; the host hands off', () => {
+  it('ranks by larvae reached then material; a missing design ranks last; the host hands off', () => {
     const room = fresh();
     const a = join(room, 'Ana', AVATARS[0]);
     const b = join(room, 'Ben', AVATARS[1]);
     const c = join(room, 'Cy', AVATARS[2]);
     start(room, a, 0);
     start(room, a, 0); // the host skips the briefing
-    lock(room, a, flatTile(), okEvaluator(300, 0.1), 10);
-    lock(room, b, flatTile(), okEvaluator(100, 0.1), 20);
+    lock(room, a, flatTile(), okEvaluator(300, 40), 10);
+    lock(room, b, flatTile(), okEvaluator(100, 40), 20);
     expect(room.phase).toBe('building');
     // Cy never locks: the clock (plus grace) ends the round.
     expect(tick(room, BUILD_SECONDS * 1000 + LOCK_GRACE_MS)).toBe(true);
@@ -128,11 +131,10 @@ describe('rooms over WebSockets, experiments over HTTP', () => {
     await guest.next((m) => m.t === 'error' && /not valid/.test(m.message));
     guest.send({ t: 'lock', design: flatTile() });
     const results = await host.state((s) => s.phase === 'results');
-    // No engine yet: both rates are null, so less material ranks first (flat, 0 voxels).
-    expect(results.results!.map((r) => [r.name, r.result?.settlementRate, r.result?.material])).toEqual([
-      ['Ben', null, 0],
-      ['Ana', null, ridgedTile().solid.length],
-    ]);
+    // No settlement engine yet: the ridges reach larvae, the flat tile reaches none.
+    expect(results.results!.map((r) => [r.name, r.result?.settlementRate])).toEqual([['Ana', null], ['Ben', null]]);
+    expect(results.results![0]!.result!.prototype!.reachedStructure).toBeGreaterThan(0);
+    expect(results.results![1]!.result!.prototype!.reachedStructure).toBe(0);
     const stored = await store.recent('kaneohe', 10);
     expect(stored.filter((e) => e.roomCode === 'WXYZ')).toHaveLength(2);
     expect(new Set(stored.map((e) => e.result.seed)).size).toBe(1);
@@ -148,7 +150,10 @@ describe('rooms over WebSockets, experiments over HTTP', () => {
     expect(ok.statusCode).toBe(201);
     const { id } = ok.json() as { id: string };
     const record = (await app.inject({ url: `/api/experiments/${id}` })).json();
-    expect(record).toMatchObject({ reef: 'kaneohe', playerName: 'Ana', result: { seed: 7, model: 'pending' }, flow: { kind: 'oscillating', provenance: 'published' } });
+    expect(record).toMatchObject({ reef: 'kaneohe', playerName: 'Ana', result: { seed: 7, model: 'prototype-flow-0.1', settlementRate: null }, flow: { kind: 'oscillating', provenance: 'published' } });
     expect(record.design.solid).toHaveLength(ridgedTile().solid.length);
+    expect(record.design.pieces).toHaveLength(ridgedTile().pieces!.length);
+    // The server's numbers match a client re-run with the same seed.
+    expect(record.result).toEqual(evaluateDesign(ridgedTile(), REEFS[0]!.flow, 7));
   });
 });

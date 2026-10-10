@@ -23,13 +23,13 @@ const BOLD = ['Noto Sans Bold'];
 
 export function globeStyle(t: Tokens, dark = false, satellite = false): StyleSpecification {
   const { hex, rgb } = t;
-  const ink = dark ? hex['storm-label'] : hex.ink;
-  const land = dark ? hex['storm-building'] : hex.chalk;
+  const ink = dark ? hex.foam : hex.ink;
+  const land = dark ? hex.abyss : hex.foam;
   // Opaque tints, not alpha: ocean polygons overlap at the poles and alpha would darken there.
-  const water = `rgb(${(dark ? tint(rgb['storm-land'], rgb['storm-water'], 0.45) : tint(rgb.chalk, rgb.flood, 0.42)).join(',')})`;
-  const label = { 'text-color': ink, 'text-halo-color': dark ? hex['storm-land'] : hex.chalk, 'text-halo-width': satellite ? 2 : 1.5 };
+  const water = `rgb(${(dark ? tint(rgb.abyss, rgb.aqua, 0.45) : tint(rgb.foam, rgb.aqua, 0.42)).join(',')})`;
+  const label = { 'text-color': ink, 'text-halo-color': dark ? hex.abyss : hex.foam, 'text-halo-width': satellite ? 2 : 1.5 };
   // Over the photo, lines are pale so they read on forest and ocean alike (like the city map's streets).
-  const line = satellite ? hex[dark ? 'storm-label' : 'bond'] : ink;
+  const line = satellite ? hex[dark ? 'foam' : 'white'] : ink;
   const imagery = dark ? { brightness: 0.42, saturation: -0.4 } : { brightness: 1, saturation: 0 };
   const photo: LayerSpecification[] = satellite
     ? [{
@@ -49,7 +49,7 @@ export function globeStyle(t: Tokens, dark = false, satellite = false): StyleSpe
     },
     layers: [
       { id: 'land', type: 'background', paint: { 'background-color': land } },
-      { id: 'parks', type: 'fill', source: 'omt', 'source-layer': 'park', minzoom: 8, paint: { 'fill-color': hex.safe, 'fill-opacity': dark ? 0.08 : 0.14 } },
+      { id: 'parks', type: 'fill', source: 'omt', 'source-layer': 'park', minzoom: 8, paint: { 'fill-color': hex.leaf, 'fill-opacity': dark ? 0.08 : 0.14 } },
       { id: 'water', type: 'fill', source: 'omt', 'source-layer': 'water', paint: { 'fill-color': water } },
       ...photo,
       {

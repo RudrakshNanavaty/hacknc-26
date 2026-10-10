@@ -52,8 +52,8 @@ export function buildExperiment(input: ExperimentInput): ExperimentRecord {
     roomCode: input.roomCode ?? null,
     playerId,
     playerName: String(input.playerName ?? '').trim().slice(0, 24) || 'Diver',
-    design: { grid: design.grid, solid: [...design.solid].sort((a, b) => a - b) },
+    design: { grid: design.grid, solid: [...design.solid].sort((a, b) => a - b), ...(design.pieces ? { pieces: design.pieces } : {}) },
     flow: reefById(reef).flow,
-    result: evaluateDesign(design, seed),
+    result: evaluateDesign(design, reefById(reef).flow, seed),
   };
 }

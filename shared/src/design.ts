@@ -1,7 +1,13 @@
 // A design is the set of filled voxels on the build tile. The workshop's pieces (ridge, arch,
-// helix ...) are stamps that fill voxels; the engine and the server only ever see the voxels, so
-// any piece set scores the same way.
+// tunnel ...) are stamps that fill voxels; the engine only ever sees the voxels, so any piece set
+// is evaluated the same way.
+//
+// Format (v1): { grid, solid } where solid lists filled voxel indices x + nx * (y + ny * z).
+// Compatible extension: `pieces`, the editable stamps. When present, `solid` must equal the union
+// of their voxels, and the pieces must be valid (inside, no overlaps, nothing floating).
 import { BUILD_GRID, MATERIAL_BUDGET } from './config';
+import { type Piece, piecesProblems, solidOf } from './pieces';
+import type { PrototypeMetrics } from './sim/prototype';
 
 export interface Grid {
   nx: number;
@@ -13,6 +19,8 @@ export interface Design {
   grid: Grid;
   /** Filled voxels as indices `x + nx * (y + ny * z)`, each once. */
   solid: number[];
+  /** The editable pieces that fill `solid` (absent for raw voxel designs). */
+  pieces?: Piece[];
 }
 
 export const voxelIndex = (g: Grid, x: number, y: number, z: number) => x + g.nx * (y + g.ny * z);
@@ -22,6 +30,11 @@ export function voxelXyz(g: Grid, i: number): [number, number, number] {
   const yz = (i - x) / g.nx;
   const y = yz % g.ny;
   return [x, y, (yz - y) / g.ny];
+}
+
+/** A design from pieces: the union of their voxels, plus the pieces themselves. */
+export function designOf(pieces: Piece[], grid: Grid = BUILD_GRID): Design {
+  return { grid: { ...grid }, solid: solidOf(grid, pieces), pieces: pieces.map((p) => ({ ...p })) };
 }
 
 /** Voxels filled: the material a design costs. */
@@ -41,34 +54,40 @@ export function designProblems(value: unknown, budget = MATERIAL_BUDGET): string
   if (d.solid.some((i) => !Number.isInteger(i) || i < 0 || i >= size)) problems.push('a voxel is outside the tile');
   if (new Set(d.solid).size !== d.solid.length) problems.push('a voxel is listed twice');
   if (d.solid.length > budget) problems.push(`uses ${d.solid.length} voxels, the budget is ${budget}`);
+  if (d.pieces !== undefined) {
+    if (!Array.isArray(d.pieces)) return [...problems, 'pieces must be a list'];
+    if (d.pieces.length > 2000) return [...problems, 'too many pieces'];
+    const bad = piecesProblems(g, d.pieces);
+    if (bad.length) problems.push(...bad);
+    else {
+      const want = solidOf(g, d.pieces);
+      const have = [...d.solid].sort((a, b) => a - b);
+      if (want.length !== have.length || want.some((v, k) => v !== have[k])) problems.push('solid does not match the pieces');
+    }
+  }
   return problems;
 }
 
-/** One evaluated design. `settlementRate` is null until the flow and larvae engine is in. */
+/** One evaluated design. */
 export interface ExperimentResult {
   material: number;
-  /** Simulated larvae settled / released, 0..1. */
+  /** Simulated larvae settled / released, 0..1. null until the validated settlement engine exists. */
   settlementRate: number | null;
+  /** What the prototype flow showed (encounters, shelter time ...); not a settlement result. */
+  prototype: PrototypeMetrics | null;
   /** Engine version that produced the numbers, for reproducibility. */
   model: string;
   seed: number;
 }
 
 /**
- * Scores a design under a reef's conditions. The flow solver and larval model plug in here
- * (docs/reefforge-one-pager.md section 9); until then only material is computed and the rate stays null,
- * so nothing shows a number the engine did not produce.
- */
-export function evaluateDesign(design: Design, seed: number): ExperimentResult {
-  return { material: materialOf(design), settlementRate: null, model: 'pending', seed };
-}
-
-/**
- * Ranking (the winner rule): higher simulated settlement first, then less material.
- * Designs without a rate rank after those with one.
+ * Ranking. With settlement rates (the validated engine), higher settlement first. Until then the
+ * explicit arcade objective: the most larvae reaching the structure, then less material. Designs
+ * without numbers rank last.
  */
 export function compareResults(a: ExperimentResult, b: ExperimentResult): number {
-  const ra = a.settlementRate ?? -1;
-  const rb = b.settlementRate ?? -1;
+  if (a.settlementRate !== null && b.settlementRate !== null) return b.settlementRate - a.settlementRate || a.material - b.material;
+  const ra = a.prototype?.reachedStructure ?? -1;
+  const rb = b.prototype?.reachedStructure ?? -1;
   return rb - ra || a.material - b.material;
 }
