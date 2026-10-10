@@ -1,10 +1,21 @@
-// Research Mode: what players built, as experiment records a researcher can inspect and re-run.
+// Research Mode: what players built, as experiment records a researcher can inspect, export and
+// re-run (design + reef conditions + seed + model version).
 import { useEffect, useState } from 'react';
-import { REEFS, REFERENCE_TILES, materialOf, reefById, type ReefId } from '@shared';
+import { REEFS, REFERENCE_TILES, designToStl, materialOf, reefById, type ReefId } from '@shared';
 import { recentExperiments, type ExperimentRow } from '../api';
 import { Link } from '../router';
+import { Bubbles } from '../ui/Bubbles';
 import { ResultLine } from '../ui/ResultLine';
-import { button } from '../workshop/Workshop';
+import { Icon } from '../workshop/Icons';
+
+function downloadStl(e: ExperimentRow) {
+  const url = URL.createObjectURL(new Blob([designToStl(e.design, `experiment ${e.id}`)], { type: 'model/stl' }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `reefforge-${e.id.slice(0, 8)}.stl`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
 
 export function Research() {
   const [reef, setReef] = useState<ReefId>('kaneohe');
@@ -20,56 +31,70 @@ export function Research() {
   }, [reef]);
 
   return (
-    <main className="mx-auto flex max-w-5xl flex-col gap-4 p-4 sm:p-6">
-      <div className="flex flex-wrap items-center gap-3">
-        <Link to="/" className={button}>Back to the ocean</Link>
-        <h1 className="font-display text-48 font-extrabold">Research Mode</h1>
+    <main className="relative min-h-full overflow-hidden">
+      <Bubbles count={12} seed={19} />
+      <div className="relative mx-auto flex max-w-5xl flex-col gap-4 p-3 sm:p-6">
+        <header className="flex flex-wrap items-center gap-3">
+          <Link to="/" className="aero-btn">{Icon.back}<span>Ocean</span></Link>
+          <h1 className="font-display text-48 font-black text-white drop-shadow-[0_2px_6px_rgba(0,50,90,0.5)]">Research Mode</h1>
+        </header>
+
+        <section className="glass p-5">
+          <label className="flex flex-wrap items-center gap-2 font-bold">
+            Reef
+            <select value={reef} onChange={(e) => setReef(e.target.value as ReefId)} className="rounded-full border border-aqua/50 bg-white/85 px-3 py-1.5">
+              {REEFS.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+            </select>
+          </label>
+          <p className="mt-2 text-15">
+            Every test stores the design, the reef’s conditions, the seed and the model version, so it can be re-run exactly.
+            Today’s model is the <b>prototype flow</b> (water slows near surfaces; larvae swim and drift). Settlement needs the validated engine and shows as pending.
+          </p>
+        </section>
+
+        <section className="glass p-5">
+          <h2 className="font-display text-24 font-black">Reference tiles</h2>
+          <ul className="mt-2 space-y-1.5 text-15">
+            {REFERENCE_TILES.map((t) => (
+              <li key={t.id}>
+                <b>{t.name}</b> <span className={`chip bg-white/70 ${t.kind === 'published' ? 'text-aqua-deep' : 'text-coral'}`}>{t.kind === 'published' ? 'Published' : 'Game-made'}</span>
+                {' '}· {materialOf(t.design).toLocaleString()} voxels · {t.source}
+                {t.note && <span className="italic"> ({t.note})</span>}
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <section className="glass p-5">
+          <h2 className="font-display text-24 font-black">Experiments at {reefById(reef).name}</h2>
+          {data === 'loading' && <p className="mt-2">Loading…</p>}
+          {data === null && <p className="mt-2">The server did not answer.</p>}
+          {data && data !== 'loading' && (
+            <>
+              <p className="mt-1 text-13">Stored in {data.store === 'tiger' ? 'Tiger Data' : 'memory (set DATABASE_URL for Tiger Data)'}.</p>
+              {data.experiments.length === 0 ? (
+                <p className="mt-3">No experiments yet. Dive in and release some larvae.</p>
+              ) : (
+                <ol className="mt-3 space-y-2">
+                  {data.experiments.map((e) => (
+                    <li key={e.id} className="rounded-2xl bg-white/50 p-3 text-15">
+                      <p>
+                        <b>{e.playerName}</b>
+                        {e.roomCode && <> · room {e.roomCode}</>} · {new Date(e.createdAt).toLocaleString()} · {e.design.pieces?.length ?? 0} pieces · model {e.result.model}
+                      </p>
+                      <p className="mt-0.5"><ResultLine result={e.result} /></p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <a className="aero-btn" href={`/api/experiments/${e.id}`} target="_blank" rel="noreferrer">Record (JSON)</a>
+                        <button className="aero-btn" disabled={!e.design.solid.length} onClick={() => downloadStl(e)}>Mesh (STL)</button>
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </>
+          )}
+        </section>
       </div>
-
-      <label className="flex items-center gap-2 text-15">
-        Reef
-        <select value={reef} onChange={(e) => setReef(e.target.value as ReefId)} className="border-(length:--rule) border-ink bg-bond px-2 py-1">
-          {REEFS.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
-        </select>
-      </label>
-
-      <section className="border-(length:--rule) border-ink bg-bond p-4 shadow-plate">
-        <h2 className="font-display text-32 font-extrabold">Reference tiles</h2>
-        <ul className="mt-2 space-y-1 text-15">
-          {REFERENCE_TILES.map((t) => (
-            <li key={t.id}>
-              <span className="font-semibold">{t.name}</span> · {materialOf(t.design)} voxels · {t.source}
-              {t.note && <span className="italic"> ({t.note})</span>}
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <section className="border-(length:--rule) border-ink bg-bond p-4 shadow-plate">
-        <h2 className="font-display text-32 font-extrabold">Experiments at {reefById(reef).name}</h2>
-        {data === 'loading' && <p className="mt-2 text-15">Loading…</p>}
-        {data === null && <p className="mt-2 text-15">The server did not answer.</p>}
-        {data && data !== 'loading' && (
-          <>
-            <p className="mt-1 text-13">Stored in {data.store === 'tiger' ? 'Tiger Data' : 'memory (no DATABASE_URL)'}.</p>
-            {data.experiments.length === 0 ? (
-              <p className="mt-2 text-15">No experiments yet. Run one from the reef's card.</p>
-            ) : (
-              <ol className="mt-2 space-y-2 text-15">
-                {data.experiments.map((e) => (
-                  <li key={e.id} className="border-t border-ink pt-2">
-                    <span className="font-semibold">{e.playerName}</span>
-                    {e.roomCode && <> in room {e.roomCode}</>} · {new Date(e.createdAt).toLocaleString()}
-                    <br />
-                    <ResultLine result={e.result} /> · model {e.result.model}{' '}
-                    <a className="underline" href={`/api/experiments/${e.id}`} target="_blank" rel="noreferrer">Export JSON</a>
-                  </li>
-                ))}
-              </ol>
-            )}
-          </>
-        )}
-      </section>
     </main>
   );
 }

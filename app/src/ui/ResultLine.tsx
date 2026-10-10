@@ -1,11 +1,13 @@
 import type { ExperimentResult } from '@shared';
 
-/** A result's numbers. The settlement rate shows only when the engine produced one. */
+/** A result's numbers: what the prototype measured, never a made-up settlement rate. */
 export function ResultLine({ result }: { result: ExperimentResult }) {
+  const m = result.prototype;
   return (
     <span className="tabular">
-      {result.settlementRate === null ? 'Settlement: engine pending' : `Settlement: ${(result.settlementRate * 100).toFixed(1)}%`}
-      {' · '}Material: {result.material} voxels{' · '}seed {result.seed}
+      {m ? <>Reached <b>{m.reachedStructure}</b>/{m.released} · touches <b>{m.structureContacts}</b> · </> : null}
+      material <b>{result.material.toLocaleString()}</b> · seed {result.seed} ·{' '}
+      {result.settlementRate === null ? <span className="font-bold text-coral">settlement: engine pending</span> : `settlement ${(result.settlementRate * 100).toFixed(1)}%`}
     </span>
   );
 }

@@ -1,4 +1,4 @@
-// A tiny history-API router: four routes do not need a dependency.
+// A tiny history-API router: a handful of routes do not need a dependency.
 import { useSyncExternalStore, type AnchorHTMLAttributes, type MouseEvent } from 'react';
 
 const listeners = new Set<() => void>();

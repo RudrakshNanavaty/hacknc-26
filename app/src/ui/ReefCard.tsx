@@ -1,75 +1,91 @@
-// A reef's card: mission, the water it is tested in, live heat stress, and where every number
-// comes from. Values carry their provenance (measured / published / model / game-defined).
+// A reef's mission card: satellite imagery of the reef, the mission, the water it is tested in,
+// live heat stress, and where every number comes from (measured / published / model / game-defined).
 import { useEffect, useState } from 'react';
-import type { Provenance, Reef } from '@shared';
+import { reefImageUrl, type Provenance, type Reef } from '@shared';
 import { reefHeat, type Heat } from '../api';
 
-const TAG: Record<Provenance, string> = {
-  measured: 'Measured',
-  published: 'Published',
-  model: 'Ocean model',
-  'game-defined': 'Game-defined',
+const TAG: Record<Provenance, [string, string]> = {
+  measured: ['Measured', 'text-leaf-deep'],
+  published: ['Published', 'text-aqua-deep'],
+  model: ['Ocean model', 'text-lilac'],
+  'game-defined': ['Game-defined', 'text-coral'],
 };
 
 export function ProvenanceTag({ p }: { p: Provenance }) {
-  return <span className="border border-ink px-1 text-13 whitespace-nowrap">{TAG[p]}</span>;
+  const [label, color] = TAG[p];
+  return <span className={`chip bg-white/70 ${color}`}>{label}</span>;
 }
 
-export function ReefCard({ reef, children }: { reef: Reef; children?: React.ReactNode }) {
+export function useHeat(reefId: Reef['id']) {
   const [heat, setHeat] = useState<Heat | null | 'loading'>('loading');
   useEffect(() => {
     let live = true;
     setHeat('loading');
-    reefHeat(reef.id).then((h) => live && setHeat(h));
+    reefHeat(reefId).then((h) => live && setHeat(h));
     return () => {
       live = false;
     };
-  }, [reef.id]);
+  }, [reefId]);
+  return heat;
+}
 
+export function ReefCard({ reef, children, compact = false }: { reef: Reef; children?: React.ReactNode; compact?: boolean }) {
+  const heat = useHeat(reef.id);
   return (
-    <section className="w-full max-w-md min-w-0 border-(length:--rule) border-ink bg-bond p-4 shadow-plate">
-      <p className="text-13 uppercase tracking-wide">{reef.region}</p>
-      <h2 className="font-display text-48 font-extrabold">{reef.name}</h2>
-      <p className="mt-1 text-18 font-semibold">{reef.mission.title}</p>
-      <p className="mt-1 text-15">{reef.mission.brief}</p>
-
-      <dl className="mt-3 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-15">
-        <dt className="font-semibold">Water</dt>
-        <dd>
-          {reef.flow ? (
-            <>
-              {reef.flow.kind === 'oscillating' ? `Back and forth, ${reef.flow.peakCmS} cm/s peak every ${reef.flow.periodS} s` : `Steady, ${reef.flow.peakCmS} cm/s`}{' '}
-              <ProvenanceTag p={reef.flow.provenance} />
-            </>
-          ) : (
-            'Not derived yet'
-          )}
-        </dd>
-        <dt className="font-semibold">Heat stress</dt>
-        <dd>
-          {heat === 'loading' ? 'Loading…' : heat ? (
-            <>
-              {heat.dhw.toFixed(1)} °C-weeks on {heat.date} <ProvenanceTag p="measured" />
-            </>
-          ) : (
-            'Unavailable right now'
-          )}
-        </dd>
-      </dl>
-
-      {reef.sources.length > 0 && (
-        <details className="mt-3 text-13">
-          <summary className="cursor-pointer font-semibold">Data sources</summary>
-          <ul className="mt-1 space-y-1">
-            {reef.sources.map((s) => (
-              <li key={s.url}>
-                <a className="underline" href={s.url} target="_blank" rel="noreferrer">{s.label}</a> <ProvenanceTag p={s.provenance} />
-              </li>
-            ))}
-          </ul>
-        </details>
+    <section className="glass w-full max-w-md min-w-0 overflow-hidden">
+      {!compact && (
+        <div className="relative h-36 overflow-hidden sm:h-44">
+          <img src={reefImageUrl(reef)} alt={`Satellite view of ${reef.name}`} className="h-full w-full object-cover" loading="lazy" />
+          <div className="absolute inset-0 bg-gradient-to-t from-abyss/70 via-transparent to-white/20" />
+          <p className="absolute bottom-2 left-4 text-13 font-bold text-white drop-shadow">{reef.region}</p>
+          <p className="absolute right-3 bottom-2 text-[10px] text-white/80">Imagery © Esri, Maxar</p>
+          {!reef.ready && <span className="chip absolute top-3 right-3 bg-white/85 text-aqua-deep">Coming next</span>}
+        </div>
       )}
-      {children && <div className="mt-4 flex flex-wrap gap-2">{children}</div>}
+      <div className="p-4">
+        {compact && <p className="text-13 font-bold text-aqua-deep">{reef.region}</p>}
+        <h2 className="font-display text-32 font-black text-ink">{reef.name}</h2>
+        <p className="mt-0.5 font-display text-18 font-extrabold text-aqua-deep">{reef.mission.title}</p>
+        <p className="mt-1 text-15">{reef.mission.brief}</p>
+
+        <dl className="mt-3 grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-x-3 gap-y-1.5 text-15">
+          <dt className="font-bold">Water</dt>
+          <dd>
+            {reef.flow ? (
+              <>
+                {reef.flow.kind === 'oscillating' ? `Back and forth, ${reef.flow.peakCmS} cm/s peak every ${reef.flow.periodS} s` : `Steady, ${reef.flow.peakCmS} cm/s`}{' '}
+                <ProvenanceTag p={reef.flow.provenance} />
+              </>
+            ) : (
+              'Being derived from the site data'
+            )}
+          </dd>
+          <dt className="font-bold">Heat stress</dt>
+          <dd>
+            {heat === 'loading' ? 'Checking NOAA…' : heat ? (
+              <>
+                {heat.dhw.toFixed(1)} °C-weeks on {heat.date} <ProvenanceTag p="measured" />
+              </>
+            ) : (
+              'Unavailable right now'
+            )}
+          </dd>
+        </dl>
+
+        {reef.sources.length > 0 && (
+          <details className="mt-3 text-13">
+            <summary className="cursor-pointer font-bold text-aqua-deep">Data sources ({reef.sources.length})</summary>
+            <ul className="mt-1 space-y-1">
+              {reef.sources.map((s) => (
+                <li key={s.url}>
+                  <a className="underline decoration-aqua/50" href={s.url} target="_blank" rel="noreferrer">{s.label}</a> <ProvenanceTag p={s.provenance} />
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
+        {children && <div className="mt-4 flex flex-wrap gap-2">{children}</div>}
+      </div>
     </section>
   );
 }

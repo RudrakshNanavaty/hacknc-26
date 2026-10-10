@@ -1,4 +1,5 @@
 // Calls to the server. Everything here fails soft: the caller gets null and the game goes on.
+import type { FeatureCollection } from 'geojson';
 import type { Design, ExperimentResult, ReefId } from '@shared';
 
 const PLAYER_KEY = 'reefforge.player';
@@ -59,6 +60,16 @@ export interface ExperimentRow {
 export async function recentExperiments(reef: ReefId): Promise<{ store: string; experiments: ExperimentRow[] } | null> {
   try {
     const r = await fetch(`/api/experiments?reef=${reef}&limit=50`);
+    return r.ok ? await r.json() : null;
+  } catch {
+    return null;
+  }
+}
+
+/** NOAA Coral Reef Watch heat stress around a reef, as GeoJSON squares (the map's Heat layer). */
+export async function reefHeatGrid(reef: ReefId): Promise<(FeatureCollection & { date?: string | null }) | null> {
+  try {
+    const r = await fetch(`/api/reefs/${reef}/heat-grid`);
     return r.ok ? await r.json() : null;
   } catch {
     return null;
