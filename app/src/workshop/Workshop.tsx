@@ -9,15 +9,16 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
 import {
-  MATERIAL_BUDGET, PIECE_KINDS, REFERENCE_TILES, defaultParams, designOf, runPrototype,
-  type Design, type Piece, type PieceKind, type PrototypeMetrics, type PrototypeRun, type Reef,
+  MATERIAL_BUDGET, PIECE_KINDS, defaultParams, designOf, runPrototype,
+  type Design, type Piece, type PieceKind, type PrototypeRun, type Reef,
 } from '@shared';
 import { BuildPlane, CurrentArrow, Preview, Voxels } from './Build3D';
-import { exportJson, exportStl, importJson, saveDesign, savedDesigns } from './files';
 import { Icon, PIECE_ICON } from './Icons';
 import { Larvae, type Playback } from './Larvae';
 import { SceneBoundary } from '../ui/SceneBoundary';
 import { Ocean, Platform } from './Ocean';
+import { DesignsMenu } from './DesignsMenu';
+import { ResultsDock, type TestRecord } from './ResultsDock';
 import { candidateOf, materialOfPieces, useBuild, type Tool } from './store';
 
 const PIECE_NAME: Record<PieceKind, string> = { block: 'Block', ridge: 'Ridge', arch: 'Arch', tunnel: 'Tunnel' };
@@ -60,12 +61,6 @@ export interface WorkshopProps {
   viewPieces?: Piece[];
 }
 
-interface TestRecord {
-  n: number;
-  material: number;
-  metrics: PrototypeMetrics;
-}
-
 export function Workshop({ reef, seed, corner, primary, onTest, readOnly: locked = false, viewPieces }: WorkshopProps) {
   const ownPieces = useBuild((s) => s.pieces);
   const pieces = viewPieces ?? ownPieces;
@@ -89,7 +84,6 @@ export function Workshop({ reef, seed, corner, primary, onTest, readOnly: locked
   const [menu, setMenu] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const playback = useRef<Playback>({ frame: 0, playing: false, speed: 1 });
-  const file = useRef<HTMLInputElement>(null);
   const building = !run && !readOnly;
 
   const say = useCallback((msg: string) => {
@@ -193,114 +187,73 @@ export function Workshop({ reef, seed, corner, primary, onTest, readOnly: locked
       </Canvas>
       </SceneBoundary>
 
-      {/* Top bar */}
+      {/* Top: corner slot, where we are, material and designs. Wraps to two rows on phones. */}
       <div className="pointer-events-none absolute inset-x-0 top-0 flex flex-wrap items-start justify-between gap-2 p-2 sm:p-4">
-        <div className="pointer-events-auto flex flex-wrap items-center gap-2">{corner}</div>
-        <div className="glass-deep pointer-events-auto px-4 py-2 text-center">
-          <p className="font-display text-18 leading-tight font-black">{reef.name}</p>
+        <div className="pointer-events-auto order-1 flex flex-wrap items-center gap-2">{corner}</div>
+        <div className="glass-deep pointer-events-auto order-3 basis-full px-4 py-2 text-center sm:order-2 sm:basis-auto">
+          <p className="font-display text-18 leading-tight font-semibold">{reef.name}</p>
           <p className="text-13 text-white/85">
-            {reef.flow ? `Water: ${reef.flow.kind === 'oscillating' ? 'back and forth' : 'steady'}, ${reef.flow.peakCmS} cm/s` : 'Water not derived yet'}
-            {' · '}tile 48 × 24 mm, shown ×200
+            {reef.flow ? `${reef.flow.kind === 'oscillating' ? 'Back and forth' : 'Steady'}, ${reef.flow.peakCmS} cm/s.` : 'Water not derived yet.'} Tile 48 × 24 mm, shown ×200.
           </p>
         </div>
-        <div className="glass-deep pointer-events-auto w-56 px-4 py-2">
-          <div className="flex justify-between text-13 font-bold"><span>Material</span><span className="tabular">{material.toLocaleString()} / {MATERIAL_BUDGET.toLocaleString()}</span></div>
-          <div className="mt-1 h-2.5 overflow-hidden rounded-full bg-white/20">
-            <div className="h-full rounded-full transition-[width]" style={{ width: `${Math.min(100, (material / MATERIAL_BUDGET) * 100)}%`, background: material > MATERIAL_BUDGET * 0.9 ? 'linear-gradient(90deg,#ffb36b,#ff6b5a)' : 'linear-gradient(90deg,#9be85a,#36c1ef)' }} />
-          </div>
-          <p className="mt-1 text-[11px] text-white/75">{pieces.length} piece{pieces.length === 1 ? '' : 's'} · 1 voxel = 0.5 mm</p>
-        </div>
-      </div>
-
-      {/* Tools: a column on wide screens, a scrolling row on phones */}
-      {building && (
-        <div className="glass-deep absolute bottom-24 left-2 flex max-w-[calc(100%-1rem)] gap-1.5 overflow-x-auto p-2 sm:top-1/2 sm:bottom-auto sm:left-4 sm:-translate-y-1/2 sm:flex-col sm:overflow-visible" role="toolbar" aria-label="Building tools">
-          {toolButton('select', 'Select (V)', Icon.select)}
-          {PIECE_KINDS.map((k, i) => toolButton(k, `${PIECE_NAME[k]} (${i + 1})`, PIECE_ICON[k]))}
-          <span className="mx-1 my-0.5 w-px shrink-0 bg-white/30 sm:mx-0.5 sm:h-px sm:w-auto" />
-          <HudButton label={`Rotate (R) · ${rot * 90}°`} onClick={() => useBuild.getState().rotate()}>{Icon.rotate}</HudButton>
-          <HudButton label={fine ? 'Fine snap on (F): 0.5 mm' : 'Coarse snap (F): 2.5 mm'} pressed={fine} onClick={() => useBuild.getState().toggleFine()}>{Icon.grid}</HudButton>
-          <HudButton label="Undo (Ctrl/Cmd+Z)" disabled={!canUndo} onClick={() => useBuild.getState().undo()}>{Icon.undo}</HudButton>
-          <HudButton label="Redo (Shift+Ctrl/Cmd+Z)" disabled={!canRedo} onClick={() => useBuild.getState().redo()}>{Icon.redo}</HudButton>
-          {selected && (
-            <>
-              <HudButton label="Move (M)" pressed={moving} onClick={() => useBuild.getState().startMove()}>{Icon.move}</HudButton>
-              <HudButton label="Delete (Del)" onClick={() => useBuild.getState().removeSelected()}>{Icon.trash}</HudButton>
-            </>
-          )}
-        </div>
-      )}
-
-      {/* Design menu */}
-      <div className="absolute top-24 right-2 flex flex-col items-end gap-2 sm:right-4">
-        <button className="btn" aria-expanded={menu} onClick={() => setMenu((m) => !m)}>{Icon.save}<span>Designs</span></button>
-        {menu && (
-          <div className="glass-deep w-64 max-w-[calc(100vw-1rem)] p-3 text-15">
-            <p className="font-display font-black">Start from</p>
-            <ul className="mt-1 space-y-1">
-              <li><button className="text-left underline decoration-aqua/60" disabled={readOnly} onClick={() => loadPieces([], 'Empty tile')}>Empty tile</button></li>
-              {REFERENCE_TILES.filter((r) => r.id !== 'flat').map((r) => (
-                <li key={r.id}>
-                  <button className="text-left underline decoration-aqua/60" disabled={readOnly} onClick={() => loadPieces(r.design.pieces ?? [], r.name)}>{r.name}</button>
-                  <span className={`chip ml-1 ${r.kind === 'published' ? 'chip-published' : 'chip-game'}`}>{r.kind === 'published' ? 'Published' : 'Game-made'}</span>
-                </li>
-              ))}
-            </ul>
-            {savedDesigns().length > 0 && (
-              <>
-                <p className="mt-2 font-display font-black">Saved here</p>
-                <ul className="mt-1 max-h-32 space-y-1 overflow-y-auto">
-                  {savedDesigns().map((s) => (
-                    <li key={s.name}><button className="text-left underline decoration-aqua/60" disabled={readOnly} onClick={() => loadPieces(s.pieces, s.name)}>{s.name}</button></li>
-                  ))}
-                </ul>
-              </>
-            )}
-            <div className="mt-3 flex flex-wrap gap-1.5">
-              <button className="btn" disabled={readOnly || !pieces.length} onClick={() => {
-                const name = `Design ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-                say(saveDesign(name, pieces) ? `Saved as “${name}”` : 'Could not save in this browser');
-              }}>Save</button>
-              <button className="btn" onClick={() => exportJson(pieces)}>JSON</button>
-              <button className="btn" disabled={!pieces.length} onClick={() => exportStl(designOf(pieces))}>STL</button>
-              <button className="btn" disabled={readOnly} onClick={() => file.current?.click()}>Import</button>
-              <input ref={file} type="file" accept="application/json,.json" className="hidden" onChange={async (e) => {
-                const f = e.target.files?.[0];
-                e.target.value = '';
-                if (!f) return;
-                const res = await importJson(f);
-                if ('error' in res) say(res.error);
-                else loadPieces(res.pieces, f.name);
-              }} />
+        <div className="pointer-events-auto relative order-2 w-60 max-w-[calc(100vw-1rem)] sm:order-3">
+          <div className="glass-deep p-3">
+            <div className="flex justify-between text-13 font-semibold"><span>Material</span><span className="tabular">{material.toLocaleString()} / {MATERIAL_BUDGET.toLocaleString()}</span></div>
+            <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-white/20">
+              <div className="h-full rounded-full transition-[width]" style={{ width: `${Math.min(100, (material / MATERIAL_BUDGET) * 100)}%`, background: material > MATERIAL_BUDGET * 0.9 ? 'linear-gradient(90deg,#ffb36b,#ff6b5a)' : 'linear-gradient(90deg,#9be85a,#36c1ef)' }} />
+            </div>
+            <div className="mt-2 flex items-center justify-between gap-2">
+              <span className="text-13 text-white/80">{pieces.length} piece{pieces.length === 1 ? '' : 's'}, 0.5 mm voxels</span>
+              <button className="btn min-h-10 px-3" aria-expanded={menu} aria-haspopup="dialog" onClick={() => setMenu((m) => !m)}>{Icon.save}<span>Designs</span></button>
             </div>
           </div>
-        )}
+          {menu && <DesignsMenu pieces={pieces} readOnly={readOnly} onLoad={loadPieces} say={say} />}
+        </div>
       </div>
 
-      {/* Results of the latest run */}
-      {run && <RunPanel run={run} tests={tests} material={designOf(pieces).solid.length} />}
+      {/* Bottom: a message, the tools, then release or the results dock, in one stack. */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col items-center gap-2 p-2 sm:p-4 [&>*]:pointer-events-auto">
+        {(toast || (building && problem)) && (
+          <p className="glass-deep glass-flat px-4 py-2 text-15 font-semibold" role="status">{toast ?? PROBLEM[problem!]}</p>
+        )}
+        {building && !pieces.length && !toast && !problem && (
+          <p className="glass-deep glass-flat px-4 py-2 text-center text-15">
+            <span className="sm:hidden">Pick a piece, then tap the tile to place it.</span>
+            <span className="hidden sm:inline">Pick a piece, then click the tile to place it. Drag to look around, scroll to zoom.</span>
+          </p>
+        )}
 
-      {/* Hint / toast */}
-      {(toast || (building && problem)) && (
-        <p className="glass-deep pointer-events-none absolute bottom-40 left-1/2 -translate-x-1/2 px-4 py-2 text-15 font-bold sm:bottom-28" role="status">
-          {toast ?? PROBLEM[problem!]}
-        </p>
-      )}
-      {building && !pieces.length && !toast && !problem && (
-        <p className="glass-deep pointer-events-none absolute top-36 left-1/2 hidden -translate-x-1/2 px-4 py-2 text-center text-15 sm:block">
-          Pick a piece, then click the tile to place it. Drag to look around, scroll to zoom.
-        </p>
-      )}
-
-      {/* Bottom: release, or the replay bar */}
-      <div className="absolute inset-x-0 bottom-0 flex flex-wrap items-center justify-center gap-2 p-3 sm:p-4">
-        {!run ? (
+        {building && (
           <>
+            <p className="glass-deep glass-flat px-3 py-1 text-13 font-semibold" aria-live="polite">
+              {tool === 'select' ? 'Select' : `${PIECE_NAME[tool]}, rotated ${rot * 90}°`}, {fine ? 'fine snap 0.5 mm' : 'coarse snap 2.5 mm'}
+            </p>
+            {/* Tools: a scrolling row on phones, a column at the left edge on wide screens */}
+            <div className="glass-deep flex max-w-full gap-1.5 overflow-x-auto p-1.5 [scrollbar-width:none] sm:fixed sm:top-1/2 sm:left-4 sm:-translate-y-1/2 sm:flex-col sm:overflow-visible" role="toolbar" aria-label="Building tools">
+              {toolButton('select', 'Select (V)', Icon.select)}
+              {PIECE_KINDS.map((k, i) => toolButton(k, `${PIECE_NAME[k]} (${i + 1})`, PIECE_ICON[k]))}
+              <span className="mx-1 my-0.5 w-px shrink-0 bg-white/30 sm:mx-0.5 sm:h-px sm:w-auto" />
+              <HudButton label={`Rotate (R), now ${rot * 90}°`} onClick={() => useBuild.getState().rotate()}>{Icon.rotate}</HudButton>
+              <HudButton label={fine ? 'Fine snap on (F): 0.5 mm' : 'Coarse snap (F): 2.5 mm'} pressed={fine} onClick={() => useBuild.getState().toggleFine()}>{Icon.grid}</HudButton>
+              <HudButton label="Undo (Ctrl/Cmd+Z)" disabled={!canUndo} onClick={() => useBuild.getState().undo()}>{Icon.undo}</HudButton>
+              <HudButton label="Redo (Shift+Ctrl/Cmd+Z)" disabled={!canRedo} onClick={() => useBuild.getState().redo()}>{Icon.redo}</HudButton>
+              {selected && (
+                <>
+                  <HudButton label="Move (M)" pressed={moving} onClick={() => useBuild.getState().startMove()}>{Icon.move}</HudButton>
+                  <HudButton label="Delete (Del)" onClick={() => useBuild.getState().removeSelected()}>{Icon.trash}</HudButton>
+                </>
+              )}
+            </div>
+          </>
+        )}
+
+        {!run ? (
+          <div className="glass-deep flex items-center gap-1.5 rounded-full p-1.5">
             <button className="btn btn-primary btn-lg" onClick={test}>Release larvae</button>
             {primary && <button className="btn btn-lg" disabled={primary.disabled} onClick={() => primary.onClick(designOf(useBuild.getState().pieces))}>{primary.label}</button>}
-          </>
+          </div>
         ) : (
-          <div className="glass-deep flex w-full max-w-2xl flex-wrap items-center gap-3 px-3 py-2">
+          <ResultsDock run={run} tests={tests} material={designOf(pieces).solid.length}>
             <button className="btn btn-icon" aria-label={playing ? 'Pause' : 'Play'} onClick={() => {
               const pb = playback.current;
               if (pb.frame >= run.frameCount - 1) pb.frame = 0;
@@ -320,15 +273,15 @@ export function Workshop({ reef, seed, corner, primary, onTest, readOnly: locked
                 setFrame(Number(e.target.value));
               }}
             />
-            <span className="tabular w-14 text-13">{t.toFixed(1)} s</span>
-            <select className="field min-h-9 px-2 text-13" aria-label="Replay speed" defaultValue="1" onChange={(e) => (playback.current.speed = Number(e.target.value))}>
+            <span className="tabular w-12 text-13">{t.toFixed(1)} s</span>
+            <select className="field min-h-10 px-2 text-13" aria-label="Replay speed" defaultValue="1" onChange={(e) => (playback.current.speed = Number(e.target.value))}>
               <option value="0.5">0.5×</option>
               <option value="1">1×</option>
               <option value="2">2×</option>
             </select>
             <button className="btn" onClick={backToBuilding}>{readOnly ? 'Stop replay' : 'Keep building'}</button>
             {primary && <button className="btn" disabled={primary.disabled} onClick={() => primary.onClick(designOf(useBuild.getState().pieces))}>{primary.label}</button>}
-          </div>
+          </ResultsDock>
         )}
       </div>
       <div aria-hidden className="pointer-events-none absolute inset-0 shadow-[inset_0_0_120px_rgba(0,30,60,0.55)]" />
@@ -347,41 +300,3 @@ function HudButton({ label, onClick, pressed, disabled, children }: { label: str
     </button>
   );
 }
-
-/** What the run measured, plus the last few tests for comparison. */
-function RunPanel({ run, tests, material }: { run: PrototypeRun; tests: TestRecord[]; material: number }) {
-  const m = run.metrics;
-  const pct = (v: number) => `${Math.round((v / m.released) * 100)}%`;
-  return (
-    <section className="glass-deep absolute top-40 right-2 w-72 max-w-[calc(100vw-1rem)] p-4 text-15 sm:top-24 sm:right-4" aria-label="Test results">
-      <h2 className="font-display text-24 font-black">Test results</h2>
-      <p className="text-13 text-white/80">Prototype flow · seed {run.params.seed} · {m.durationS} s</p>
-      <dl className="mt-2 grid grid-cols-[1fr_auto] gap-x-3 gap-y-1">
-        <dt>Larvae released</dt><dd className="tabular font-bold">{m.released}</dd>
-        <dt>Reached your structure</dt><dd className="tabular font-bold">{m.reachedStructure} ({pct(m.reachedStructure)})</dd>
-        <dt>Touches</dt><dd className="tabular font-bold">{m.structureContacts}</dd>
-        <dt>Time near structure</dt><dd className="tabular font-bold">{m.meanNearStructureS.toFixed(2)} s</dd>
-        <dt>Time in slow water</dt><dd className="tabular font-bold">{m.meanShelteredS.toFixed(2)} s</dd>
-        <dt>Material</dt><dd className="tabular font-bold">{material.toLocaleString()}</dd>
-        <dt>Settlement</dt><dd className="font-bold text-coral">Scientific engine pending</dd>
-      </dl>
-      {tests.length > 1 && (
-        <>
-          <p className="mt-3 font-display font-black">Your tests</p>
-          <table className="mt-1 w-full text-13">
-            <thead><tr className="text-left text-white/80"><th>#</th><th>Reached</th><th>Touches</th><th>Material</th></tr></thead>
-            <tbody>
-              {tests.map((t) => (
-                <tr key={t.n}><td>{t.n}</td><td className="tabular">{t.metrics.reachedStructure}</td><td className="tabular">{t.metrics.structureContacts}</td><td className="tabular">{t.material}</td></tr>
-              ))}
-            </tbody>
-          </table>
-        </>
-      )}
-      <p className="mt-3 text-[12px] leading-snug text-white/80">
-        Simplified flow for play: water slows near surfaces, larvae swim and drift, no wakes or eddies. Not a settlement prediction.
-      </p>
-    </section>
-  );
-}
-

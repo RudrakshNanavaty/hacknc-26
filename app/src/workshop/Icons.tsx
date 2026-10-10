@@ -25,5 +25,6 @@ export const Icon = {
   play: svg(<path d="M7 4l13 8-13 8z" fill="currentColor" />),
   pause: svg(<><path d="M8 5v14M16 5v14" strokeWidth="3" /></>),
   back: svg(<path d="M15 5l-7 7 7 7" />),
+  chevron: svg(<path d="M6 15l6-6 6 6" />),
   save: svg(<><path d="M5 4h11l3 3v13H5z" /><path d="M8 4v5h7V4M8 20v-6h8v6" /></>),
 };
