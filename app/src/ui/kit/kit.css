@@ -1,0 +1,650 @@
+/* ReefForge Aero kit: Frutiger Aero + liquid glass, in a sunlit shallow reef.
+   Imported by styles.css. Palette tokens are plain #rrggbb so tokens.ts can read them for MapLibre.
+   Recipes live in the `components` layer, so Tailwind utilities (utilities layer) can override them.
+
+   Rules the recipes follow:
+   - The ocean (.ocean) is the colour. Surfaces stay quiet: clear glass with a bright rim, a crisp
+     hairline and a navy-tinted shadow, never a coloured glow.
+   - Glass is for floating chrome (bars, palette, drawer, title plate). Group content with spacing,
+     not more panels. Never put a blurred surface inside another blurred surface.
+   - Gel is for the one primary action on a screen. Everything else is a quiet glass button.
+   - Radii: panels 20 px, inner surfaces and fields 12 px, buttons and tags full pill.
+   - Type: Source Sans 3. Large text tracks tight, small labels track slightly open. */
+
+:root {
+  --sky: #dff4ff;
+  --aqua: #2bb6e6;
+  --aqua-deep: #0a6fb3;
+  --lagoon: #12a89a;
+  --seagrass: #2f9e4c;
+  --sun: #ffc93d;
+  --coral: #e5533f;
+  --sand: #f4ecd3;
+  --deep: #06304d;
+  --foam: #ffffff;
+
+  --font-aero-display: "Source Sans 3", "Segoe UI", "Myriad Pro", system-ui, sans-serif;
+  --font-aero-body: "Source Sans 3", "Segoe UI", "Myriad Pro", system-ui, sans-serif;
+
+  /* Shadows are tinted to the water, never black. */
+  --aero-shade: 4 40 70;
+  /* White inner ring + deep-aqua outer ring: visible on white glass, on gel and on deep water. */
+  --aero-focus: 0 0 0 2px rgb(255 255 255 / 0.95), 0 0 0 4px var(--aqua-deep);
+}
+
+@theme inline {
+  --color-sky: var(--sky);
+  --color-aqua: var(--aqua);
+  --color-aqua-deep: var(--aqua-deep);
+  --color-lagoon: var(--lagoon);
+  --color-seagrass: var(--seagrass);
+  --color-sun: var(--sun);
+  --color-coral: var(--coral);
+  --color-sand: var(--sand);
+  --color-deep: var(--deep);
+  --color-foam: var(--foam);
+
+  --font-aero-display: var(--font-aero-display);
+  --font-aero-body: var(--font-aero-body);
+}
+
+@layer components {
+  /* ---------- Type ---------- */
+  .aero {
+    color: var(--deep);
+    font-family: var(--font-aero-body);
+    font-size: 16px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .t-display {
+    font-family: var(--font-aero-display);
+    font-size: clamp(2.25rem, 4vw, 3.25rem);
+    font-weight: 700;
+    line-height: 1.05;
+    letter-spacing: -0.025em;
+  }
+  .t-title {
+    font-family: var(--font-aero-display);
+    font-size: 1.5rem;
+    font-weight: 700;
+    line-height: 1.15;
+    letter-spacing: -0.015em;
+  }
+  .t-heading {
+    font-family: var(--font-aero-display);
+    font-size: 1.125rem;
+    font-weight: 700;
+    line-height: 1.25;
+    letter-spacing: -0.005em;
+  }
+  .t-label {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    line-height: 1.35;
+    letter-spacing: 0.01em;
+  }
+  .t-muted { color: #1d4a6b; }
+
+  /* ---------- Glass ---------- */
+  .glass {
+    position: relative;
+    isolation: isolate;
+    border: 1px solid rgb(255 255 255 / 0.55);
+    border-radius: 20px;
+    color: var(--deep);
+    font-family: var(--font-aero-body);
+    background: linear-gradient(180deg, rgb(255 255 255 / 0.64), rgb(255 255 255 / 0.5));
+    -webkit-backdrop-filter: blur(24px) saturate(1.8);
+    backdrop-filter: blur(24px) saturate(1.8);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.95),
+      inset 0 0 0 1px rgb(255 255 255 / 0.2),
+      0 0 0 0.5px rgb(var(--aero-shade) / 0.22),
+      0 1px 2px rgb(var(--aero-shade) / 0.1),
+      0 14px 34px -14px rgb(var(--aero-shade) / 0.45);
+  }
+  /* Light catching the top edge of the pane: a thin band, not a blob. */
+  .glass::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    pointer-events: none;
+    background: linear-gradient(180deg, rgb(255 255 255 / 0.45), rgb(255 255 255 / 0) 22%);
+  }
+  /* Research Mode tint: fades in with the mode change (see [data-mode="research"] below). */
+  .glass::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    pointer-events: none;
+    background: rgb(214 230 245 / 0.55);
+    opacity: 0;
+    transition: opacity 600ms ease;
+  }
+  /* Tinted: a touch of water in the glass, for the one surface that should lead. */
+  .glass[data-tone="tinted"] {
+    background: linear-gradient(180deg, rgb(236 250 255 / 0.74), rgb(206 240 252 / 0.62));
+  }
+  .glass[data-padding="sm"] { padding: 0.5rem 0.75rem; }
+  .glass[data-padding="md"] { padding: 1rem 1.125rem; }
+  .glass[data-padding="lg"] { padding: 1.5rem 1.75rem; }
+  .glass[data-radius="pill"] { border-radius: 999px; }
+  .glass[data-radius="md"] { border-radius: 12px; }
+  .glass:focus-visible { box-shadow: var(--aero-focus); }
+
+  /* A flat inner surface for content inside glass (no blur: blur never nests). */
+  .well {
+    border: 1px solid rgb(255 255 255 / 0.7);
+    border-radius: 12px;
+    background: rgb(255 255 255 / 0.55);
+    box-shadow: 0 0 0 0.5px rgb(var(--aero-shade) / 0.14);
+  }
+
+  /* ---------- Buttons ----------
+     Two looks. `glass` (default) is the quiet one. The gel variants are Aqua: a dark-to-light body
+     (light glows up from below), a hard-edged gloss over the top half, a dark rim and a light
+     label. Contrast is measured at the label's vertical centre. */
+  .gel {
+    --gel-ink: var(--deep);
+    --gel-rim: rgb(var(--aero-shade) / 0.2);
+    --gel-body: linear-gradient(180deg, rgb(255 255 255 / 0.82), rgb(255 255 255 / 0.62));
+    --gel-glow: transparent;
+    --gel-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.95),
+      0 1px 2px rgb(var(--aero-shade) / 0.14),
+      0 4px 12px -6px rgb(var(--aero-shade) / 0.35);
+
+    position: relative;
+    isolation: isolate;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5em;
+    min-height: 44px;
+    padding: 0 1.25em;
+    border: 1px solid var(--gel-rim);
+    border-radius: 999px;
+    overflow: hidden;
+    cursor: pointer;
+    color: var(--gel-ink);
+    font-family: var(--font-aero-display);
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: 0.005em;
+    white-space: nowrap;
+    text-decoration: none;
+    background: radial-gradient(70% 60% at 50% 115%, var(--gel-glow), transparent 70%), var(--gel-body);
+    box-shadow: var(--gel-shadow);
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    transition:
+      transform 120ms ease-out,
+      filter 120ms ease-out,
+      background-color 120ms ease-out;
+  }
+  /* The gloss. Hidden on the quiet glass button; the gel variants switch it on. */
+  .gel::before {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    inset: 1px 1px auto 1px;
+    height: 50%;
+    border-radius: 999px 999px 40% 40% / 999px 999px 18% 18%;
+    pointer-events: none;
+    background: linear-gradient(180deg, rgb(255 255 255 / 0.72), rgb(255 255 255 / 0.12));
+    opacity: 0;
+    transition: opacity 120ms ease-out;
+  }
+  .gel[data-size="sm"] { min-height: 34px; padding: 0 1em; font-size: 14px; }
+  .gel[data-size="lg"] { min-height: 54px; padding: 0 1.6em; font-size: 19px; font-weight: 700; }
+
+  .gel[data-variant="aqua"],
+  .gel[data-variant="seagrass"],
+  .gel[data-variant="coral"],
+  .gel[data-variant="sun"] {
+    text-shadow: 0 -1px 0 rgb(0 20 40 / 0.35);
+    --gel-shadow:
+      inset 0 -1px 2px rgb(255 255 255 / 0.25),
+      0 1px 0 rgb(255 255 255 / 0.5),
+      0 2px 4px rgb(var(--aero-shade) / 0.25),
+      0 8px 18px -8px rgb(var(--aero-shade) / 0.55);
+  }
+  .gel[data-variant="aqua"]::before,
+  .gel[data-variant="seagrass"]::before,
+  .gel[data-variant="coral"]::before,
+  .gel[data-variant="sun"]::before { opacity: 1; }
+
+  /* White on #0b6fb3 is 5.3:1. */
+  .gel[data-variant="aqua"] {
+    --gel-ink: #ffffff;
+    --gel-rim: #064a7e;
+    --gel-body: linear-gradient(180deg, #0a5c9c 0%, #0b6fb3 50%, #1f92d8 100%);
+    --gel-glow: rgb(150 230 255 / 0.95);
+  }
+  /* White on #237d39 is 5.1:1. */
+  .gel[data-variant="seagrass"] {
+    --gel-ink: #ffffff;
+    --gel-rim: #15562a;
+    --gel-body: linear-gradient(180deg, #1b6a30 0%, #237d39 50%, #3a9d50 100%);
+    --gel-glow: rgb(170 245 170 / 0.9);
+  }
+  /* White on #c3402d is 4.9:1. */
+  .gel[data-variant="coral"] {
+    --gel-ink: #ffffff;
+    --gel-rim: #8c2a1d;
+    --gel-body: linear-gradient(180deg, #ad3626 0%, #c3402d 50%, #e2604a 100%);
+    --gel-glow: rgb(255 200 180 / 0.9);
+  }
+  /* Dark label on sun: #4a3300 on #f6bf2c is 8.6:1. */
+  .gel[data-variant="sun"] {
+    --gel-ink: #4a3300;
+    --gel-rim: #a87500;
+    --gel-body: linear-gradient(180deg, #eeac17 0%, #f6bf2c 50%, #ffdc6e 100%);
+    --gel-glow: rgb(255 248 205 / 0.95);
+    text-shadow: 0 1px 0 rgb(255 255 255 / 0.4);
+  }
+
+  .gel:hover:not(:disabled, [data-disabled]) { filter: brightness(1.06); }
+  /* Feedback on press, instantly: a small push in, the gloss dims. */
+  .gel:active:not(:disabled, [data-disabled]) {
+    transform: scale(0.97);
+    filter: brightness(0.94);
+    transition-duration: 60ms;
+  }
+  .gel:active:not(:disabled, [data-disabled])::before { opacity: 0.6; }
+  .gel[data-variant="glass"]:active:not(:disabled, [data-disabled])::before { opacity: 0; }
+  .gel:focus-visible { box-shadow: var(--gel-shadow), var(--aero-focus); }
+  .gel:disabled,
+  .gel[data-disabled] {
+    cursor: not-allowed;
+    color: rgb(6 48 77 / 0.55);
+    text-shadow: none;
+    border-color: rgb(var(--aero-shade) / 0.16);
+    background: rgb(255 255 255 / 0.45);
+    box-shadow: none;
+  }
+  .gel:disabled::before,
+  .gel[data-disabled]::before { opacity: 0; }
+  /* Busy keeps its colour: the action is running, not unavailable. */
+  .gel[aria-busy="true"] {
+    color: var(--gel-ink);
+    background: radial-gradient(70% 60% at 50% 115%, var(--gel-glow), transparent 70%), var(--gel-body);
+    border-color: var(--gel-rim);
+    box-shadow: var(--gel-shadow);
+    cursor: progress;
+  }
+  .gel[aria-busy="true"]::before { opacity: 1; }
+  .gel[data-variant="glass"][aria-busy="true"]::before { opacity: 0; }
+
+  .gel__spinner {
+    width: 1em;
+    height: 1em;
+    border-radius: 50%;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    opacity: 0.85;
+    animation: aero-spin 700ms linear infinite;
+  }
+
+  /* ---------- Meter ---------- */
+  .meter { color: var(--deep); font-family: var(--font-aero-body); }
+  .meter__head {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.375rem;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+  }
+  .meter__track {
+    position: relative;
+    height: 10px;
+    border-radius: 999px;
+    overflow: hidden;
+    background: rgb(var(--aero-shade) / 0.12);
+    box-shadow:
+      inset 0 1px 2px rgb(var(--aero-shade) / 0.3),
+      0 1px 0 rgb(255 255 255 / 0.8);
+  }
+  .meter__bar {
+    position: relative;
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(180deg, #2a9fe0, var(--aqua-deep));
+    box-shadow: inset 0 0 0 0.5px rgb(4 50 90 / 0.4);
+    transition: width 300ms ease;
+  }
+  .meter__bar::after {
+    content: "";
+    position: absolute;
+    inset: 1px 4px auto 4px;
+    height: 35%;
+    border-radius: 999px;
+    background: rgb(255 255 255 / 0.6);
+  }
+  .meter[data-state="near"] .meter__bar { background: linear-gradient(180deg, #ffd25a, #e9a412); }
+  .meter[data-state="over"] .meter__bar { background: linear-gradient(180deg, #ee6c58, #c3402d); }
+  /* Pending: nothing is measured yet, so nothing is filled. */
+  .meter[data-state="pending"] .meter__track {
+    background: transparent;
+    border: 1.5px dashed rgb(10 111 179 / 0.6);
+    box-shadow: none;
+  }
+
+  /* ---------- Tags (provenance and status) ---------- */
+  .tag {
+    --tag-ink: var(--deep);
+    --tag-fill: rgb(255 255 255 / 0.75);
+    display: inline-flex;
+    align-items: center;
+    height: 22px;
+    padding: 0 0.6em;
+    border-radius: 999px;
+    font-family: var(--font-aero-body);
+    font-size: 12.5px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+    color: var(--tag-ink);
+    background: var(--tag-fill);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tag-ink) 22%, transparent);
+  }
+  .tag[data-tone="seagrass"] { --tag-ink: #1a6a2f; --tag-fill: #dcf4e0; }
+  .tag[data-tone="aqua"] { --tag-ink: #0a5c9c; --tag-fill: #dceffb; }
+  .tag[data-tone="lagoon"] { --tag-ink: #0b6259; --tag-fill: #d5f3ef; }
+  .tag[data-tone="sun"] { --tag-ink: #714c00; --tag-fill: #fdefc2; }
+  .tag[data-tone="coral"] { --tag-ink: #9b2a1b; --tag-fill: #fde1dc; }
+
+  /* ---------- Fields ---------- */
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+    color: var(--deep);
+    font-family: var(--font-aero-body);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+  }
+  .field__control {
+    min-height: 44px;
+    padding: 0 0.875em;
+    border: 1px solid rgb(var(--aero-shade) / 0.22);
+    border-radius: 12px;
+    color: var(--deep);
+    font: inherit;
+    font-size: 16px;
+    font-weight: 400;
+    letter-spacing: 0;
+    background: rgb(255 255 255 / 0.88);
+    box-shadow: inset 0 1px 2px rgb(var(--aero-shade) / 0.12);
+    transition: border-color 120ms ease-out;
+  }
+  .field__control:hover { border-color: rgb(var(--aero-shade) / 0.36); }
+  .field__control::placeholder { color: #4d6f88; }
+  .field__control:focus-visible {
+    outline: none;
+    border-color: var(--aqua-deep);
+    box-shadow: inset 0 1px 2px rgb(var(--aero-shade) / 0.12), var(--aero-focus);
+  }
+  select.field__control {
+    appearance: none;
+    padding-right: 2.4em;
+    background-image:
+      linear-gradient(45deg, transparent 50%, var(--deep) 50%),
+      linear-gradient(135deg, var(--deep) 50%, transparent 50%);
+    background-position:
+      calc(100% - 1.3em) 52%,
+      calc(100% - 1em) 52%;
+    background-size: 0.3em 0.3em, 0.3em 0.3em;
+    background-repeat: no-repeat;
+  }
+
+  /* ---------- Alerts ---------- */
+  .alert {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    border-radius: 12px;
+    color: #7f2014;
+    font-family: var(--font-aero-body);
+    font-size: 15px;
+    font-weight: 600;
+    background: #fff0ed;
+    box-shadow:
+      inset 0 0 0 1px rgb(195 64 45 / 0.3),
+      0 1px 2px rgb(var(--aero-shade) / 0.08);
+  }
+  .alert[data-tone="info"] {
+    color: var(--deep);
+    background: rgb(255 255 255 / 0.8);
+    box-shadow:
+      inset 0 0 0 1px rgb(10 111 179 / 0.25),
+      0 1px 2px rgb(var(--aero-shade) / 0.08);
+  }
+
+  /* ---------- Avatars ---------- */
+  .avatar {
+    display: inline-block;
+    flex: none;
+    padding: 2px;
+    border-radius: 50%;
+    background: #ffffff;
+    box-shadow:
+      0 0 0 0.5px rgb(var(--aero-shade) / 0.25),
+      0 2px 6px -1px rgb(var(--aero-shade) / 0.3);
+    transition: box-shadow 120ms ease-out;
+  }
+  /* The portraits are tall busts: crop to a circle from the top so the face stays in frame. */
+  .avatar > img {
+    display: block;
+    border-radius: 50%;
+    object-fit: cover;
+    object-position: top center;
+    background: #eef8fd;
+  }
+  .avatar[data-selected="true"] {
+    box-shadow:
+      0 0 0 2.5px var(--aqua-deep),
+      0 2px 8px -1px rgb(var(--aero-shade) / 0.35);
+  }
+  .avatar[data-disabled="true"] { opacity: 0.35; filter: saturate(0.3); }
+  button:focus-visible > .avatar { box-shadow: var(--aero-focus); }
+
+  /* ---------- Workshop HUD (see WorkshopLayout.tsx) ---------- */
+  .hud {
+    display: grid;
+    gap: 12px;
+    grid-template-columns: minmax(10rem, 13rem) minmax(0, 1fr) minmax(0, 20rem);
+    grid-template-areas:
+      "top top top"
+      "palette stage drawer"
+      "action action action";
+  }
+  .hud[data-drawer="closed"] { grid-template-columns: minmax(10rem, 13rem) minmax(0, 1fr) auto; }
+  .hud__top {
+    grid-area: top;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 1.25rem;
+  }
+  .hud__top .meter { flex: 1 1 14rem; min-width: 0; }
+  .hud__palette { grid-area: palette; align-self: start; }
+  .hud__stage {
+    grid-area: stage;
+    min-height: 24rem;
+    overflow: hidden;
+    border-radius: 20px;
+  }
+  .hud__drawer { grid-area: drawer; align-self: start; }
+  .hud__action { grid-area: action; display: flex; justify-content: center; padding-top: 4px; }
+  .hud__timer[data-urgent="true"] { color: #b3311f; animation: timer-pulse 1s ease-in-out infinite; }
+
+  @media (max-width: 767px) {
+    .hud {
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-areas: "top" "stage" "palette" "action";
+      padding-bottom: 4rem;
+    }
+    .hud[data-drawer="closed"] { grid-template-columns: minmax(0, 1fr); }
+    .hud__stage { min-height: 16rem; }
+    /* A wrapped pill looks like a blob; use the panel radius on phones. */
+    .hud__top.glass[data-radius="pill"] { border-radius: 20px; }
+    /* The drawer becomes a bottom sheet: its header is always visible, the body opens upward. */
+    .hud__drawer {
+      position: fixed;
+      inset: auto 0 0 0;
+      z-index: 30;
+      max-height: 65dvh;
+      overflow: auto;
+      border-radius: 20px 20px 0 0;
+    }
+  }
+
+  /* ---------- Ocean backdrop ----------
+     Looking up through sunlit shallows: bright surface light at the top, turquoise mid-water,
+     deep blue below. Light rays and a caustic web near the surface, a few real-looking bubbles.
+     Only transform and opacity animate. */
+  .ocean {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    overflow: hidden;
+    pointer-events: none;
+    background:
+      radial-gradient(90% 45% at 50% -12%, rgb(255 255 255 / 0.9), rgb(255 255 255 / 0) 70%),
+      linear-gradient(
+        180deg,
+        #d4f3ff 0%,
+        #7fd6f2 16%,
+        #30b8e0 36%,
+        #1293cb 58%,
+        #0a6aa8 80%,
+        #07487c 100%
+      );
+  }
+  /* Shafts of sunlight from the surface, fading with depth. */
+  .ocean__rays {
+    position: absolute;
+    inset: -15% -20% 20% -20%;
+    opacity: 0.55;
+    mix-blend-mode: soft-light;
+    background: repeating-conic-gradient(
+      from 168deg at 46% -6%,
+      rgb(255 255 255 / 0) 0deg 2.5deg,
+      rgb(255 255 255 / 0.9) 3.2deg,
+      rgb(255 255 255 / 0) 4.4deg 7deg,
+      rgb(255 255 255 / 0.6) 7.6deg,
+      rgb(255 255 255 / 0) 8.8deg 12deg
+    );
+    -webkit-mask-image: linear-gradient(180deg, #000 0%, rgb(0 0 0 / 0.6) 35%, transparent 80%);
+    mask-image: linear-gradient(180deg, #000 0%, rgb(0 0 0 / 0.6) 35%, transparent 80%);
+    transform-origin: 46% 0;
+    animation: ocean-sway 18s ease-in-out infinite alternate;
+  }
+  /* Caustics: the contour lines of fractal noise read as the light web on a sunlit sea. */
+  .ocean__caustics {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    opacity: 0.4;
+    mix-blend-mode: overlay;
+    -webkit-mask-image: linear-gradient(180deg, #000 0%, rgb(0 0 0 / 0.7) 30%, transparent 70%);
+    mask-image: linear-gradient(180deg, #000 0%, rgb(0 0 0 / 0.7) 30%, transparent 70%);
+  }
+  /* The pattern drifts under the fixed fade; one tile per loop, so the loop is seamless. */
+  .ocean__caustics::before {
+    content: "";
+    position: absolute;
+    inset: 0 -520px -520px 0;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='520' height='520'><filter id='c' x='0' y='0' width='100%25' height='100%25'><feTurbulence type='fractalNoise' baseFrequency='0.011' numOctaves='2' seed='4' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 1.6 0 0 0 -0.3'/><feComponentTransfer><feFuncA type='table' tableValues='0 0 0 0 0 0 0 0.25 1 0.25 0 0 0 0 0 0 0'/></feComponentTransfer></filter><rect width='100%25' height='100%25' filter='url(%23c)'/></svg>");
+    background-size: 520px 520px;
+    animation: ocean-drift 60s linear infinite;
+  }
+  /* Blueprint grid, only visible in Research Mode. */
+  .ocean::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 600ms ease;
+    background-image:
+      linear-gradient(rgb(255 255 255 / 0.28) 1px, transparent 1px),
+      linear-gradient(90deg, rgb(255 255 255 / 0.28) 1px, transparent 1px);
+    background-size: 48px 48px;
+  }
+  /* A bubble is brightest at its rim, with one sharp highlight: not a filled white dot. */
+  .ocean__bubble {
+    position: absolute;
+    bottom: -60px;
+    left: var(--x);
+    width: var(--size);
+    height: var(--size);
+    border-radius: 50%;
+    background:
+      radial-gradient(circle at 32% 28%, rgb(255 255 255 / 0.95) 0 9%, rgb(255 255 255 / 0) 13%),
+      radial-gradient(circle at 50% 50%, rgb(255 255 255 / 0) 58%, rgb(255 255 255 / 0.3) 86%, rgb(255 255 255 / 0.7) 100%);
+    box-shadow: inset 0 -2px 4px rgb(255 255 255 / 0.25);
+    opacity: 0.85;
+    animation: bubble-rise var(--dur) linear var(--delay) infinite;
+    transition: opacity 600ms ease;
+  }
+
+  /* ---------- Research Mode (set on <html data-mode="research">) ---------- */
+  [data-mode="research"] .ocean {
+    background: linear-gradient(180deg, #e3eef6 0%, #b3cde0 50%, #7fa5c2 100%);
+  }
+  [data-mode="research"] .ocean::after { opacity: 1; }
+  [data-mode="research"] .ocean__bubble,
+  [data-mode="research"] .ocean__rays,
+  [data-mode="research"] .ocean__caustics { opacity: 0; }
+  [data-mode="research"] .glass::after { opacity: 1; }
+  [data-mode="research"] .gel::before { opacity: 0.35; }
+
+  /* ---------- Fallbacks ---------- */
+  @media (prefers-reduced-transparency: reduce) {
+    .glass,
+    .glass[data-tone="tinted"] {
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+      background: #f2faff;
+    }
+  }
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .glass { background: rgb(242 250 255 / 0.95); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ocean__bubble { display: none; }
+    .ocean__rays,
+    .ocean__caustics::before { animation: none; }
+  }
+}
+
+@keyframes aero-spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes bubble-rise {
+  0% { transform: translate3d(0, 0, 0); opacity: 0; }
+  8% { opacity: 0.85; }
+  50% { transform: translate3d(12px, -55vh, 0); }
+  92% { opacity: 0.6; }
+  100% { transform: translate3d(-4px, -112vh, 0); opacity: 0; }
+}
+@keyframes ocean-sway {
+  from { transform: rotate(-2deg); }
+  to { transform: rotate(2deg); }
+}
+@keyframes ocean-drift {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(-520px, -520px, 0); }
+}

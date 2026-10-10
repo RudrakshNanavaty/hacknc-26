@@ -1,4 +1,5 @@
 import { isReefId } from '@shared';
+import { Kit } from './routes/Kit';
 import { Landing } from './routes/Landing';
 import { Play } from './routes/Play';
 import { Research } from './routes/Research';
@@ -10,6 +11,8 @@ export function App() {
   let params: Record<string, string> | null;
 
   if (matchPath('/', path)) return <Landing />;
+  // Dev only: the Aero kit showcase (routes/Kit.tsx).
+  if (import.meta.env.DEV && matchPath('/kit', path)) return <Kit />;
   if (matchPath('/research', path)) return <Research />;
   if ((params = matchPath('/solo/:reef', path)) && isReefId(params.reef)) return <Solo key={params.reef} reef={params.reef} />;
   if ((params = matchPath('/play/:code', path))) return <Play key={params.code} code={(params.code ?? '').toUpperCase()} />;

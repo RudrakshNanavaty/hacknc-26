@@ -19,7 +19,6 @@ const NAMES = [
   'storm-water',
   'storm-glow',
   // The world: realistic city and storm water (3D buildings, shadows, windows, murky water).
-  'foam',
   'sky-day',
   'sky-night',
   'wall-day',
@@ -28,6 +27,17 @@ const NAMES = [
   'glass-night',
   'window-lit',
   'shadow',
+  // Frutiger Aero kit (ui/kit/kit.css). The globe moves to these in the Landing restyle.
+  'sky',
+  'aqua',
+  'aqua-deep',
+  'lagoon',
+  'seagrass',
+  'sun',
+  'coral',
+  'sand',
+  'deep',
+  'foam',
 ] as const;
 export type TokenName = (typeof NAMES)[number];
 

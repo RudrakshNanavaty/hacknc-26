@@ -1,4 +1,6 @@
 @import "tailwindcss";
+/* The Frutiger Aero kit (palette, glass, gel, ocean). Layered, so Tailwind utilities still win. */
+@import "./ui/kit/kit.css";
 
 /* Window height, for screens that must fit without scrolling (the title): `tall` keeps the 120 px
    display type, `short` (laptops with toolbars, phones) steps down a size. */
@@ -28,7 +30,6 @@
   /* The world (DESIGN.md "Color direction"): a realistic city and storm water under the
      printed instruments. The 3D buildings, their shadows and windows, and the storm water read
      only these. Planning keeps the --flood preview. */
-  --foam: #e9e4d2;
   --sky-day: #c9d8e6;
   --sky-night: #2d416b;
   --wall-day: #d9d4c9;
@@ -104,9 +105,12 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-:focus-visible {
-  outline: none;
-  box-shadow: var(--focus-ring);
+/* In the base layer so the kit's own focus ring (components layer) wins on its elements. */
+@layer base {
+  :focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+  }
 }
 
 .tabular {

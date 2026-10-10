@@ -2,24 +2,24 @@
   "name": "reefforge",
   "private": true,
   "type": "module",
+  "packageManager": "bun@1.4.2",
   "workspaces": [
     "shared",
     "app",
     "server"
   ],
   "scripts": {
-    "build": "npm run build -w app",
-    "start": "npm start -w server",
-    "dev": "concurrently -k -n app,server -c blue,magenta \"npm run dev -w app\" \"npm run dev -w server\"",
-    "typecheck": "npm run typecheck -w shared -w app -w server",
+    "build": "bun run --filter @reef/app build",
+    "start": "bun run --filter @reef/server start",
+    "dev": "bun run --filter @reef/app --filter @reef/server --parallel dev",
+    "typecheck": "bun run --filter @reef/shared --filter @reef/app --filter @reef/server --parallel typecheck",
     "test": "vitest run"
   },
   "engines": {
-    "node": ">=20.19"
+    "bun": ">=1.4.0"
   },
   "devDependencies": {
     "@types/node": "^22.20.5",
-    "concurrently": "^10.0.5",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "vitest": "^5.0.3"
