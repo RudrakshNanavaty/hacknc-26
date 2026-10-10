@@ -195,7 +195,7 @@ export function Workshop({ reef, seed, corner, primary, onTest, readOnly: locked
 
       {/* Top: corner slot, where we are, material and designs. Wraps to two rows on phones. */}
       <div className="pointer-events-none absolute inset-x-0 top-0 flex flex-wrap items-start justify-between gap-2 p-2 sm:p-4">
-        <div className="pointer-events-auto order-1 flex flex-wrap items-center gap-2">{corner}</div>
+        {corner && <div className="glass-deep pointer-events-auto order-1 flex flex-wrap items-center gap-2 rounded-full p-1.5">{corner}</div>}
         <div className="glass-deep pointer-events-auto order-3 basis-full px-4 py-2 text-center sm:order-2 sm:basis-auto">
           <p className="font-display text-18 leading-tight font-semibold">{reef.name}</p>
           <p className="text-13 text-white/85">

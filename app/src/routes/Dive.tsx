@@ -28,7 +28,7 @@ export function Dive({ reef: id }: { reef: ReefId }) {
     return (
       <main className="flex h-full items-center justify-center p-6">
         <p className="glass p-6 text-18">
-          {reef.name} is coming next. <Link to="/" className="font-bold underline">Back to the ocean</Link>
+          {reef.name} is coming next. <Link to="/" className="font-semibold underline">Back to the ocean</Link>
         </p>
       </main>
     );

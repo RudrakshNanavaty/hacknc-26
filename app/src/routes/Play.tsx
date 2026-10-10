@@ -7,6 +7,7 @@ import { AVATARS, REEFS, reefById, type AvatarId, type Piece, type RoomResult, t
 import { Invite } from '../room/Invite';
 import { savedPlayer, useRoom, type Room } from '../room/useRoom';
 import { Link } from '../router';
+import { PageHeader } from '../ui/PageHeader';
 import { Bubbles } from '../ui/Bubbles';
 import { ReefCard } from '../ui/ReefCard';
 import { Icon } from '../workshop/Icons';
@@ -90,10 +91,10 @@ export function Play({ code }: { code: string }) {
         readOnly={mine?.locked}
         primary={mine?.locked ? { label: 'Locked in', onClick: () => {}, disabled: true } : { label: 'Lock in my design', onClick: (d) => room.lock(d) }}
         corner={
-          <div className="glass-deep flex items-center gap-3 px-4 py-2">
+          <div className="flex items-center gap-3 px-3 py-1">
             <span className={`tabular font-display text-32 font-bold ${left !== null && left <= 30 ? 'text-sun' : ''}`}>{clock(left)}</span>
             <span className="text-13 leading-tight">Room {state.code}<br />{lockedCount}/{state.players.length} locked in</span>
-            {room.error && <span className="text-13 font-bold text-sun">{room.error}</span>}
+            {room.error && <span className="text-13 font-semibold text-sun">{room.error}</span>}
           </div>
         }
       />
@@ -116,13 +117,11 @@ export function Play({ code }: { code: string }) {
     <main className="relative min-h-full overflow-hidden">
       <Bubbles count={8} className="opacity-60" />
       <div className="relative mx-auto flex max-w-5xl flex-col gap-4 p-3 sm:p-6">
-        <header className="flex flex-wrap items-center gap-3">
-          <Link to="/" className="btn">{Icon.back}<span>Leave</span></Link>
-          <h1 className="font-display text-48 font-bold text-white drop-shadow-[0_2px_6px_rgba(0,50,90,0.5)]">Reef Rivals</h1>
+        <PageHeader back="Leave" title="Reef Rivals">
           {!room.connected && <span className="chip chip-published">Reconnecting…</span>}
-        </header>
+        </PageHeader>
         {room.error && !missing && (
-          <p className="glass p-3 font-bold text-coral" role="alert">
+          <p className="glass p-3 font-semibold text-coral-deep" role="alert">
             {room.error} <button className="ml-2 underline" onClick={room.clearError}>OK</button>
           </p>
         )}
@@ -138,7 +137,8 @@ export function Play({ code }: { code: string }) {
                 {state.players.map((p) => (
                   <li key={p.seat} className={`flex items-center gap-2 rounded-full bg-white/60 py-1 pr-3 pl-1 ${p.connected ? '' : 'opacity-40'}`}>
                     <Avatar id={p.avatar} size={40} ring={p.seat === me} />
-                    <span className="font-bold">{p.name}{p.seat === state.hostSeat ? ' · host' : ''}</span>
+                    <span className="font-semibold">{p.name}</span>
+                    {p.seat === state.hostSeat && <span className="chip chip-published">Host</span>}
                   </li>
                 ))}
               </ul>
@@ -150,7 +150,7 @@ export function Play({ code }: { code: string }) {
                   <button className="btn btn-primary btn-lg" onClick={room.start}>Start the round</button>
                 </div>
               ) : (
-                <p className="font-bold">Waiting for the host to start…</p>
+                <p className="font-semibold">Waiting for the host to start…</p>
               )}
             </section>
             <ReefCard reef={reef} />
@@ -159,7 +159,7 @@ export function Play({ code }: { code: string }) {
 
         {state && reef && me !== null && state.phase === 'briefing' && (
           <section className="glass p-6 text-center">
-            <p className="font-bold text-aqua-deep">Round {state.round} · building starts in <span className="tabular">{left}</span> s</p>
+            <p className="font-semibold text-aqua-deep">Round {state.round}, building starts in <span className="tabular">{left}</span> s</p>
             <h2 className="mt-1 font-display text-48 font-bold">{reef.mission.title}</h2>
             <p className="mx-auto mt-2 max-w-xl text-18">{reef.mission.brief}</p>
             <p className="mx-auto mt-3 max-w-xl text-15">Same reef, same water, same larvae for everyone. You have {clock(180)} to build. The arcade goal: reach the most larvae with the least material.</p>
@@ -175,17 +175,17 @@ export function Play({ code }: { code: string }) {
               <span className="chip chip-game mr-1">Arcade ranking</span>
               Most larvae reaching the structure, then less material. Not a scientific result: settlement needs the validated engine.
             </p>
-            <ol className="mt-4 space-y-2">
+            <ol className="mt-4 divide-y divide-ink/10">
               {state.results.map((r) => {
                 const m = r.result?.prototype;
                 return (
-                  <li key={r.seat} className={`flex flex-wrap items-center gap-3 rounded-2xl p-2 ${r.rank === 1 ? 'bg-sun/40' : 'bg-white/45'}`}>
+                  <li key={r.seat} className={`flex flex-wrap items-center gap-3 py-3 ${r.rank === 1 ? 'rounded-inner-sm bg-sun/30 px-2' : ''}`}>
                     <span className="tabular w-8 text-center font-display text-32 font-bold">{r.rank}</span>
                     <Avatar id={r.avatar} size={44} ring={r.seat === me} />
                     <span className="min-w-24 font-display text-18 font-bold">{r.name}</span>
                     {r.result && m ? (
                       <span className="tabular flex-1 text-15">
-                        Reached <b>{m.reachedStructure}</b>/{m.released} · touches <b>{m.structureContacts}</b> · material <b>{r.result.material.toLocaleString()}</b>
+                        Reached <b>{m.reachedStructure}</b>/{m.released}, touches <b>{m.structureContacts}</b>, material <b>{r.result.material.toLocaleString()}</b>
                       </span>
                     ) : (
                       <span className="flex-1">No design arrived in time</span>
