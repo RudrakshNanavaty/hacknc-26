@@ -26,3 +26,30 @@
 3. **"Why 2D?"** It runs in real time and stays honest. A 3D helix is motivation for the project, not something we claim to reproduce.
 4. **"Wouldn't an optimizer beat players?"** Probably, on our toy model. That's why simulator scores are hypotheses and not results.
 5. **"What's next?"** Lab partners tank-test the top designs, and the results recalibrate the model.
+
+---
+
+## Setup (fresh laptop)
+1. Install Node 20.19+ or 22. Clone the repo, then `npm install`.
+2. Run `npm run dev` and open http://localhost:5173. No network or keys are needed: the sim runs in a Web Worker.
+3. Run `npm test` to sanity-check. Run `npm run benchmark:regress` to confirm the same seed still gives the same output.
+4. First load shows onboarding. Press `?` to show it again.
+
+## Live demo, click by click
+| Beat | Do |
+|---|---|
+| Problem | App loads on the **Ridge** preset. Let the larvae swirl and settle (about 7 s on first load). |
+| Edit | Press `2` (Recess), click the flat seabed between two ridges. Drag down while clicking to set depth. Then press `1` and add a ridge. |
+| Run | It re-runs automatically 300 ms after an edit. The score counts up in the Metrics panel. |
+| Compare | Point at the **Compared with baselines** bars: Flat / Ridge / Recess / **Yours** (sun color). |
+| Benchmark | Click the **Benchmark** badge (top right). Show the prediction, the pass rule, the CI, and "what this does not show". |
+| Record | Dock → **Record**. Show seed, parameters and version, then **Re-run from this record**. The result is the same number. |
+| Future | Closing slide only. There is no button for it. |
+
+Shortcuts: `1–4` tools · `Ctrl+Z / Ctrl+Y` undo/redo · `Enter` or `R` re-run · `F` flow arrows · `Ctrl+S` save · `?` help.
+
+## Backup procedure
+- **Sim too slow on the projector laptop:** the flow is cached per geometry. Pre-warm by loading Flat, Ridge and Recess from **Presets** before going on stage.
+- **WebGL broken:** the backdrop and 3D extrusion are decoration. Toggle **Reduce motion** in Metrics. The 2D sim canvas does not use WebGL.
+- **Browser dies:** restart with `npm run dev`. Saved designs persist in IndexedDB. Exported record JSON can be re-imported via **Compare → Import**.
+- **Everything fails:** play the backup video (record it from this script at 1920×1080), and show `benchmark/results.json` and `docs/PHASE_A.md` from the repo.

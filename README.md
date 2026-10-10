@@ -27,15 +27,20 @@ Live status is in [`PROGRESS.md`](PROGRESS.md). Decisions are logged in [`DECISI
 
 ```bash
 npm install
-npm run dev          # app at http://localhost:5173
-npm test             # unit + regression tests
-npm run benchmark    # runs the pre-registered benchmark (see docs/SCIENCE.md)
+npm run dev                          # app at http://localhost:5173
+npm test                             # unit + engineering tests
+npm run typecheck && npm run lint
+npm run benchmark -- calibrate       # flat vs ridge grid → benchmark/calibration.json (done, D-014)
+npm run benchmark -- freeze          # writes benchmark/preregistration.json (done, committed)
+npm run benchmark -- heldout         # 30-seed recess test → benchmark/results.json
+npm run benchmark:regress            # same seed → same output
 ```
 
 Optional environment variables, set in `.env.local` (never commit them):
 
 ```
-VITE_GEMINI_API_KEY=...   # Gemini critic only; the app works without it
+VITE_USE_MOCK_SIM=false   # true = fixture-driven mock worker for UI work
+VITE_GEMINI_API_KEY=...   # Gemini critic (stretch, not built); the app works without it
 ```
 
 ---
