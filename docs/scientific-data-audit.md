@@ -6,6 +6,16 @@ Checked on 2026-10-10. Every status below comes from an actual request made duri
 
 ---
 
+## Update 2026-10-10 (evening): verified while planning the real simulation
+
+See `docs/simulation-plan.md` for how these feed the engine.
+
+- **Levenstein settlement rule found** (methods): a larva settles on contact when its total speed is below swim speed + 1 SD (≈ 4 mm/s). Larvae are 0.5 × 0.3 mm ellipses with Jeffery rotation; 19,200 per topography; dt 0.01 s.
+- **Exact ridge profile** (Fig S7): 2.5 mm tall, 2.0 mm top, 4.5 mm base, 5.0 mm troughs. **Simulation domain** (Fig S8): 2D, 63.5 × 20 mm, three ridges. This replaces the "ridge width assumed" note.
+- **Helix study is open access** (CC BY-NC 4.0, DOI 10.1016/j.biocon.2025.111407). Its data repo is promised but not public yet; **the designs are under patent application PCT/US2024/051295**. Follow-up: Ecological Engineering 2026, DOI 10.1016/j.ecoleng.2026.107912.
+- **Heron Island near-bed currents computed** (`pipeline/heron_currents.py`): 1.41 m above the bed, p10 / p50 / p90 / p99 = 8.0 / 23.8 / 45.0 / 58.3 cm/s over 179.7 days.
+- PacIOOS (Kāneʻohe ocean models) still unreachable.
+
 ## Bottom line
 
 **Feasible, but no single dataset says "this structure shape → this many larvae settle".** The data has to come in four layers, and we found real data for every layer:
