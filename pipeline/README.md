@@ -38,12 +38,12 @@ unzip "Great Barrier Reef Bathymetry 2020 30m.zip" Great_Barrier_Reef_C_2020_30m
 pipeline/.venv/bin/python -I pipeline/terrain.py --site heron-island \
   --dem Great_Barrier_Reef_C_2020_30m_MSL_cog.tif \
   --image /vsicurl/https://sentinel-cogs.s3.us-west-2.amazonaws.com/sentinel-s2-l2a-cogs/56/K/LV/2025/8/S2C_56KLV_20250804_0_L2A/TCI.tif \
-  --crs EPSG:32756 --bbox 389300 7405500 390700 7406900 --sizes 257 129 --tex 1024 \
+  --crs EPSG:32756 --bbox 389470 7405670 390070 7406270 --sizes 257 129 --tex 1024 \
   --out app/public/terrain/heron-island --sources pipeline/sources/heron-island.json \
   --vertical-datum "approximately mean sea level (GA GBR 30 m model)"
 ```
 
-The 1.4 × 1.4 km window lies entirely on Heron Reef (south of Heron Island): reef flat, reef crest and the south-west slope to −37 m. It was checked against the depth model to contain no other reef.
+The 600 × 600 m window lies entirely on Heron Reef (south-west of Heron Island), centred on the reef edge: reef flat, crest and slope to −27.7 m. It was checked against the depth model to contain no other reef. (A first 1.4 km window over the Wistari Channel was rejected because half of it was Wistari Reef; a second 1.4 km window was mostly featureless reef flat.)
 
 ## Currents (`heron_currents.py`)
 

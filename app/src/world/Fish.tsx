@@ -139,7 +139,7 @@ interface School {
   scale: Float32Array;
 }
 
-export function Fish({ terrain, schools: count, scale, maxDistance }: { terrain: Terrain; schools: number; scale: number; maxDistance: number }) {
+export function Fish({ terrain, schools: count, scale, maxDistance, followRadius }: { terrain: Terrain; schools: number; scale: number; maxDistance: number; followRadius: number }) {
   const { camera } = useThree();
   const kinds = useMemo(() => SPECIES.map((s) => ({ s: { ...s, length: s.length * scale, speed: s.speed * scale }, geom: null as THREE.BufferGeometry | null, mat: null as ReturnType<typeof swimMaterial> | null })), [scale]);
   for (const k of kinds) {
@@ -195,10 +195,14 @@ export function Fish({ terrain, schools: count, scale, maxDistance }: { terrain:
       mesh.visible = !far;
       sc.goalTimer -= dt;
       if (sc.goalTimer <= 0 || sc.goal.distanceTo(v3.set(cx, cy, cz)) < 0.8 * scale) {
-        // A new wander goal inside the survey, at the species' preferred height.
+        // A new wander goal at the species' preferred height: near where the school is, or, if the
+        // diver has swum far away, back towards the diver, so there is always life nearby.
         sc.goalTimer = 6 + r.next() * 10;
-        const gx = Math.max(-0.45, Math.min(0.45, cx / terrain.sizeX + (r.next() - 0.5) * 0.35)) * terrain.sizeX;
-        const gz = Math.max(-0.45, Math.min(0.45, cz / terrain.sizeZ + (r.next() - 0.5) * 0.35)) * terrain.sizeZ;
+        const away = Math.hypot(cx - camera.position.x, cz - camera.position.z) > followRadius;
+        const ox = away ? camera.position.x : cx, oz = away ? camera.position.z : cz;
+        const reach = away ? followRadius * 0.6 : Math.min(terrain.sizeX, followRadius * 1.5);
+        const gx = Math.max(-0.45 * terrain.sizeX, Math.min(0.45 * terrain.sizeX, ox + (r.next() - 0.5) * reach));
+        const gz = Math.max(-0.45 * terrain.sizeZ, Math.min(0.45 * terrain.sizeZ, oz + (r.next() - 0.5) * reach));
         sc.goal.set(gx, terrain.heightAt(gx, gz) + (s.band[0] + r.next() * (s.band[1] - s.band[0])) * scale, gz);
       }
       const step = far ? dt * 0.5 : dt;

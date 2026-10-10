@@ -18,7 +18,7 @@ import { checkPlacement, useDevices, type PlacementCheck } from '../world/device
 import { Fish } from '../world/Fish';
 import { Life } from '../world/Life';
 import { Swim, flyTo, useSwimControls, type SwimControls } from '../world/Swim';
-import { loadTerrain, type Terrain } from '../world/terrain';
+import { findStart, loadTerrain, withGeneratedRelief, type Terrain } from '../world/terrain';
 import { TerrainMesh } from '../world/TerrainMesh';
 import { WaterFx } from '../world/WaterFx';
 import { WORLDS, type WorldStyle } from '../world/worlds';
@@ -49,20 +49,20 @@ function Readout({ terrain, surface }: { terrain: Terrain; surface: number }) {
 }
 
 /** Arrival: sink from just under the surface to the start point. */
-function Arrival({ controls, start, terrain, clearance, surface, onStart }: { controls: React.MutableRefObject<SwimControls>; start: [number, number, number]; terrain: Terrain; clearance: number; surface: number; onStart: () => void }) {
+/** Arrival: sink from just under the surface to a spot on the slope, looking up the reef. */
+function Arrival({ controls, band, terrain, clearance, surface, onStart }: { controls: React.MutableRefObject<SwimControls>; band: [number, number]; terrain: Terrain; clearance: number; surface: number; onStart: () => void }) {
   const { camera } = useThree();
   const done = useRef(false);
   useEffect(() => {
     if (done.current) return;
     done.current = true;
     onStart();
-    const [x, , z] = start;
-    const ground = terrain.heightAt(x, z);
-    const target = new THREE.Vector3(x, Math.max(ground + clearance * 4, Math.min(start[1], surface - 1)), z);
-    camera.position.set(x, surface - 0.2, z + Math.max(2, terrain.sizeZ * 0.03));
-    const look = new THREE.Vector3(x, ground, z - Math.max(4, terrain.sizeZ * 0.05));
-    flyTo(controls.current, camera, target, look, window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0.01 : 3.2);
-  }, [camera, controls, start, terrain, clearance, surface, onStart]);
+    const { at, look } = findStart(terrain, band, clearance);
+    const target = new THREE.Vector3(...at);
+    target.y = Math.min(target.y, surface - clearance);
+    camera.position.set(at[0], surface - 0.3, at[2]);
+    flyTo(controls.current, camera, target, new THREE.Vector3(...look), window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0.01 : 3.4);
+  }, [camera, controls, band, terrain, clearance, surface, onStart]);
   return null;
 }
 
@@ -106,6 +106,7 @@ function World({ reef: _reef, style, terrain, controls, mode, yaw, onPlace, onSe
         causticScale={style.causticScale}
         surface={style.surface}
         fadeBelow={fadeBelow}
+        detail={!!style.detailTexture}
         onPointer={(p) => {
           if (mode !== 'deploy' || !p) return useCursor.getState().set(null, null);
           useCursor.getState().set(p, checkPlacement(terrain, p.x, p.z, useDevices.getState().devices));
@@ -113,8 +114,8 @@ function World({ reef: _reef, style, terrain, controls, mode, yaw, onPlace, onSe
         onClick={(p, delta) => mode === 'deploy' && delta < 6 && onPlace(p)}
       />
       <Life terrain={terrain} style={style} />
-      <Fish terrain={terrain} schools={style.fish.schools} scale={style.fish.scale} maxDistance={style.site === 'heron-island' ? 90 : 30} />
-      <WaterFx surface={style.surface} scale={style.site === 'heron-island' ? 4 : 1} />
+      <Fish terrain={terrain} schools={style.fish.schools} scale={style.fish.scale} maxDistance={style.site === 'heron-island' ? 60 : 30} followRadius={style.site === 'heron-island' ? 35 : 22} />
+      <WaterFx surface={style.surface} scale={style.site === 'heron-island' ? 1.6 : 1} />
       <Devices3D devices={devices} selected={selected} beaconScale={beaconScale} onSelect={onSelect} />
       {mode === 'deploy' && <DeployCursor at={cursor.at} yaw={yaw} check={cursor.check} beaconScale={beaconScale} />}
       <Swim terrain={terrain} controls={controls} speed={style.swimSpeed} clearance={style.clearance} surface={style.surface} />
@@ -182,14 +183,16 @@ export function Explore({ reef: id }: { reef: ReefId }) {
   const check = useCursor((s) => s.check);
   const readout = useReadout();
   const touch = useMemo(mobile, []);
-  const beaconScale = id === 'heron-island' ? 6 : 1;
+  const beaconScale = id === 'heron-island' ? 2 : 1;
 
   useEffect(() => {
     useDevices.getState().open(id);
     if (!style) return;
     let live = true;
-    loadTerrain(style.site, (fine) => live && setTerrain(fine), touch ? 513 : 1025)
-      .then((t) => live && setTerrain(t))
+    // Coarse sources get generated fine relief (listed in What's real here); measured ones stay as measured.
+    const finish = (t: Terrain) => (style.relief ? withGeneratedRelief(t, touch ? Math.min(385, style.relief.samples) : style.relief.samples, style.relief.amplitude) : t);
+    loadTerrain(style.site, (fine) => live && setTerrain(finish(fine)), touch ? 513 : 1025)
+      .then((t) => live && setTerrain(finish(t)))
       .catch((e) => live && setError(String(e)));
     return () => {
       live = false;
@@ -303,7 +306,7 @@ export function Explore({ reef: id }: { reef: ReefId }) {
             <Suspense fallback={null}>
               <World reef={id} style={style} terrain={terrain} controls={controls} mode={mode} yaw={yaw} onPlace={place} beaconScale={beaconScale}
                 onSelect={(deviceId) => useDevices.getState().select(deviceId)} />
-              {!arrived.current && <Arrival controls={controls} start={style.start} terrain={terrain} clearance={style.clearance} surface={style.surface} onStart={() => (arrived.current = true)} />}
+              {!arrived.current && <Arrival controls={controls} band={style.startBand} terrain={terrain} clearance={style.clearance} surface={style.surface} onStart={() => (arrived.current = true)} />}
               <CameraGrab cameraRef={cameraRef} restore={restorePose} />
             </Suspense>
           </Canvas>

@@ -1,21 +1,21 @@
 {
   "site": "heron-island",
-  "generated": "2026-10-10T20:35:59+00:00",
+  "generated": "2026-10-10T20:54:43+00:00",
   "crs": "EPSG:32756",
   "bounds": {
-    "minx": 389300.0,
-    "miny": 7405500.0,
-    "maxx": 390700.0,
-    "maxy": 7406900.0
+    "minx": 389470.0,
+    "miny": 7405670.0,
+    "maxx": 390070.0,
+    "maxy": 7406270.0
   },
   "size_m": {
-    "x": 1400.0,
-    "y": 1400.0
+    "x": 600.0,
+    "y": 600.0
   },
   "vertical_datum": "approximately mean sea level (GA GBR 30 m model)",
   "elevation_units": "metres (negative = below the datum)",
-  "elevation_min_m": -37.469,
-  "elevation_max_m": -0.038,
+  "elevation_min_m": -27.743,
+  "elevation_max_m": -0.538,
   "heightmaps": [
     {
       "file": "height_257.u16",

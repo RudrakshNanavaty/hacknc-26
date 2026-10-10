@@ -113,6 +113,87 @@ export class Terrain {
   }
 }
 
+/** Smooth value noise in [-1, 1] (seeded hash, bilinear-interpolated). */
+function valueNoise(x: number, z: number, seed: number) {
+  const hash = (i: number, j: number) => {
+    let h = (i * 374761393 + j * 668265263 + seed * 2147483647) | 0;
+    h = Math.imul(h ^ (h >>> 13), 1274126177);
+    return ((h ^ (h >>> 16)) >>> 0) / 4294967295 * 2 - 1;
+  };
+  const i = Math.floor(x), j = Math.floor(z);
+  const fx = x - i, fz = z - j;
+  const sx = fx * fx * (3 - 2 * fx), sz = fz * fz * (3 - 2 * fz);
+  const a = hash(i, j), b = hash(i + 1, j), c = hash(i, j + 1), d = hash(i + 1, j + 1);
+  return (a + (b - a) * sx) * (1 - sz) + (c + (d - c) * sx) * sz;
+}
+
+/**
+ * Adds GENERATED relief finer than the measured grid (for coarse sources like a 30 m depth model):
+ * the measured shape is upsampled to `samples` and seeded multi-octave noise is added, stronger on
+ * the reef crest. The result replaces the heights everywhere (mesh, collision, placement), and the
+ * "What's real here" panel says it is generated. `measured` stays as the source's mask.
+ */
+export function withGeneratedRelief(t: Terrain, samples: number, amplitude: (elevation: number) => number): Terrain {
+  const w = samples, h = Math.round(samples * (t.sizeZ / t.sizeX));
+  const span = t.meta.elevation_max_m - t.meta.elevation_min_m;
+  const raw = new Uint16Array(w * h);
+  const values = new Float32Array(w * h);
+  let lo = Infinity, hi = -Infinity;
+  for (let j = 0; j < h; j++) {
+    for (let i = 0; i < w; i++) {
+      const x = (i / (w - 1) - 0.5) * t.sizeX;
+      const z = (j / (h - 1) - 0.5) * t.sizeZ;
+      const base = t.heightAt(x, z);
+      // Octaves at ~24 m, 9 m and 3.5 m: reef buttresses, bommies, rubble.
+      const n = valueNoise(x / 24, z / 24, 1) * 0.55 + valueNoise(x / 9, z / 9, 2) * 0.3 + valueNoise(x / 3.5, z / 3.5, 3) * 0.15;
+      const v = base + n * amplitude(base);
+      values[j * w + i] = v;
+      lo = Math.min(lo, v);
+      hi = Math.max(hi, v);
+    }
+  }
+  const meta: TerrainMeta = { ...t.meta, elevation_min_m: lo, elevation_max_m: hi };
+  const s2 = Math.max(hi - lo, 1e-6);
+  for (let k = 0; k < values.length; k++) raw[k] = Math.round(((values[k]! - lo) / s2) * 65535);
+  void span;
+  return new Terrain(meta, raw, w, h, t.measured, t.measuredW, t.measuredH);
+}
+
+/**
+ * A good place to arrive: on the slope at a moderate depth, looking up towards the shallows.
+ * Returns the camera position and the point to look at.
+ */
+export function findStart(t: Terrain, depthBand: [number, number], clearance: number): { at: [number, number, number]; look: [number, number, number] } {
+  let best: { score: number; x: number; z: number } | null = null;
+  const n = 48;
+  for (let j = 4; j < n - 4; j++) {
+    for (let i = 4; i < n - 4; i++) {
+      const x = (i / (n - 1) - 0.5) * t.sizeX;
+      const z = (j / (n - 1) - 0.5) * t.sizeZ;
+      const e = t.heightAt(x, z);
+      if (e > depthBand[1] || e < depthBand[0] || !t.measuredAt(x, z)) continue;
+      const slope = t.slopeAt(x, z, t.sizeX / 40);
+      const centred = 1 - Math.hypot(x / t.sizeX, z / t.sizeZ);
+      const score = slope * 0.6 + centred * 20;
+      if (!best || score > best.score) best = { score, x, z };
+    }
+  }
+  const x = best?.x ?? 0, z = best?.z ?? 0;
+  // Look uphill: the direction the ground rises fastest.
+  const r = t.sizeX / 30;
+  const gx = t.heightAt(x + r, z) - t.heightAt(x - r, z);
+  const gz = t.heightAt(x, z + r) - t.heightAt(x, z - r);
+  const len = Math.hypot(gx, gz) || 1;
+  const dx = gx / len, dz = gz / len;
+  const back = Math.min(t.sizeX, t.sizeZ) * 0.04;
+  const cx = x - dx * back, cz = z - dz * back;
+  const ground = t.heightAt(cx, cz);
+  return {
+    at: [cx, ground + Math.max(clearance * 4, Math.min(6, (depthBand[1] - depthBand[0]) * 0.35)), cz],
+    look: [x + dx * back * 2, t.heightAt(x + dx * back * 2, z + dz * back * 2) + clearance * 2, z + dz * back * 2],
+  };
+}
+
 async function bytes(url: string) {
   const r = await fetch(url);
   if (!r.ok) throw new Error(`${url}: ${r.status}`);

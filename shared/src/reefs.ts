@@ -94,8 +94,8 @@ export const REEFS: readonly Reef[] = [
     id: 'heron-island',
     name: 'Heron Reef',
     region: 'Great Barrier Reef, Australia',
-    lat: -23.450474,
-    lon: 151.923072,
+    lat: -23.452536,
+    lon: 151.920804,
     ready: true,
     mission: { title: 'The Current Challenge', brief: 'Explore the reef platform around Heron Island, pick a site and build a device for strong tidal currents.' },
     // Tile water: the reference conditions until Heron's near-bed flow is derived (docs/simulation-plan.md §4).
@@ -107,7 +107,7 @@ export const REEFS: readonly Reef[] = [
       { label: 'Currents: IMOS ANMN mooring GBRHIS (AWAC, 8.7 m), CC BY 4.0', url: 'https://thredds.aodn.org.au/thredds/catalog/IMOS/ANMN/QLD/GBRHIS/Velocity/catalog.html', provenance: 'measured', at: [151.9553, -23.5123] },
     ],
     bbox: [151.88, -23.48, 151.98, -23.41],
-    world: { terrain: 'heron-island', center: [151.923072, -23.450474] },
+    world: { terrain: 'heron-island', center: [151.920804, -23.452536] },
   },
   {
     id: 'florida-keys',
