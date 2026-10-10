@@ -1,0 +1,21 @@
+# Render Blueprint (New > Blueprint): one free Docker web service; the server serves the app too.
+# Keys are never in git: Render asks for each `sync: false` value when the Blueprint is created.
+services:
+  - type: web
+    name: reefforge
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        sync: false
+      - key: ELEVENLABS_API_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: PUBLIC_URL
+        sync: false

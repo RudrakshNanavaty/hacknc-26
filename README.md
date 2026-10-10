@@ -1,36 +1,50 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ReefForge
 
-## Getting Started
+**Build for fun. Discover for real.** A multiplayer underwater construction game where every structure a player builds is evaluated as a coral settlement experiment on real reef data. HackNC 2026.
 
-First, run the development server:
+Product vision: [`docs/reefforge-one-pager.md`](docs/reefforge-one-pager.md). Data sources and what is verified: [`docs/scientific-data-audit.md`](docs/scientific-data-audit.md).
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## How it works
+
+1. **Pick a real reef** on the globe. Kāneʻohe Bay, Oʻahu opens the game: it is where researchers tested 3D-printed helix-recess settlement modules.
+2. **Build a settlement tile** in the underwater workshop, within a material budget.
+3. **Test it.** The server evaluates the design under the reef's water conditions and stores the experiment with its seed and model version, so anyone can re-run it.
+4. **Compete** in Reef Rivals rooms: 2–4 players, same reef, same water, same seed.
+5. **Research Mode** lists every experiment as an exportable record.
+
+Every environmental value is tagged with where it comes from: measured, published, ocean model, or game-defined.
+
+## Architecture
+
+Built on the Mayday Mayor (WolfHacks 2026) structure:
+
+```
+shared/   TypeScript used by app and server: reef packs, design format, room protocol,
+          reference tiles, and the evaluation engine (the flow and larvae model plugs in here).
+app/      Vite, React, MapLibre globe, Tailwind. Landing globe, workshop, rooms, Research Mode.
+server/   Fastify and WebSockets: rooms, experiment store (Tiger Data or memory),
+          NOAA heat stress, Gemini, ElevenLabs.
+docs/     One-pager and data audit.
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The server re-evaluates every design, so results cannot be faked. Every integration fails soft: without a database, AI key or voice key the game still runs.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Run it locally
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Requires Node 20+.
 
-## Learn More
+```bash
+npm install
+cp .env.example .env   # everything is optional
+npm run dev            # app on :5173, server on :8787
+```
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm test
+npm run typecheck
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Status
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Done: globe with reef packs, reef cards with live NOAA heat stress, solo tests, rooms end to end, experiment records (memory or Tiger Data), Research Mode list and JSON export.
+- Next: the 3D voxel workshop (React Three Fiber), the flow and larval settlement engine, and validation against Levenstein et al. 2022. Until the engine lands, the settlement rate shows as "engine pending" rather than a made-up number.
