@@ -50,7 +50,7 @@ export function Landing() {
       el.setAttribute('aria-label', `${reef.name}${reef.ready ? '' : ', coming next'}`);
       el.className = 'group flex flex-col items-center gap-1 focus:outline-none';
       el.innerHTML = `
-        <span class="glass px-3 py-1 text-[13px] font-extrabold whitespace-nowrap" style="border-radius:999px;font-family:var(--font-display)">${reef.name}${reef.ready ? '' : ' <span style="color:#0a7bb8;font-weight:700">· next</span>'}</span>
+        <span class="glass-deep rounded-full px-3 py-1 text-[13px] font-bold whitespace-nowrap">${reef.name}${reef.ready ? '' : ' <span style="color:#8fd8ff;font-weight:600">next</span>'}</span>
         <span class="orb ${reef.ready ? 'orb-sun pulse' : ''}" style="width:${reef.ready ? 22 : 16}px;height:${reef.ready ? 22 : 16}px;${reef.ready ? '' : 'opacity:.85'}"></span>`;
       el.addEventListener('click', () => setFocus(reef.id));
       pins.current.set(reef.id, el);
@@ -134,23 +134,23 @@ export function Landing() {
 
       <div className="pointer-events-none absolute inset-0 flex flex-col justify-between gap-3 p-3 sm:p-6">
         <header className="pointer-events-auto flex flex-wrap items-start justify-between gap-2">
-          <div className="glass flex items-center gap-3 px-4 py-2.5">
+          <div className="glass-deep flex items-center gap-3 px-4 py-2.5">
             <span className="orb h-10 w-10 shrink-0" aria-hidden />
             <div>
-              <h1 className="font-brand text-32 leading-none font-black text-ink">
-                Reef<span className="text-aqua-deep">Forge</span>
+              <h1 className="font-brand text-32 leading-none font-black">
+                Reef<span className="text-sky">Forge</span>
               </h1>
-              <p className="text-13 font-semibold text-ink/80">Build for fun. Discover for real.</p>
+              <p className="text-13 font-semibold text-white/85">Build for fun. Discover for real.</p>
             </div>
           </div>
-          <nav className="flex flex-wrap gap-2">
-            <button className="aero-btn" aria-expanded={panel} onClick={() => setPanel((p) => !p)}>Sources</button>
-            <Link to="/research" className="aero-btn">Research Mode</Link>
+          <nav className="glass-deep flex items-center gap-1 rounded-full p-1">
+            <button className="btn" aria-expanded={panel} onClick={() => setPanel((p) => !p)}>Sources</button>
+            <Link to="/research" className="btn">Research Mode</Link>
           </nav>
         </header>
 
         {panel && (
-          <section className="glass pointer-events-auto absolute top-24 right-3 w-72 max-w-[calc(100%-1.5rem)] p-4 sm:right-6" aria-label="Map data layers">
+          <section className="glass-deep pointer-events-auto absolute top-24 right-3 w-72 max-w-[calc(100%-1.5rem)] p-4 sm:right-6" aria-label="Map data layers">
             <h2 className="font-display text-18 font-black">Map sources</h2>
             <ul className="mt-2 space-y-2">
               {LAYERS.map((l) => (
@@ -159,7 +159,7 @@ export function Landing() {
                     <input type="checkbox" className="mt-1 h-4 w-4 accent-aqua-deep" checked={layers[l.id]} onChange={() => toggle(l.id)} />
                     <span>
                       <span className="block font-bold">{l.label}</span>
-                      <span className="block text-13 text-ink/75">{l.note}</span>
+                      <span className="block text-13 text-white/80">{l.note}</span>
                     </span>
                   </label>
                 </li>
@@ -179,14 +179,14 @@ export function Landing() {
           <ReefCard reef={reef}>
             {reef.ready ? (
               <>
-                <button className="aero-btn aero-btn-go aero-btn-lg" onClick={dive}>Dive in</button>
-                <button className="aero-btn aero-btn-aqua" onClick={() => navigate(`/play/${newRoomCode()}`)}>Start a room</button>
+                <button className="btn btn-primary btn-lg" onClick={dive}>Dive in</button>
+                <button className="btn" onClick={() => navigate(`/play/${newRoomCode()}`)}>Start a room</button>
               </>
             ) : (
-              <button className="aero-btn" onClick={() => setFocus('kaneohe')}>Play Kāneʻohe Bay</button>
+              <button className="btn" onClick={() => setFocus('kaneohe')}>Play Kāneʻohe Bay</button>
             )}
           </ReefCard>
-          <form onSubmit={joinRoom} className="glass flex items-center gap-2 p-2">
+          <form onSubmit={joinRoom} className="glass-deep flex items-center gap-2 p-2">
             <label className="sr-only" htmlFor="code">Room code</label>
             <input
               id="code"
@@ -194,9 +194,9 @@ export function Landing() {
               onChange={(e) => setCode(e.target.value.toUpperCase().slice(0, 4))}
               placeholder="CODE"
               autoComplete="off"
-              className="tabular w-24 rounded-full border border-aqua/50 bg-white/80 px-3 py-1.5 text-18 font-bold tracking-widest"
+              className="field tabular w-28 text-18 tracking-widest"
             />
-            <button className="aero-btn">Join room</button>
+            <button className="btn">Join room</button>
           </form>
         </div>
       </div>

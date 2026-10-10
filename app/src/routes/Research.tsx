@@ -35,14 +35,14 @@ export function Research() {
       <Bubbles count={12} seed={19} />
       <div className="relative mx-auto flex max-w-5xl flex-col gap-4 p-3 sm:p-6">
         <header className="flex flex-wrap items-center gap-3">
-          <Link to="/" className="aero-btn">{Icon.back}<span>Ocean</span></Link>
+          <Link to="/" className="btn">{Icon.back}<span>Ocean</span></Link>
           <h1 className="font-display text-48 font-black text-white drop-shadow-[0_2px_6px_rgba(0,50,90,0.5)]">Research Mode</h1>
         </header>
 
         <section className="glass p-5">
           <label className="flex flex-wrap items-center gap-2 font-bold">
             Reef
-            <select value={reef} onChange={(e) => setReef(e.target.value as ReefId)} className="rounded-full border border-aqua/50 bg-white/85 px-3 py-1.5">
+            <select value={reef} onChange={(e) => setReef(e.target.value as ReefId)} className="field">
               {REEFS.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
             </select>
           </label>
@@ -57,7 +57,7 @@ export function Research() {
           <ul className="mt-2 space-y-1.5 text-15">
             {REFERENCE_TILES.map((t) => (
               <li key={t.id}>
-                <b>{t.name}</b> <span className={`chip bg-white/70 ${t.kind === 'published' ? 'text-aqua-deep' : 'text-coral'}`}>{t.kind === 'published' ? 'Published' : 'Game-made'}</span>
+                <b>{t.name}</b> <span className={`chip ${t.kind === 'published' ? 'chip-published' : 'chip-game'}`}>{t.kind === 'published' ? 'Published' : 'Game-made'}</span>
                 {' '}· {materialOf(t.design).toLocaleString()} voxels · {t.source}
                 {t.note && <span className="italic"> ({t.note})</span>}
               </li>
@@ -84,8 +84,8 @@ export function Research() {
                       </p>
                       <p className="mt-0.5"><ResultLine result={e.result} /></p>
                       <div className="mt-2 flex flex-wrap gap-2">
-                        <a className="aero-btn" href={`/api/experiments/${e.id}`} target="_blank" rel="noreferrer">Record (JSON)</a>
-                        <button className="aero-btn" disabled={!e.design.solid.length} onClick={() => downloadStl(e)}>Mesh (STL)</button>
+                        <a className="btn" href={`/api/experiments/${e.id}`} target="_blank" rel="noreferrer">Record (JSON)</a>
+                        <button className="btn" disabled={!e.design.solid.length} onClick={() => downloadStl(e)}>Mesh (STL)</button>
                       </div>
                     </li>
                   ))}

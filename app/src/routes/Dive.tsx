@@ -37,7 +37,7 @@ export function Dive({ reef: id }: { reef: ReefId }) {
     <Workshop
       reef={reef}
       onTest={onTest}
-      corner={<Link to="/" className="aero-btn">{Icon.back}<span>Ocean</span></Link>}
+      corner={<Link to="/" className="btn">{Icon.back}<span>Ocean</span></Link>}
     />
   );
 }

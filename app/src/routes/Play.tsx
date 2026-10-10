@@ -47,7 +47,7 @@ function JoinForm({ room, create }: { room: Room; create: boolean }) {
       <label className="flex flex-col gap-1 font-bold">
         Your name
         <input value={name} onChange={(e) => setName(e.target.value)} maxLength={20} autoFocus
-          className="rounded-full border border-aqua/50 bg-white/85 px-4 py-2 text-18 font-semibold" />
+          className="field text-18" />
       </label>
       <fieldset>
         <legend className="mb-2 font-bold">Pick your diver</legend>
@@ -60,7 +60,7 @@ function JoinForm({ room, create }: { room: Room; create: boolean }) {
           ))}
         </div>
       </fieldset>
-      <button className="aero-btn aero-btn-go aero-btn-lg self-start">{create ? 'Open room' : 'Join'}</button>
+      <button className="btn btn-primary btn-lg self-start">{create ? 'Open room' : 'Join'}</button>
     </form>
   );
 }
@@ -90,7 +90,7 @@ export function Play({ code }: { code: string }) {
         readOnly={mine?.locked}
         primary={mine?.locked ? { label: 'Locked in', onClick: () => {}, disabled: true } : { label: 'Lock in my design', onClick: (d) => room.lock(d) }}
         corner={
-          <div className="glass-sea flex items-center gap-3 px-4 py-2">
+          <div className="glass-deep flex items-center gap-3 px-4 py-2">
             <span className={`tabular font-display text-32 font-black ${left !== null && left <= 30 ? 'text-sun' : ''}`}>{clock(left)}</span>
             <span className="text-13 leading-tight">Room {state.code}<br />{lockedCount}/{state.players.length} locked in</span>
             {room.error && <span className="text-13 font-bold text-sun">{room.error}</span>}
@@ -107,7 +107,7 @@ export function Play({ code }: { code: string }) {
         reef={reef}
         seed={state.seed}
         viewPieces={(watching.design.pieces ?? []) as Piece[]}
-        corner={<button className="aero-btn" onClick={() => setWatching(null)}>{Icon.back}<span>Results</span></button>}
+        corner={<button className="btn" onClick={() => setWatching(null)}>{Icon.back}<span>Results</span></button>}
       />
     );
   }
@@ -117,9 +117,9 @@ export function Play({ code }: { code: string }) {
       <Bubbles count={16} />
       <div className="relative mx-auto flex max-w-5xl flex-col gap-4 p-3 sm:p-6">
         <header className="flex flex-wrap items-center gap-3">
-          <Link to="/" className="aero-btn">{Icon.back}<span>Leave</span></Link>
+          <Link to="/" className="btn">{Icon.back}<span>Leave</span></Link>
           <h1 className="font-display text-48 font-black text-white drop-shadow-[0_2px_6px_rgba(0,50,90,0.5)]">Reef Rivals</h1>
-          {!room.connected && <span className="chip bg-white/80 text-aqua-deep">Reconnecting…</span>}
+          {!room.connected && <span className="chip chip-published">Reconnecting…</span>}
         </header>
         {room.error && !missing && (
           <p className="glass p-3 font-bold text-coral" role="alert">
@@ -144,10 +144,10 @@ export function Play({ code }: { code: string }) {
               </ul>
               {host ? (
                 <div className="flex flex-wrap items-center gap-2">
-                  <select value={state.reef} onChange={(e) => room.reef(e.target.value as RoomState['reef'])} className="rounded-full border border-aqua/50 bg-white/85 px-3 py-2 font-bold">
+                  <select value={state.reef} onChange={(e) => room.reef(e.target.value as RoomState['reef'])} className="field">
                     {REEFS.filter((r) => r.ready).map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
                   </select>
-                  <button className="aero-btn aero-btn-go aero-btn-lg" onClick={room.start}>Start the round</button>
+                  <button className="btn btn-primary btn-lg" onClick={room.start}>Start the round</button>
                 </div>
               ) : (
                 <p className="font-bold">Waiting for the host to start…</p>
@@ -164,7 +164,7 @@ export function Play({ code }: { code: string }) {
             <p className="mx-auto mt-2 max-w-xl text-18">{reef.mission.brief}</p>
             <p className="mx-auto mt-3 max-w-xl text-15">Same reef, same water, same larvae for everyone. You have {clock(180)} to build. The arcade goal: reach the most larvae with the least material.</p>
             <div className="mt-4 flex justify-center gap-2">{state.players.map((p) => <Avatar key={p.seat} id={p.avatar} size={52} />)}</div>
-            {host && <button className="aero-btn mt-4" onClick={room.start}>Skip briefing</button>}
+            {host && <button className="btn mt-4" onClick={room.start}>Skip briefing</button>}
           </section>
         )}
 
@@ -172,7 +172,7 @@ export function Play({ code }: { code: string }) {
           <section className="glass p-5">
             <h2 className="font-display text-48 font-black">Results</h2>
             <p className="text-15">
-              <span className="chip mr-1 bg-white/70 text-coral">Arcade ranking</span>
+              <span className="chip chip-game mr-1">Arcade ranking</span>
               Most larvae reaching the structure, then less material. Not a scientific result: settlement needs the validated engine.
             </p>
             <ol className="mt-4 space-y-2">
@@ -190,15 +190,15 @@ export function Play({ code }: { code: string }) {
                     ) : (
                       <span className="flex-1">No design arrived in time</span>
                     )}
-                    {r.design && <button className="aero-btn aero-btn-aqua" onClick={() => setWatching(r)}>Watch</button>}
+                    {r.design && <button className="btn" onClick={() => setWatching(r)}>Watch</button>}
                   </li>
                 );
               })}
             </ol>
             <div className="mt-4 flex flex-wrap gap-2">
-              {state.experimentId && <a className="aero-btn" href={`/api/experiments/${state.experimentId}`} target="_blank" rel="noreferrer">My experiment record</a>}
-              <Link to="/research" className="aero-btn">Research Mode</Link>
-              {host && <button className="aero-btn aero-btn-go" onClick={room.again}>Another round</button>}
+              {state.experimentId && <a className="btn" href={`/api/experiments/${state.experimentId}`} target="_blank" rel="noreferrer">My experiment record</a>}
+              <Link to="/research" className="btn">Research Mode</Link>
+              {host && <button className="btn btn-primary" onClick={room.again}>Another round</button>}
             </div>
           </section>
         )}

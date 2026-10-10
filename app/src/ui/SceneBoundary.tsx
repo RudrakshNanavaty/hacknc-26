@@ -17,11 +17,11 @@ export class SceneBoundary extends Component<{ children: ReactNode }, { error: E
     if (!this.state.error) return this.props.children;
     return (
       <div className="flex h-full items-center justify-center p-6">
-        <div className="glass max-w-md p-6 text-center">
+        <div className="glass-deep max-w-md p-6 text-center">
           <p className="font-display text-24 font-black">The underwater view stopped</p>
           <p className="mt-2 text-15">Your design is safe. Reload the scene to keep building.</p>
-          <p className="mt-2 text-13 text-ink/70">{this.state.error.message}</p>
-          <button className="aero-btn aero-btn-aqua mt-4" onClick={() => this.setState({ error: null })}>Reload the scene</button>
+          <p className="mt-2 text-13 text-white/80">{this.state.error.message}</p>
+          <button className="btn mt-4" onClick={() => this.setState({ error: null })}>Reload the scene</button>
         </div>
       </div>
     );

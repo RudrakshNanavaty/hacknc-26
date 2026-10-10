@@ -196,14 +196,14 @@ export function Workshop({ reef, seed, corner, primary, onTest, readOnly: locked
       {/* Top bar */}
       <div className="pointer-events-none absolute inset-x-0 top-0 flex flex-wrap items-start justify-between gap-2 p-2 sm:p-4">
         <div className="pointer-events-auto flex flex-wrap items-center gap-2">{corner}</div>
-        <div className="glass-sea pointer-events-auto px-4 py-2 text-center">
+        <div className="glass-deep pointer-events-auto px-4 py-2 text-center">
           <p className="font-display text-18 leading-tight font-black">{reef.name}</p>
           <p className="text-13 text-white/85">
             {reef.flow ? `Water: ${reef.flow.kind === 'oscillating' ? 'back and forth' : 'steady'}, ${reef.flow.peakCmS} cm/s` : 'Water not derived yet'}
             {' · '}tile 48 × 24 mm, shown ×200
           </p>
         </div>
-        <div className="glass-sea pointer-events-auto w-56 px-4 py-2">
+        <div className="glass-deep pointer-events-auto w-56 px-4 py-2">
           <div className="flex justify-between text-13 font-bold"><span>Material</span><span className="tabular">{material.toLocaleString()} / {MATERIAL_BUDGET.toLocaleString()}</span></div>
           <div className="mt-1 h-2.5 overflow-hidden rounded-full bg-white/20">
             <div className="h-full rounded-full transition-[width]" style={{ width: `${Math.min(100, (material / MATERIAL_BUDGET) * 100)}%`, background: material > MATERIAL_BUDGET * 0.9 ? 'linear-gradient(90deg,#ffb36b,#ff6b5a)' : 'linear-gradient(90deg,#9be85a,#36c1ef)' }} />
@@ -214,7 +214,7 @@ export function Workshop({ reef, seed, corner, primary, onTest, readOnly: locked
 
       {/* Tools: a column on wide screens, a scrolling row on phones */}
       {building && (
-        <div className="glass-sea absolute bottom-24 left-2 flex max-w-[calc(100%-1rem)] gap-1.5 overflow-x-auto p-2 sm:top-1/2 sm:bottom-auto sm:left-4 sm:-translate-y-1/2 sm:flex-col sm:overflow-visible" role="toolbar" aria-label="Building tools">
+        <div className="glass-deep absolute bottom-24 left-2 flex max-w-[calc(100%-1rem)] gap-1.5 overflow-x-auto p-2 sm:top-1/2 sm:bottom-auto sm:left-4 sm:-translate-y-1/2 sm:flex-col sm:overflow-visible" role="toolbar" aria-label="Building tools">
           {toolButton('select', 'Select (V)', Icon.select)}
           {PIECE_KINDS.map((k, i) => toolButton(k, `${PIECE_NAME[k]} (${i + 1})`, PIECE_ICON[k]))}
           <span className="mx-1 my-0.5 w-px shrink-0 bg-white/30 sm:mx-0.5 sm:h-px sm:w-auto" />
@@ -233,16 +233,16 @@ export function Workshop({ reef, seed, corner, primary, onTest, readOnly: locked
 
       {/* Design menu */}
       <div className="absolute top-24 right-2 flex flex-col items-end gap-2 sm:right-4">
-        <button className="aero-btn" aria-expanded={menu} onClick={() => setMenu((m) => !m)}>{Icon.save}<span>Designs</span></button>
+        <button className="btn" aria-expanded={menu} onClick={() => setMenu((m) => !m)}>{Icon.save}<span>Designs</span></button>
         {menu && (
-          <div className="glass w-64 max-w-[calc(100vw-1rem)] p-3 text-15">
+          <div className="glass-deep w-64 max-w-[calc(100vw-1rem)] p-3 text-15">
             <p className="font-display font-black">Start from</p>
             <ul className="mt-1 space-y-1">
               <li><button className="text-left underline decoration-aqua/60" disabled={readOnly} onClick={() => loadPieces([], 'Empty tile')}>Empty tile</button></li>
               {REFERENCE_TILES.filter((r) => r.id !== 'flat').map((r) => (
                 <li key={r.id}>
                   <button className="text-left underline decoration-aqua/60" disabled={readOnly} onClick={() => loadPieces(r.design.pieces ?? [], r.name)}>{r.name}</button>
-                  <span className={`chip ml-1 bg-white/70 ${r.kind === 'published' ? 'text-aqua-deep' : 'text-coral'}`}>{r.kind === 'published' ? 'Published' : 'Game-made'}</span>
+                  <span className={`chip ml-1 ${r.kind === 'published' ? 'chip-published' : 'chip-game'}`}>{r.kind === 'published' ? 'Published' : 'Game-made'}</span>
                 </li>
               ))}
             </ul>
@@ -257,13 +257,13 @@ export function Workshop({ reef, seed, corner, primary, onTest, readOnly: locked
               </>
             )}
             <div className="mt-3 flex flex-wrap gap-1.5">
-              <button className="aero-btn" disabled={readOnly || !pieces.length} onClick={() => {
+              <button className="btn" disabled={readOnly || !pieces.length} onClick={() => {
                 const name = `Design ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
                 say(saveDesign(name, pieces) ? `Saved as “${name}”` : 'Could not save in this browser');
               }}>Save</button>
-              <button className="aero-btn" onClick={() => exportJson(pieces)}>JSON</button>
-              <button className="aero-btn" disabled={!pieces.length} onClick={() => exportStl(designOf(pieces))}>STL</button>
-              <button className="aero-btn" disabled={readOnly} onClick={() => file.current?.click()}>Import</button>
+              <button className="btn" onClick={() => exportJson(pieces)}>JSON</button>
+              <button className="btn" disabled={!pieces.length} onClick={() => exportStl(designOf(pieces))}>STL</button>
+              <button className="btn" disabled={readOnly} onClick={() => file.current?.click()}>Import</button>
               <input ref={file} type="file" accept="application/json,.json" className="hidden" onChange={async (e) => {
                 const f = e.target.files?.[0];
                 e.target.value = '';
@@ -282,12 +282,12 @@ export function Workshop({ reef, seed, corner, primary, onTest, readOnly: locked
 
       {/* Hint / toast */}
       {(toast || (building && problem)) && (
-        <p className="glass pointer-events-none absolute bottom-40 left-1/2 -translate-x-1/2 px-4 py-2 text-15 font-bold text-ink sm:bottom-28" role="status">
+        <p className="glass-deep pointer-events-none absolute bottom-40 left-1/2 -translate-x-1/2 px-4 py-2 text-15 font-bold sm:bottom-28" role="status">
           {toast ?? PROBLEM[problem!]}
         </p>
       )}
       {building && !pieces.length && !toast && !problem && (
-        <p className="glass pointer-events-none absolute top-36 left-1/2 hidden -translate-x-1/2 px-4 py-2 text-center text-15 sm:block">
+        <p className="glass-deep pointer-events-none absolute top-36 left-1/2 hidden -translate-x-1/2 px-4 py-2 text-center text-15 sm:block">
           Pick a piece, then click the tile to place it. Drag to look around, scroll to zoom.
         </p>
       )}
@@ -296,12 +296,12 @@ export function Workshop({ reef, seed, corner, primary, onTest, readOnly: locked
       <div className="absolute inset-x-0 bottom-0 flex flex-wrap items-center justify-center gap-2 p-3 sm:p-4">
         {!run ? (
           <>
-            <button className="aero-btn aero-btn-go aero-btn-lg" onClick={test}>Release larvae</button>
-            {primary && <button className="aero-btn aero-btn-aqua aero-btn-lg" disabled={primary.disabled} onClick={() => primary.onClick(designOf(useBuild.getState().pieces))}>{primary.label}</button>}
+            <button className="btn btn-primary btn-lg" onClick={test}>Release larvae</button>
+            {primary && <button className="btn btn-lg" disabled={primary.disabled} onClick={() => primary.onClick(designOf(useBuild.getState().pieces))}>{primary.label}</button>}
           </>
         ) : (
-          <div className="glass-sea flex w-full max-w-2xl flex-wrap items-center gap-3 px-3 py-2">
-            <button className="aero-btn aero-btn-icon" aria-label={playing ? 'Pause' : 'Play'} onClick={() => {
+          <div className="glass-deep flex w-full max-w-2xl flex-wrap items-center gap-3 px-3 py-2">
+            <button className="btn btn-icon" aria-label={playing ? 'Pause' : 'Play'} onClick={() => {
               const pb = playback.current;
               if (pb.frame >= run.frameCount - 1) pb.frame = 0;
               pb.playing = !pb.playing;
@@ -309,7 +309,7 @@ export function Workshop({ reef, seed, corner, primary, onTest, readOnly: locked
             }}>{playing ? Icon.pause : Icon.play}</button>
             <input
               type="range"
-              className="aero-range min-w-24 flex-1"
+              className="range min-w-24 flex-1"
               min={0}
               max={run.frameCount - 1}
               step={0.01}
@@ -321,13 +321,13 @@ export function Workshop({ reef, seed, corner, primary, onTest, readOnly: locked
               }}
             />
             <span className="tabular w-14 text-13">{t.toFixed(1)} s</span>
-            <select className="rounded-full bg-white/85 px-2 py-1 text-13 text-ink" aria-label="Replay speed" defaultValue="1" onChange={(e) => (playback.current.speed = Number(e.target.value))}>
+            <select className="field min-h-9 px-2 text-13" aria-label="Replay speed" defaultValue="1" onChange={(e) => (playback.current.speed = Number(e.target.value))}>
               <option value="0.5">0.5×</option>
               <option value="1">1×</option>
               <option value="2">2×</option>
             </select>
-            <button className="aero-btn" onClick={backToBuilding}>{readOnly ? 'Stop replay' : 'Keep building'}</button>
-            {primary && <button className="aero-btn aero-btn-aqua" disabled={primary.disabled} onClick={() => primary.onClick(designOf(useBuild.getState().pieces))}>{primary.label}</button>}
+            <button className="btn" onClick={backToBuilding}>{readOnly ? 'Stop replay' : 'Keep building'}</button>
+            {primary && <button className="btn" disabled={primary.disabled} onClick={() => primary.onClick(designOf(useBuild.getState().pieces))}>{primary.label}</button>}
           </div>
         )}
       </div>
@@ -342,7 +342,7 @@ export function Workshop({ reef, seed, corner, primary, onTest, readOnly: locked
 
 function HudButton({ label, onClick, pressed, disabled, children }: { label: string; onClick: () => void; pressed?: boolean; disabled?: boolean; children: ReactNode }) {
   return (
-    <button className="aero-btn aero-btn-icon shrink-0" title={label} aria-label={label} aria-pressed={pressed} disabled={disabled} onClick={onClick}>
+    <button className="btn btn-icon shrink-0" title={label} aria-label={label} aria-pressed={pressed} disabled={disabled} onClick={onClick}>
       {children}
     </button>
   );
@@ -353,9 +353,9 @@ function RunPanel({ run, tests, material }: { run: PrototypeRun; tests: TestReco
   const m = run.metrics;
   const pct = (v: number) => `${Math.round((v / m.released) * 100)}%`;
   return (
-    <section className="glass absolute top-40 right-2 w-72 max-w-[calc(100vw-1rem)] p-4 text-15 sm:top-24 sm:right-4" aria-label="Test results">
+    <section className="glass-deep absolute top-40 right-2 w-72 max-w-[calc(100vw-1rem)] p-4 text-15 sm:top-24 sm:right-4" aria-label="Test results">
       <h2 className="font-display text-24 font-black">Test results</h2>
-      <p className="text-13 text-ink/75">Prototype flow · seed {run.params.seed} · {m.durationS} s</p>
+      <p className="text-13 text-white/80">Prototype flow · seed {run.params.seed} · {m.durationS} s</p>
       <dl className="mt-2 grid grid-cols-[1fr_auto] gap-x-3 gap-y-1">
         <dt>Larvae released</dt><dd className="tabular font-bold">{m.released}</dd>
         <dt>Reached your structure</dt><dd className="tabular font-bold">{m.reachedStructure} ({pct(m.reachedStructure)})</dd>
@@ -369,7 +369,7 @@ function RunPanel({ run, tests, material }: { run: PrototypeRun; tests: TestReco
         <>
           <p className="mt-3 font-display font-black">Your tests</p>
           <table className="mt-1 w-full text-13">
-            <thead><tr className="text-left text-ink/70"><th>#</th><th>Reached</th><th>Touches</th><th>Material</th></tr></thead>
+            <thead><tr className="text-left text-white/80"><th>#</th><th>Reached</th><th>Touches</th><th>Material</th></tr></thead>
             <tbody>
               {tests.map((t) => (
                 <tr key={t.n}><td>{t.n}</td><td className="tabular">{t.metrics.reachedStructure}</td><td className="tabular">{t.metrics.structureContacts}</td><td className="tabular">{t.material}</td></tr>
@@ -378,7 +378,7 @@ function RunPanel({ run, tests, material }: { run: PrototypeRun; tests: TestReco
           </table>
         </>
       )}
-      <p className="mt-3 text-[12px] leading-snug text-ink/70">
+      <p className="mt-3 text-[12px] leading-snug text-white/80">
         Simplified flow for play: water slows near surfaces, larvae swim and drift, no wakes or eddies. Not a settlement prediction.
       </p>
     </section>

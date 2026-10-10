@@ -1,21 +1,25 @@
 @import "tailwindcss";
 
-/* ReefForge's Frutiger Aero look: glossy glass, aqua gel buttons, sky-to-ocean gradients, bubbles,
-   and optimistic greens. Colour tokens are defined once here; Tailwind reads them through @theme
-   inline below, and MapLibre / three.js read them at runtime (src/tokens.ts). */
+/* ReefForge's look: clear glass over the ocean, one aqua accent, concentric shapes.
+   The material is a web approximation of Apple's Liquid Glass (backdrop-filter, a specular
+   rim, a corner highlight). Apple ships no web implementation, so this is not the real thing.
+   Colour tokens are defined once here; Tailwind reads them through @theme inline below, and
+   MapLibre / three.js read them at runtime (src/tokens.ts). */
 :root {
   --ink: #0b3954; /* text: deep navy */
   --white: #ffffff;
   --foam: #eefaff;
   --sky: #8fd8ff;
-  --aqua: #19b6e6;
+  --aqua: #19b6e6; /* the one accent */
   --aqua-deep: #0a7bb8;
   --abyss: #063a5b;
-  --leaf: #6fd13a;
+  --leaf: #6fd13a; /* semantic: measured */
   --leaf-deep: #2f9a12;
-  --sun: #ffe066;
-  --coral: #ff7a6b;
+  --sun: #ffe066; /* semantic: the ready reef, rank 1 */
+  --coral: #ff7a6b; /* semantic: warning, pending */
+  --coral-deep: #c2412f;
   --lilac: #b79cff;
+  --lilac-deep: #6a4fd1;
 
   /* Geist for all UI and data; Nunito only for the ReefForge wordmark. */
   --font-display: "Geist Variable", system-ui, sans-serif;
@@ -37,11 +41,19 @@
   --color-leaf-deep: var(--leaf-deep);
   --color-sun: var(--sun);
   --color-coral: var(--coral);
+  --color-coral-deep: var(--coral-deep);
   --color-lilac: var(--lilac);
+  --color-lilac-deep: var(--lilac-deep);
 
   --font-display: var(--font-display);
   --font-body: var(--font-body);
   --font-brand: var(--font-brand);
+
+  /* Concentric corners: a 28 px panel with 12 px padding holds 16 px inner shapes, with 16 px
+     padding it holds 12 px ones. Controls are capsules (rounded-full). */
+  --radius-panel: 28px;
+  --radius-inner: 16px;
+  --radius-inner-sm: 12px;
 
   /* Type scale (px): text-13 ... text-72. */
   --text-13: 13px;
@@ -72,10 +84,11 @@ body {
   font-family: var(--font-body);
   font-size: 15px;
   -webkit-font-smoothing: antialiased;
-  /* Sky at the top, sea below, a soft sun glare: the Aero backdrop behind every page. */
+  /* Sky at the top, shallow water below: the backdrop behind every page that has no map or scene.
+     It stays light all the way down, so ink text on light glass keeps its contrast. */
   background:
     radial-gradient(ellipse 70% 45% at 20% -5%, rgba(255, 255, 255, 0.9), transparent 60%),
-    linear-gradient(180deg, #d8f4ff 0%, var(--sky) 28%, var(--aqua) 62%, var(--aqua-deep) 88%, var(--abyss) 100%);
+    linear-gradient(180deg, #e3f7ff 0%, var(--sky) 45%, #4fc6ee 100%);
   background-attachment: fixed;
 }
 
@@ -88,127 +101,217 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-/* Frosted glass: the panels everything sits on. */
-.glass {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.82) 0%, rgba(255, 255, 255, 0.52) 100%);
-  backdrop-filter: blur(16px) saturate(1.5);
-  -webkit-backdrop-filter: blur(16px) saturate(1.5);
-  border: 1px solid rgba(255, 255, 255, 0.9);
-  border-radius: 22px;
-  box-shadow:
-    0 10px 36px rgba(3, 60, 100, 0.28),
-    inset 0 1px 0 rgba(255, 255, 255, 0.95),
-    inset 0 -14px 28px rgba(160, 220, 255, 0.18);
-}
+/* Component classes live in the components layer so Tailwind utilities (rounded-full, p-4 ...)
+   can still override them. */
+@layer components {
+  /* Glass: the one material. Light (ink text) over the sky pages, .glass-deep (white text) over
+     the map and the underwater scene. Add .glass-flat for small nested or transient surfaces:
+     no blur, a nearly solid tint, so glass never sits on glass. */
+  .glass,
+  .glass-deep {
+    --glass-tint: 255 255 255;
+    --glass-a: 0.38;
+    --glass-b: 0.12;
+    position: relative;
+    isolation: isolate;
+    border-radius: var(--radius-panel);
+    background: linear-gradient(135deg, rgb(var(--glass-tint) / var(--glass-a)), rgb(var(--glass-tint) / var(--glass-b)));
+    backdrop-filter: blur(18px) saturate(180%);
+    -webkit-backdrop-filter: blur(18px) saturate(180%);
+    border: 1px solid rgb(255 255 255 / 0.32);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.55), /* specular top edge */
+      inset 0 -10px 18px rgb(0 40 80 / 0.1), /* thickness */
+      0 14px 40px rgb(0 40 80 / 0.22);
+  }
+  .glass-deep {
+    --glass-tint: 6 58 91;
+    --glass-a: 0.64;
+    --glass-b: 0.52;
+    color: var(--white);
+    border-color: rgb(190 240 255 / 0.4);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.35),
+      inset 0 -10px 18px rgb(0 20 40 / 0.18),
+      0 14px 40px rgb(0 20 40 / 0.35);
+  }
+  /* Light caught on the upper-left corner. */
+  .glass::before,
+  .glass-deep::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    background: radial-gradient(circle at 18% 0%, rgb(255 255 255 / 0.4), transparent 40%);
+    pointer-events: none;
+  }
+  .glass-flat {
+    --glass-a: 0.88;
+    --glass-b: 0.8;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.4),
+      0 6px 18px rgb(0 40 80 / 0.2);
+  }
+  .glass-flat::before {
+    display: none;
+  }
 
-/* Glass over the underwater scene: darker, so white text reads on moving water. */
-.glass-sea {
-  background: linear-gradient(180deg, rgba(20, 110, 160, 0.55) 0%, rgba(4, 50, 82, 0.55) 100%);
-  backdrop-filter: blur(14px) saturate(1.4);
-  -webkit-backdrop-filter: blur(14px) saturate(1.4);
-  border: 1px solid rgba(190, 240, 255, 0.55);
-  border-radius: 20px;
-  color: var(--white);
-  box-shadow:
-    0 10px 30px rgba(0, 20, 40, 0.35),
-    inset 0 1px 0 rgba(255, 255, 255, 0.45);
-}
+  /* Buttons: clear glass capsules. The accent is for the one primary action on a screen. */
+  .btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    min-height: 2.75rem;
+    border-radius: 999px;
+    padding: 0.5rem 1.15rem;
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 15px;
+    color: inherit;
+    text-decoration: none;
+    white-space: nowrap;
+    cursor: pointer;
+    background: linear-gradient(180deg, rgb(255 255 255 / 0.34), rgb(255 255 255 / 0.14));
+    border: 1px solid rgb(255 255 255 / 0.5);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.6),
+      inset 0 -6px 10px rgb(0 40 80 / 0.08),
+      0 4px 14px rgb(0 40 80 / 0.16);
+    -webkit-backdrop-filter: blur(10px) saturate(160%);
+    backdrop-filter: blur(10px) saturate(160%);
+    transition: transform 0.12s ease-out, background-color 0.12s ease-out, box-shadow 0.12s ease-out;
+  }
+  .btn:hover {
+    background: linear-gradient(180deg, rgb(255 255 255 / 0.46), rgb(255 255 255 / 0.22));
+  }
+  .btn:active {
+    transform: scale(0.97);
+  }
+  .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  /* Selected tool or toggle: a brighter rim and fill, still the same accent. */
+  .btn[aria-pressed="true"] {
+    background: linear-gradient(180deg, rgb(255 255 255 / 0.55), rgb(255 255 255 / 0.3));
+    box-shadow:
+      inset 0 0 0 2px var(--aqua),
+      inset 0 1px 0 rgb(255 255 255 / 0.7),
+      0 4px 14px rgb(0 40 80 / 0.16);
+  }
+  .btn-primary {
+    color: var(--white);
+    border-color: rgb(255 255 255 / 0.55);
+    background: linear-gradient(180deg, #0b82c2 0%, var(--aqua-deep) 45%, #086aa0 100%);
+    text-shadow: 0 1px 1px rgb(0 40 70 / 0.35);
+  }
+  .btn-primary:hover {
+    background: linear-gradient(180deg, #1590d0 0%, #0c84c4 45%, #0a75b0 100%);
+  }
+  /* On deep glass the accent is the bright aqua with navy text, the way a tinted glass button reads. */
+  .glass-deep .btn-primary {
+    color: #04283f;
+    text-shadow: none;
+    background: linear-gradient(180deg, #7fe0ff 0%, #39c3ee 55%, #1aa7de 100%);
+  }
+  .glass-deep .btn-primary:hover {
+    background: linear-gradient(180deg, #98e6ff 0%, #52cdf3 55%, #2fb3e6 100%);
+  }
+  /* Controls inside a glass surface do not blur again: the panel is the material. */
+  .glass .btn,
+  .glass-deep .btn {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  .btn-lg {
+    min-height: 3.25rem;
+    padding: 0.7rem 1.6rem;
+    font-size: 17px;
+  }
+  .btn-icon {
+    width: 2.75rem;
+    padding: 0;
+  }
 
-/* Gel buttons: a pill with the classic top-half shine. */
-.aero-btn {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.4rem;
-  border-radius: 999px;
-  padding: 0.55rem 1.1rem;
-  font-family: var(--font-display);
-  font-weight: 800;
-  font-size: 15px;
-  color: var(--ink);
-  border: 1px solid rgba(10, 100, 150, 0.35);
-  background: linear-gradient(180deg, #ffffff 0%, #eaf8ff 46%, #c9ecff 52%, #e2f6ff 100%);
-  box-shadow:
-    inset 0 1px 0 #ffffff,
-    0 2px 8px rgba(3, 60, 100, 0.25);
-  cursor: pointer;
-  transition: transform 0.12s ease, filter 0.12s ease, box-shadow 0.12s ease;
-  text-decoration: none;
-  white-space: nowrap;
-}
-.aero-btn:hover {
-  filter: brightness(1.05) saturate(1.1);
-  box-shadow:
-    inset 0 1px 0 #ffffff,
-    0 4px 14px rgba(3, 60, 100, 0.3),
-    0 0 0 3px rgba(255, 255, 255, 0.35);
-}
-.aero-btn:active {
-  transform: translateY(1px) scale(0.98);
-}
-.aero-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  filter: grayscale(0.4);
-}
-.aero-btn[aria-pressed="true"] {
-  background: linear-gradient(180deg, #fff7c2 0%, #ffe680 46%, #ffd23f 52%, #ffe57a 100%);
-  border-color: rgba(160, 110, 0, 0.45);
-}
-.aero-btn-aqua {
-  color: var(--white);
-  text-shadow: 0 1px 1px rgba(0, 50, 90, 0.5);
-  border-color: rgba(0, 70, 120, 0.55);
-  background: linear-gradient(180deg, #b8f0ff 0%, #39c3ee 46%, #0b9ad6 52%, #33bdeb 100%);
-}
-.aero-btn-go {
-  color: #10380a;
-  border-color: rgba(30, 100, 10, 0.5);
-  background: linear-gradient(180deg, #e2ffc4 0%, #9be85a 46%, #5cc21b 52%, #86df45 100%);
-}
-.aero-btn-coral {
-  color: var(--white);
-  text-shadow: 0 1px 1px rgba(120, 20, 10, 0.45);
-  border-color: rgba(150, 40, 20, 0.5);
-  background: linear-gradient(180deg, #ffd2c8 0%, #ff8f7d 46%, #f2604a 52%, #ff8a77 100%);
-}
-.aero-btn-lg {
-  padding: 0.8rem 1.6rem;
-  font-size: 18px;
-}
-.aero-btn-icon {
-  padding: 0.5rem;
-  width: 2.6rem;
-  height: 2.6rem;
-}
+  /* Inputs and selects: a flat inset field, one height everywhere. */
+  .field {
+    min-height: 2.75rem;
+    border-radius: 999px;
+    padding: 0 1rem;
+    font: inherit;
+    font-weight: 600;
+    color: var(--ink);
+    background: rgb(255 255 255 / 0.62);
+    border: 1px solid rgb(255 255 255 / 0.6);
+    box-shadow: inset 0 1px 2px rgb(0 40 80 / 0.12);
+  }
+  .field::placeholder {
+    color: rgb(11 57 84 / 0.7);
+  }
 
-/* A glossy orb (reef pins, avatars). */
-.orb {
-  border-radius: 999px;
-  background:
-    radial-gradient(circle at 35% 28%, rgba(255, 255, 255, 0.95) 0 18%, transparent 40%),
-    radial-gradient(circle at 50% 60%, var(--aqua) 0%, var(--aqua-deep) 70%);
-  box-shadow:
-    0 4px 14px rgba(0, 40, 80, 0.45),
-    inset 0 -4px 8px rgba(0, 40, 90, 0.35);
-}
-.orb-sun {
-  background:
-    radial-gradient(circle at 35% 28%, rgba(255, 255, 255, 0.95) 0 18%, transparent 40%),
-    radial-gradient(circle at 50% 60%, var(--sun) 0%, #f0a500 75%);
-}
+  /* Status chips: a flat tint, with the colour chosen for the surface it sits on. */
+  .chip {
+    --c: var(--ink);
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 0 0.55rem;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.7;
+    white-space: nowrap;
+    color: var(--c);
+    background: rgb(11 57 84 / 0.07);
+    border: 1px solid color-mix(in srgb, var(--c) 35%, transparent);
+  }
+  .chip-measured {
+    --c: var(--leaf-deep);
+  }
+  .chip-published {
+    --c: var(--aqua-deep);
+  }
+  .chip-model {
+    --c: var(--lilac-deep);
+  }
+  .chip-game {
+    --c: var(--coral-deep);
+  }
+  .glass-deep .chip {
+    background: rgb(255 255 255 / 0.12);
+  }
+  .glass-deep .chip-measured {
+    --c: var(--leaf);
+  }
+  .glass-deep .chip-published {
+    --c: var(--sky);
+  }
+  .glass-deep .chip-model {
+    --c: var(--lilac);
+  }
+  .glass-deep .chip-game {
+    --c: var(--coral);
+  }
 
-.chip {
-  display: inline-flex;
-  align-items: center;
-  border-radius: 999px;
-  padding: 0 0.5rem;
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 1.6;
-  white-space: nowrap;
-  border: 1px solid currentColor;
+  /* A glossy orb (reef pins, avatars). */
+  .orb {
+    border-radius: 999px;
+    background:
+      radial-gradient(circle at 35% 28%, rgba(255, 255, 255, 0.95) 0 18%, transparent 40%),
+      radial-gradient(circle at 50% 60%, var(--aqua) 0%, var(--aqua-deep) 70%);
+    box-shadow:
+      0 4px 14px rgba(0, 40, 80, 0.45),
+      inset 0 -4px 8px rgba(0, 40, 90, 0.35);
+  }
+  .orb-sun {
+    background:
+      radial-gradient(circle at 35% 28%, rgba(255, 255, 255, 0.95) 0 18%, transparent 40%),
+      radial-gradient(circle at 50% 60%, var(--sun) 0%, #f0a500 75%);
+  }
 }
 
 /* Rising bubbles (decoration: aria-hidden, pointer-events none). */
@@ -274,6 +377,58 @@ body {
   }
 }
 
+/* Solid fallbacks: people who ask for less transparency or more contrast, and browsers without
+   backdrop-filter, get opaque surfaces with a defined edge. */
+@media (prefers-reduced-transparency: reduce) {
+  .glass,
+  .glass-deep,
+  .btn,
+  .glass-flat {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    background: rgb(238 250 255 / 0.97);
+    color: var(--ink);
+  }
+  .glass-deep,
+  .glass-deep.glass-flat {
+    background: rgb(6 58 91 / 0.97);
+    color: var(--white);
+  }
+  .glass::before,
+  .glass-deep::before {
+    display: none;
+  }
+}
+@media (prefers-contrast: more) {
+  .glass,
+  .glass-deep,
+  .btn,
+  .field {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    background: rgb(255 255 255 / 1);
+    color: var(--ink);
+    border: 2px solid var(--ink);
+  }
+  .glass-deep {
+    background: rgb(6 58 91 / 1);
+    color: var(--white);
+    border-color: var(--white);
+  }
+  .glass::before,
+  .glass-deep::before {
+    display: none;
+  }
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass {
+    background: rgb(238 250 255 / 0.95);
+  }
+  .glass-deep {
+    background: rgb(6 58 91 / 0.92);
+  }
+}
+
 /* MapLibre's attribution as a small glass strip. */
 .maplibregl-ctrl.maplibregl-ctrl-attrib,
 .maplibregl-ctrl.maplibregl-ctrl-attrib.maplibregl-compact {
@@ -288,6 +443,6 @@ body {
 }
 
 /* Range sliders in the replay bar. */
-input[type="range"].aero-range {
-  accent-color: var(--sun);
+input[type="range"].range {
+  accent-color: var(--aqua);
 }
