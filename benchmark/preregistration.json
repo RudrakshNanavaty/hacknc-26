@@ -1,0 +1,243 @@
+{
+  "frozenAt": "2026-10-10T19:00:18.769Z",
+  "simVersion": "0.1.0",
+  "codeCommit": "606da2546845b51d55061558387b6a46f5a6eb17",
+  "grid": {
+    "nx": 136,
+    "ny": 64,
+    "cellSizeMm": 0.25
+  },
+  "params": {
+    "solver": "lbm-d2q9",
+    "tau": 0.5268,
+    "peakVelocity": 0.1,
+    "peakVelocityCmS": 4.5,
+    "periodSteps": 9888,
+    "phaseSamples": 48,
+    "spinupPeriods": 2,
+    "larvaPeriods": 3,
+    "larvaeCount": 2000,
+    "releaseBandCells": 20,
+    "swimSpeedMmS": 3,
+    "rotDiffusion": 1,
+    "cueAttachProb": 0.2,
+    "attachMaxSpeedMmS": 10
+  },
+  "seeds": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30
+  ],
+  "profiles": {
+    "preset-flat": {
+      "id": "preset-flat",
+      "name": "Flat (baseline)",
+      "baseHeight": 12,
+      "segments": [
+        {
+          "id": "s1",
+          "kind": "flat",
+          "x": 0,
+          "width": 136,
+          "height": 0
+        }
+      ],
+      "source": "preset"
+    },
+    "preset-ridge": {
+      "id": "preset-ridge",
+      "name": "Ridge (calibration)",
+      "baseHeight": 12,
+      "segments": [
+        {
+          "id": "s1",
+          "kind": "flat",
+          "x": 0,
+          "width": 15,
+          "height": 0
+        },
+        {
+          "id": "s2",
+          "kind": "ridge",
+          "x": 15,
+          "width": 4,
+          "height": 10
+        },
+        {
+          "id": "s3",
+          "kind": "flat",
+          "x": 19,
+          "width": 30,
+          "height": 0
+        },
+        {
+          "id": "s4",
+          "kind": "ridge",
+          "x": 49,
+          "width": 4,
+          "height": 10
+        },
+        {
+          "id": "s5",
+          "kind": "flat",
+          "x": 53,
+          "width": 30,
+          "height": 0
+        },
+        {
+          "id": "s6",
+          "kind": "ridge",
+          "x": 83,
+          "width": 4,
+          "height": 10
+        },
+        {
+          "id": "s7",
+          "kind": "flat",
+          "x": 87,
+          "width": 30,
+          "height": 0
+        },
+        {
+          "id": "s8",
+          "kind": "ridge",
+          "x": 117,
+          "width": 4,
+          "height": 10
+        },
+        {
+          "id": "s9",
+          "kind": "flat",
+          "x": 121,
+          "width": 15,
+          "height": 0
+        }
+      ],
+      "source": "preset"
+    },
+    "preset-recess": {
+      "id": "preset-recess",
+      "name": "Recess (held-out)",
+      "baseHeight": 12,
+      "segments": [
+        {
+          "id": "s1",
+          "kind": "flat",
+          "x": 0,
+          "width": 12,
+          "height": 0
+        },
+        {
+          "id": "s2",
+          "kind": "recess",
+          "x": 12,
+          "width": 10,
+          "height": -10
+        },
+        {
+          "id": "s3",
+          "kind": "flat",
+          "x": 22,
+          "width": 24,
+          "height": 0
+        },
+        {
+          "id": "s4",
+          "kind": "recess",
+          "x": 46,
+          "width": 10,
+          "height": -10
+        },
+        {
+          "id": "s5",
+          "kind": "flat",
+          "x": 56,
+          "width": 24,
+          "height": 0
+        },
+        {
+          "id": "s6",
+          "kind": "recess",
+          "x": 80,
+          "width": 10,
+          "height": -10
+        },
+        {
+          "id": "s7",
+          "kind": "flat",
+          "x": 90,
+          "width": 24,
+          "height": 0
+        },
+        {
+          "id": "s8",
+          "kind": "recess",
+          "x": 114,
+          "width": 10,
+          "height": -10
+        },
+        {
+          "id": "s9",
+          "kind": "flat",
+          "x": 124,
+          "width": 12,
+          "height": 0
+        }
+      ],
+      "source": "preset"
+    },
+    "preset-step": {
+      "id": "preset-step",
+      "name": "Step",
+      "baseHeight": 12,
+      "segments": [
+        {
+          "id": "s1",
+          "kind": "flat",
+          "x": 0,
+          "width": 68,
+          "height": 0
+        },
+        {
+          "id": "s2",
+          "kind": "step",
+          "x": 68,
+          "width": 68,
+          "height": 6
+        }
+      ],
+      "source": "preset"
+    }
+  },
+  "metric": "settlementPct = settled / released × 100 (ridge and recess have equal exposed length)",
+  "prediction": "mean settlementPct(recess) > mean settlementPct(ridge)",
+  "passRule": "paired per-seed difference (recess − ridge) has a 95% t-interval (df = 29) entirely above 0",
+  "alsoReported": "effect size in percentage points, ratio, and whether the difference exceeds 1 percentage point"
+}
