@@ -5,6 +5,7 @@
 // until the validated engine exists.
 import { useState, type ReactNode } from 'react';
 import type { PrototypeMetrics, PrototypeRun } from '@shared';
+import { Materialize } from '../ui/Materialize';
 import { Icon } from './Icons';
 
 export interface TestRecord {
@@ -28,7 +29,7 @@ export function ResultsDock({ run, tests, material, children }: { run: Prototype
   const m = run.metrics;
   const pct = (v: number) => `${Math.round((v / m.released) * 100)}%`;
   return (
-    <section className="glass-deep w-full max-w-2xl p-3 sm:p-4" aria-label="Test results">
+    <Materialize show origin="bottom center" className="glass-deep w-full max-w-2xl p-3 sm:p-4" role="region" aria-label="Test results">
       {details && (
         <div id="run-details" className="mb-3 max-h-[38dvh] overflow-y-auto border-b border-white/20 pb-3 text-15">
           <p className="text-13 text-white/80">Prototype flow, seed {run.params.seed}, {m.durationS} s</p>
@@ -74,6 +75,6 @@ export function ResultsDock({ run, tests, material, children }: { run: Prototype
           <span aria-hidden className={`inline-flex transition-transform ${details ? '' : 'rotate-180'}`}>{Icon.chevron}</span>
         </button>
       </div>
-    </section>
+    </Materialize>
   );
 }

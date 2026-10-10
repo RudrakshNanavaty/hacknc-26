@@ -121,8 +121,8 @@ body {
     isolation: isolate;
     border-radius: var(--radius-panel);
     background: linear-gradient(135deg, rgb(var(--glass-tint) / var(--glass-a)), rgb(var(--glass-tint) / var(--glass-b)));
-    backdrop-filter: blur(18px) saturate(180%);
-    -webkit-backdrop-filter: blur(18px) saturate(180%);
+    backdrop-filter: blur(var(--glass-blur, 18px)) saturate(180%);
+    -webkit-backdrop-filter: blur(var(--glass-blur, 18px)) saturate(180%);
     border: 1px solid rgb(255 255 255 / 0.32);
     box-shadow:
       inset 0 1px 0 rgb(255 255 255 / 0.55), /* specular top edge */
@@ -385,17 +385,8 @@ body {
   pointer-events: none;
 }
 
-/* The dive: the screen fills with bubbles and deepens to sea blue. */
-@keyframes dive-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
+/* The dive: the screen fills with bubbles and deepens to sea blue (animated by Landing). */
 .dive-veil {
-  animation: dive-in 0.9s ease-in forwards;
   background: radial-gradient(ellipse at 50% 30%, rgba(120, 220, 255, 0.85), rgba(4, 60, 100, 0.98));
 }
 

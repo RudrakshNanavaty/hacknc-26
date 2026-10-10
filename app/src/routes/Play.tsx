@@ -114,7 +114,7 @@ export function Play({ code }: { code: string }) {
 
   return (
     <main className="relative min-h-full overflow-hidden">
-      <Bubbles count={16} />
+      <Bubbles count={8} className="opacity-60" />
       <div className="relative mx-auto flex max-w-5xl flex-col gap-4 p-3 sm:p-6">
         <header className="flex flex-wrap items-center gap-3">
           <Link to="/" className="btn">{Icon.back}<span>Leave</span></Link>

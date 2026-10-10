@@ -1,15 +1,16 @@
 // Start from a reference tile or a saved design; save, export or import. A popover under its trigger.
 import { useRef } from 'react';
 import { REFERENCE_TILES, designOf, type Piece } from '@shared';
+import { Materialize } from '../ui/Materialize';
 import { exportJson, exportStl, importJson, saveDesign, savedDesigns } from './files';
 
 const ROW = 'flex w-full items-center justify-between gap-2 rounded-inner-sm px-2 py-2 text-left text-15 font-medium hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50';
 
-export function DesignsMenu({ pieces, readOnly, onLoad, say }: { pieces: Piece[]; readOnly: boolean; onLoad: (pieces: Piece[], label: string) => void; say: (msg: string) => void }) {
+export function DesignsMenu({ open, pieces, readOnly, onLoad, say }: { open: boolean; pieces: Piece[]; readOnly: boolean; onLoad: (pieces: Piece[], label: string) => void; say: (msg: string) => void }) {
   const file = useRef<HTMLInputElement>(null);
   const saved = savedDesigns();
   return (
-    <div className="glass-deep absolute top-full right-0 z-10 mt-2 w-72 max-w-[calc(100vw-1rem)] p-3" role="dialog" aria-label="Designs">
+    <Materialize show={open} origin="top right" className="glass-deep absolute top-full right-0 z-10 mt-2 w-72 max-w-[calc(100vw-1rem)] p-3" role="dialog" aria-label="Designs">
       <p className="px-2 text-13 font-semibold text-white/80">Start from</p>
       <ul className="mt-1">
         <li><button className={ROW} disabled={readOnly} onClick={() => onLoad([], 'Empty tile')}>Empty tile</button></li>
@@ -49,6 +50,6 @@ export function DesignsMenu({ pieces, readOnly, onLoad, say }: { pieces: Piece[]
           else onLoad(res.pieces, f.name);
         }} />
       </div>
-    </div>
+    </Materialize>
   );
 }

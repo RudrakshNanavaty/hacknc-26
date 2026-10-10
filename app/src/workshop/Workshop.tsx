@@ -17,6 +17,7 @@ import { Icon, PIECE_ICON } from './Icons';
 import { Larvae, type Playback } from './Larvae';
 import { SceneBoundary } from '../ui/SceneBoundary';
 import { Ocean, Platform } from './Ocean';
+import { Materialize } from '../ui/Materialize';
 import { DesignsMenu } from './DesignsMenu';
 import { ResultsDock, type TestRecord } from './ResultsDock';
 import { candidateOf, materialOfPieces, useBuild, type Tool } from './store';
@@ -157,6 +158,11 @@ export function Workshop({ reef, seed, corner, primary, onTest, readOnly: locked
     return () => window.removeEventListener('keydown', onKey);
   }, [building, run, readOnly, test]);
 
+  // A toast or the reason a piece cannot go there. The last text stays while the pill fades out.
+  const message = toast ?? (building && problem ? PROBLEM[problem] : null) ?? null;
+  const lastMessage = useRef('');
+  if (message) lastMessage.current = message;
+
   const t = run ? frame * run.frameDt : 0;
   const direction = reef.flow?.kind === 'oscillating' && reef.flow.periodS ? Math.sin((2 * Math.PI * t) / reef.flow.periodS) : 1;
   const loadPieces = (p: Piece[], label: string) => {
@@ -207,15 +213,15 @@ export function Workshop({ reef, seed, corner, primary, onTest, readOnly: locked
               <button className="btn min-h-10 px-3" aria-expanded={menu} aria-haspopup="dialog" onClick={() => setMenu((m) => !m)}>{Icon.save}<span>Designs</span></button>
             </div>
           </div>
-          {menu && <DesignsMenu pieces={pieces} readOnly={readOnly} onLoad={loadPieces} say={say} />}
+          <DesignsMenu open={menu} pieces={pieces} readOnly={readOnly} onLoad={loadPieces} say={say} />
         </div>
       </div>
 
       {/* Bottom: a message, the tools, then release or the results dock, in one stack. */}
       <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col items-center gap-2 p-2 sm:p-4 [&>*]:pointer-events-auto">
-        {(toast || (building && problem)) && (
-          <p className="glass-deep glass-flat px-4 py-2 text-15 font-semibold" role="status">{toast ?? PROBLEM[problem!]}</p>
-        )}
+        <Materialize show={message !== null} id="message" origin="bottom center" role="status" className="glass-deep glass-flat px-4 py-2 text-15 font-semibold">
+          {message ?? lastMessage.current}
+        </Materialize>
         {building && !pieces.length && !toast && !problem && (
           <p className="glass-deep glass-flat px-4 py-2 text-center text-15">
             <span className="sm:hidden">Pick a piece, then tap the tile to place it.</span>

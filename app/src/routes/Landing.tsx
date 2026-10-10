@@ -1,5 +1,6 @@
 // Screen 1, the Living Ocean: a satellite globe with real reefs pinned on it. Pick a reef to see its
 // mission card and data, toggle the data layers (Sources), then dive in, open a room or join one.
+import { AnimatePresence, motion } from 'motion/react';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { GeoJSONSource, Map as MapLibreMap, Marker } from 'maplibre-gl';
 import { REEFS, reefById, type ReefId } from '@shared';
@@ -8,6 +9,7 @@ import { HEAT_COLOR, globeStyle, setLayer, type DataLayer } from '../map/globe';
 import { Link, navigate } from '../router';
 import { Bubbles } from '../ui/Bubbles';
 import { ReefCard, ReefFacts, ReefHero, ReefTitle } from '../ui/ReefCard';
+import { Materialize } from '../ui/Materialize';
 import { Sheet } from '../ui/Sheet';
 import { useMedia } from '../ui/useMedia';
 
@@ -40,6 +42,7 @@ export function Landing() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [inset, setInset] = useState(190);
   const pins = useRef(new Map<ReefId, HTMLButtonElement>());
+  const diveTimers = useRef<number[]>([]);
 
   useEffect(() => {
     if (!container.current) return;
@@ -109,6 +112,15 @@ export function Landing() {
     };
   }, [map, focus, layers.heat]);
 
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && cancelDive();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+    // cancelDive closes over the latest map/focus; re-bind when they change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map, focus, wide, inset]);
+  useEffect(() => () => diveTimers.current.forEach(clearTimeout), []);
+
   const toggle = (id: DataLayer) => {
     const next = { ...layers, [id]: !layers[id] };
     setLayers(next);
@@ -120,8 +132,18 @@ export function Landing() {
     if (!map || reduceMotion()) return navigate(`/dive/${reef.id}`);
     const [w, s, e, n] = reef.bbox;
     map.flyTo({ center: [(w + e) / 2, (s + n) / 2], zoom: 13.6, pitch: 62, bearing: 25, duration: 3200, curve: 1.6, essential: true });
-    setTimeout(() => setDiving(true), 2400);
-    setTimeout(() => navigate(`/dive/${reef.id}`), 3400);
+    diveTimers.current = [window.setTimeout(() => setDiving(true), 2400), window.setTimeout(() => navigate(`/dive/${reef.id}`), 3400)];
+  };
+  /** Change your mind mid-dive: stop the camera, drop the veil, fly back to the reef. */
+  const cancelDive = () => {
+    if (!diveTimers.current.length) return;
+    diveTimers.current.forEach(clearTimeout);
+    diveTimers.current = [];
+    setDiving(false);
+    if (map) {
+      map.stop();
+      flyToReef(map, focus, wide ? { left: CARD_CLEARANCE } : { bottom: inset + 16 });
+    }
   };
   const joinRoom = (e: FormEvent) => {
     e.preventDefault();
@@ -159,7 +181,7 @@ export function Landing() {
       <div className="absolute inset-0">
         <div ref={container} className="h-full w-full" />
       </div>
-      <Bubbles count={14} className="opacity-60" />
+      <Bubbles count={8} className="opacity-40" />
 
       <div className="pointer-events-none absolute inset-0 flex flex-col justify-between gap-3 p-3 sm:p-6">
         <header className="pointer-events-auto flex flex-wrap items-start justify-between gap-2">
@@ -178,8 +200,7 @@ export function Landing() {
           </nav>
         </header>
 
-        {panel && (
-          <section className="glass-deep pointer-events-auto absolute top-44 right-3 w-72 sm:top-24 max-w-[calc(100%-1.5rem)] p-4 sm:right-6" aria-label="Map data layers">
+        <Materialize show={panel} origin="top right" aria-label="Map data layers" className="glass-deep pointer-events-auto absolute top-44 right-3 w-72 sm:top-24 max-w-[calc(100%-1.5rem)] p-4 sm:right-6">
             <h2 className="font-display text-18 font-bold">Map sources</h2>
             <ul className="mt-2 space-y-2">
               {LAYERS.map((l) => (
@@ -201,8 +222,7 @@ export function Landing() {
                 <p className="mt-1">{heatDate === 'loading' ? 'Loading NOAA grid…' : heatDate ? `NOAA Coral Reef Watch, ${heatDate}` : 'Heat grid unavailable right now'}</p>
               </div>
             )}
-          </section>
-        )}
+        </Materialize>
 
         {wide && (
           <div className="pointer-events-auto flex max-h-[calc(100dvh-9rem)] min-h-0 flex-col items-start gap-3">
@@ -231,12 +251,24 @@ export function Landing() {
         </Sheet>
       )}
 
-      {diving && (
-        <div className="dive-veil fixed inset-0 z-50 flex items-center justify-center">
-          <Bubbles count={40} seed={3} />
-          <p className="font-display text-32 font-bold text-white drop-shadow">Diving to {reef.name}…</p>
-        </div>
-      )}
+      <AnimatePresence>
+        {diving && (
+          <motion.div
+            key="veil"
+            className="dive-veil fixed inset-0 z-50 flex cursor-pointer flex-col items-center justify-center gap-2"
+            initial={{ opacity: 0, backdropFilter: 'blur(0px)' }}
+            animate={{ opacity: 1, backdropFilter: 'blur(14px)' }}
+            exit={{ opacity: 0, backdropFilter: 'blur(0px)' }}
+            transition={{ duration: 0.9, ease: 'easeIn' }}
+            onPointerDown={cancelDive}
+            role="status"
+          >
+            <Bubbles count={30} seed={3} />
+            <p className="font-display text-32 font-bold text-white drop-shadow">Diving to {reef.name}</p>
+            <p className="text-15 text-white/85">Tap anywhere, or press Esc, to stay on the surface</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </main>
   );
 }
