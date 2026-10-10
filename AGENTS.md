@@ -21,5 +21,5 @@ Contracts live in `shared/src`: `Design` (filled voxels on `BUILD_GRID`), `Exper
 2. **No made-up numbers.** Every environmental value carries a `Provenance`. If the engine cannot produce a value yet, show that, not a placeholder number.
 3. **Fail soft.** Every server integration has a fallback (memory store, no voice, no AI). A failed API call must never break the game.
 4. **No secrets in code.** Keys come from `.env` only (see `.env.example`).
-5. **Verify before done.** Run `npm run typecheck` and `npm test`. For UI, check it in the browser at 1440 px and 390 px wide.
+5. **Verify before done.** Run `bun run typecheck` and `bun test`. For UI, check it in the browser at 1440 px and 390 px wide.
 6. **Commit small**, on your own `<name>/dev` branch.

@@ -1,0 +1,4 @@
+[install]
+# Vite + @tailwindcss/vite resolve packages from the repo root; Bun's default
+# isolated linker only links them under app/node_modules and breaks @import "tailwindcss".
+linker = "hoisted"

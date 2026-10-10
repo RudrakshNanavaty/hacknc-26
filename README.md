@@ -31,17 +31,17 @@ The server re-evaluates every design, so results cannot be faked. Every integrat
 
 ## Run it locally
 
-Requires Node 20+.
+Requires [Bun](https://bun.sh) 1.4+.
 
 ```bash
-npm install
+bun install
 cp .env.example .env   # everything is optional
-npm run dev            # app on :5173, server on :8787
+bun dev                # app on :5173, server on :8787
 ```
 
 ```bash
-npm test
-npm run typecheck
+bun test
+bun run typecheck
 ```
 
 ## Status
