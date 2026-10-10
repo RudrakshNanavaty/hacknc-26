@@ -55,21 +55,26 @@
   --radius-inner: 16px;
   --radius-inner-sm: 12px;
 
-  /* Type scale (px): text-13 ... text-72. */
+  /* Type scale (px): text-13 ... text-72. Large sizes track tighter, the way optical sizing does. */
   --text-13: 13px;
   --text-13--line-height: 1.4;
   --text-15: 15px;
   --text-15--line-height: 1.45;
   --text-18: 18px;
   --text-18--line-height: 1.35;
+  --text-18--letter-spacing: -0.005em;
   --text-24: 24px;
   --text-24--line-height: 1.2;
+  --text-24--letter-spacing: -0.01em;
   --text-32: 32px;
   --text-32--line-height: 1.05;
+  --text-32--letter-spacing: -0.02em;
   --text-48: 48px;
   --text-48--line-height: 1;
+  --text-48--letter-spacing: -0.03em;
   --text-72: 72px;
   --text-72--line-height: 0.95;
+  --text-72--letter-spacing: -0.04em;
 }
 
 html,

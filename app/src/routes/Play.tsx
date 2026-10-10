@@ -43,7 +43,7 @@ function JoinForm({ room, create }: { room: Room; create: boolean }) {
   };
   return (
     <form onSubmit={submit} className="glass flex flex-col gap-3 p-5">
-      <h2 className="font-display text-32 font-black">{create ? 'Open the room' : 'Join the dive'}</h2>
+      <h2 className="font-display text-32 font-bold">{create ? 'Open the room' : 'Join the dive'}</h2>
       <label className="flex flex-col gap-1 font-bold">
         Your name
         <input value={name} onChange={(e) => setName(e.target.value)} maxLength={20} autoFocus
@@ -91,7 +91,7 @@ export function Play({ code }: { code: string }) {
         primary={mine?.locked ? { label: 'Locked in', onClick: () => {}, disabled: true } : { label: 'Lock in my design', onClick: (d) => room.lock(d) }}
         corner={
           <div className="glass-deep flex items-center gap-3 px-4 py-2">
-            <span className={`tabular font-display text-32 font-black ${left !== null && left <= 30 ? 'text-sun' : ''}`}>{clock(left)}</span>
+            <span className={`tabular font-display text-32 font-bold ${left !== null && left <= 30 ? 'text-sun' : ''}`}>{clock(left)}</span>
             <span className="text-13 leading-tight">Room {state.code}<br />{lockedCount}/{state.players.length} locked in</span>
             {room.error && <span className="text-13 font-bold text-sun">{room.error}</span>}
           </div>
@@ -118,7 +118,7 @@ export function Play({ code }: { code: string }) {
       <div className="relative mx-auto flex max-w-5xl flex-col gap-4 p-3 sm:p-6">
         <header className="flex flex-wrap items-center gap-3">
           <Link to="/" className="btn">{Icon.back}<span>Leave</span></Link>
-          <h1 className="font-display text-48 font-black text-white drop-shadow-[0_2px_6px_rgba(0,50,90,0.5)]">Reef Rivals</h1>
+          <h1 className="font-display text-48 font-bold text-white drop-shadow-[0_2px_6px_rgba(0,50,90,0.5)]">Reef Rivals</h1>
           {!room.connected && <span className="chip chip-published">Reconnecting…</span>}
         </header>
         {room.error && !missing && (
@@ -160,7 +160,7 @@ export function Play({ code }: { code: string }) {
         {state && reef && me !== null && state.phase === 'briefing' && (
           <section className="glass p-6 text-center">
             <p className="font-bold text-aqua-deep">Round {state.round} · building starts in <span className="tabular">{left}</span> s</p>
-            <h2 className="mt-1 font-display text-48 font-black">{reef.mission.title}</h2>
+            <h2 className="mt-1 font-display text-48 font-bold">{reef.mission.title}</h2>
             <p className="mx-auto mt-2 max-w-xl text-18">{reef.mission.brief}</p>
             <p className="mx-auto mt-3 max-w-xl text-15">Same reef, same water, same larvae for everyone. You have {clock(180)} to build. The arcade goal: reach the most larvae with the least material.</p>
             <div className="mt-4 flex justify-center gap-2">{state.players.map((p) => <Avatar key={p.seat} id={p.avatar} size={52} />)}</div>
@@ -170,7 +170,7 @@ export function Play({ code }: { code: string }) {
 
         {state && reef && me !== null && state.phase === 'results' && state.results && (
           <section className="glass p-5">
-            <h2 className="font-display text-48 font-black">Results</h2>
+            <h2 className="font-display text-48 font-bold">Results</h2>
             <p className="text-15">
               <span className="chip chip-game mr-1">Arcade ranking</span>
               Most larvae reaching the structure, then less material. Not a scientific result: settlement needs the validated engine.
@@ -180,9 +180,9 @@ export function Play({ code }: { code: string }) {
                 const m = r.result?.prototype;
                 return (
                   <li key={r.seat} className={`flex flex-wrap items-center gap-3 rounded-2xl p-2 ${r.rank === 1 ? 'bg-sun/40' : 'bg-white/45'}`}>
-                    <span className="tabular w-8 text-center font-display text-32 font-black">{r.rank}</span>
+                    <span className="tabular w-8 text-center font-display text-32 font-bold">{r.rank}</span>
                     <Avatar id={r.avatar} size={44} ring={r.seat === me} />
-                    <span className="min-w-24 font-display text-18 font-black">{r.name}</span>
+                    <span className="min-w-24 font-display text-18 font-bold">{r.name}</span>
                     {r.result && m ? (
                       <span className="tabular flex-1 text-15">
                         Reached <b>{m.reachedStructure}</b>/{m.released} · touches <b>{m.structureContacts}</b> · material <b>{r.result.material.toLocaleString()}</b>

@@ -36,7 +36,7 @@ export function Research() {
       <div className="relative mx-auto flex max-w-5xl flex-col gap-4 p-3 sm:p-6">
         <header className="flex flex-wrap items-center gap-3">
           <Link to="/" className="btn">{Icon.back}<span>Ocean</span></Link>
-          <h1 className="font-display text-48 font-black text-white drop-shadow-[0_2px_6px_rgba(0,50,90,0.5)]">Research Mode</h1>
+          <h1 className="font-display text-48 font-bold text-white drop-shadow-[0_2px_6px_rgba(0,50,90,0.5)]">Research Mode</h1>
         </header>
 
         <section className="glass p-5">
@@ -53,7 +53,7 @@ export function Research() {
         </section>
 
         <section className="glass p-5">
-          <h2 className="font-display text-24 font-black">Reference tiles</h2>
+          <h2 className="font-display text-24 font-bold">Reference tiles</h2>
           <ul className="mt-2 space-y-1.5 text-15">
             {REFERENCE_TILES.map((t) => (
               <li key={t.id}>
@@ -66,7 +66,7 @@ export function Research() {
         </section>
 
         <section className="glass p-5">
-          <h2 className="font-display text-24 font-black">Experiments at {reefById(reef).name}</h2>
+          <h2 className="font-display text-24 font-bold">Experiments at {reefById(reef).name}</h2>
           {data === 'loading' && <p className="mt-2">Loading…</p>}
           {data === null && <p className="mt-2">The server did not answer.</p>}
           {data && data !== 'loading' && (

@@ -180,7 +180,7 @@ export function Landing() {
 
         {panel && (
           <section className="glass-deep pointer-events-auto absolute top-44 right-3 w-72 sm:top-24 max-w-[calc(100%-1.5rem)] p-4 sm:right-6" aria-label="Map data layers">
-            <h2 className="font-display text-18 font-black">Map sources</h2>
+            <h2 className="font-display text-18 font-bold">Map sources</h2>
             <ul className="mt-2 space-y-2">
               {LAYERS.map((l) => (
                 <li key={l.id}>
@@ -234,7 +234,7 @@ export function Landing() {
       {diving && (
         <div className="dive-veil fixed inset-0 z-50 flex items-center justify-center">
           <Bubbles count={40} seed={3} />
-          <p className="font-display text-32 font-black text-white drop-shadow">Diving to {reef.name}…</p>
+          <p className="font-display text-32 font-bold text-white drop-shadow">Diving to {reef.name}…</p>
         </div>
       )}
     </main>
