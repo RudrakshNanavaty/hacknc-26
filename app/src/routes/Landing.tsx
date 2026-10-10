@@ -26,7 +26,14 @@ const reduceMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)')
 export function Landing() {
   const container = useRef<HTMLDivElement>(null);
   const [map, setMap] = useState<MapLibreMap | null>(null);
-  const [focus, setFocus] = useState<ReefId>('kaneohe');
+  // Start on the headline world: the real scanned reef at Eastern Dry Rocks.
+  const [focus, setFocus] = useState<ReefId>('florida-keys');
+  /** Once the player picks a reef, the intro never overrides it. */
+  const picked = useRef(false);
+  const pick = (id: ReefId) => {
+    picked.current = true;
+    setFocus(id);
+  };
   const [code, setCode] = useState('');
   const [layers, setLayers] = useState<Record<DataLayer, boolean>>({ satellite: true, relief: false, heat: false, sites: true });
   const [heatDate, setHeatDate] = useState<string | null | 'loading'>(null);
@@ -52,9 +59,12 @@ export function Landing() {
       el.innerHTML = `
         <span class="glass px-3 py-1 text-[13px] font-extrabold whitespace-nowrap" style="border-radius:999px;font-family:var(--font-display)">${reef.name}${reef.ready ? '' : ' <span style="color:#0a7bb8;font-weight:700">· next</span>'}</span>
         <span class="orb ${reef.ready ? 'orb-sun pulse' : ''}" style="width:${reef.ready ? 22 : 16}px;height:${reef.ready ? 22 : 16}px;${reef.ready ? '' : 'opacity:.85'}"></span>`;
-      el.addEventListener('click', () => setFocus(reef.id));
+      el.addEventListener('click', () => {
+        picked.current = true;
+        setFocus(reef.id);
+      });
       pins.current.set(reef.id, el);
-      new Marker({ element: el, anchor: 'bottom' }).setLngLat([reef.lon, reef.lat]).addTo(m);
+      new Marker({ element: el, anchor: 'bottom', opacityWhenCovered: '0' }).setLngLat([reef.lon, reef.lat]).addTo(m);
     }
     // A slow idle spin until someone touches the globe.
     let spinning = !reduceMotion();
@@ -70,11 +80,10 @@ export function Landing() {
     m.on('moveend', spin);
     m.once('load', () => {
       setMap(m);
-      // Start on Kāneʻohe after a short look at the whole ocean.
+      // After a short look at the whole ocean, fly to the chosen reef (unless the player already picked one).
       setTimeout(() => {
         spinning = false;
-        setFocus('kaneohe');
-        flyToReef(m, 'kaneohe');
+        if (!picked.current) flyToReef(m, 'florida-keys');
       }, reduceMotion() ? 0 : 1800);
     });
     return () => m.remove();
@@ -85,7 +94,12 @@ export function Landing() {
   useEffect(() => {
     if (!map) return;
     flyToReef(map, focus);
-    for (const [id, el] of pins.current) el.style.transform = id === focus ? 'scale(1.12)' : '';
+    // Highlight the chosen pin's orb. Never set transform on the marker element itself:
+    // MapLibre positions markers with it.
+    for (const [id, el] of pins.current) {
+      const orb = el.querySelector<HTMLElement>('.orb');
+      if (orb) orb.style.transform = id === focus ? 'scale(1.35)' : '';
+    }
   }, [map, focus]);
 
   // The heat layer follows the chosen reef.
@@ -179,14 +193,24 @@ export function Landing() {
         )}
 
         <div className="pointer-events-auto flex max-h-[62vh] flex-col items-start gap-3 overflow-y-auto pb-1 sm:max-h-none">
+          <nav className="glass flex max-w-full flex-wrap items-center gap-1.5 p-2" aria-label="Choose a reef">
+            <span className="px-2 font-display text-15 font-black">Choose a reef</span>
+            {REEFS.map((r) => (
+              <button key={r.id} className="aero-btn" aria-pressed={r.id === focus} onClick={() => pick(r.id)} disabled={!r.ready}>
+                {r.name}
+                {r.world && <span className="chip bg-white/70 text-leaf-deep">3D seabed</span>}
+                {!r.ready && <span className="chip bg-white/70 text-aqua-deep">next</span>}
+              </button>
+            ))}
+          </nav>
           <ReefCard reef={reef}>
             {reef.ready ? (
               <>
-                <button className="aero-btn aero-btn-go aero-btn-lg" onClick={dive}>Dive in</button>
+                <button className="aero-btn aero-btn-go aero-btn-lg" onClick={dive}>{reef.world ? 'Dive into the real reef' : 'Dive in'}</button>
                 <button className="aero-btn aero-btn-aqua" onClick={() => navigate(`/play/${newRoomCode()}`)}>Start a room</button>
               </>
             ) : (
-              <button className="aero-btn" onClick={() => setFocus('kaneohe')}>Play Kāneʻohe Bay</button>
+              <button className="aero-btn" onClick={() => pick('florida-keys')}>Explore Eastern Dry Rocks</button>
             )}
           </ReefCard>
           <form onSubmit={joinRoom} className="glass flex items-center gap-2 p-2">

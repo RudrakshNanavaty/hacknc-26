@@ -29,16 +29,35 @@ export function useHeat(reefId: Reef['id']) {
   return heat;
 }
 
+/** Survey imagery for reefs with a world (aligned with their terrain), else Esri World Imagery. */
+const WORLD_IMAGERY: Record<string, string> = {
+  'florida-keys': 'USGS SQUID-5 orthomosaic, 2021',
+  'heron-island': 'Contains modified Copernicus Sentinel data 2025',
+};
+
+function CardImage({ reef }: { reef: Reef }) {
+  const site = reef.world?.terrain;
+  const [useWorld, setUseWorld] = useState(!!site);
+  useEffect(() => setUseWorld(!!site), [site]);
+  const src = useWorld && site ? `/terrain/${site}/texture.jpg` : reefImageUrl(reef);
+  const credit = useWorld && site ? WORLD_IMAGERY[site] ?? 'Survey imagery' : 'Imagery © Esri, Maxar';
+  return (
+    <>
+      <img src={src} alt={`Seabed imagery of ${reef.name}`} className="h-full w-full object-cover" loading="lazy" onError={() => setUseWorld(false)} />
+      <div className="absolute inset-0 bg-gradient-to-t from-abyss/70 via-transparent to-white/20" />
+      <p className="absolute bottom-2 left-4 text-13 font-bold text-white drop-shadow">{reef.region}</p>
+      <p className="absolute right-3 bottom-2 text-[10px] text-white/80">{credit}</p>
+    </>
+  );
+}
+
 export function ReefCard({ reef, children, compact = false }: { reef: Reef; children?: React.ReactNode; compact?: boolean }) {
   const heat = useHeat(reef.id);
   return (
     <section className="glass w-full max-w-md min-w-0 overflow-hidden">
       {!compact && (
         <div className="relative h-36 overflow-hidden sm:h-44">
-          <img src={reefImageUrl(reef)} alt={`Satellite view of ${reef.name}`} className="h-full w-full object-cover" loading="lazy" />
-          <div className="absolute inset-0 bg-gradient-to-t from-abyss/70 via-transparent to-white/20" />
-          <p className="absolute bottom-2 left-4 text-13 font-bold text-white drop-shadow">{reef.region}</p>
-          <p className="absolute right-3 bottom-2 text-[10px] text-white/80">Imagery © Esri, Maxar</p>
+          <CardImage reef={reef} />
           {!reef.ready && <span className="chip absolute top-3 right-3 bg-white/85 text-aqua-deep">Coming next</span>}
         </div>
       )}
