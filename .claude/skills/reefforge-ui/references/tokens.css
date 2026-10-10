@@ -1,8 +1,11 @@
 /* ReefForge design tokens — canonical copy.
-   src/ui/tokens.css must match this file. Changes need UI-owner review. */
+   src/ui/tokens.css must match this file. Changes need UI-owner review.
+   v2 (D-020): refined Frutiger Aero — restrained gloss, layered soft shadows,
+   a real type scale with size-specific tracking (emil-design-eng / apple-design). */
 
 :root {
   /* ---------- Color: aqua (interactive) ---------- */
+  --c-aqua-50: #f2fbfe;
   --c-aqua-100: #e3f7fd;
   --c-aqua-200: #b8ebfa;
   --c-aqua-400: #4cc3ee;
@@ -11,83 +14,113 @@
   --c-aqua-700: #0a6697;
 
   /* ---------- Color: leaf (good / pass) ---------- */
-  --c-leaf-200: #c9f2b4;
+  --c-leaf-200: #d6f4c6;
   --c-leaf-500: #5cbf2a;
   --c-leaf-700: #3a8a14;
 
   /* ---------- Color: coral (warning / fail) ---------- */
-  --c-coral-200: #ffd3c7;
+  --c-coral-200: #ffe0d7;
   --c-coral-500: #ff6f4f;
-  --c-coral-700: #c94124;
+  --c-coral-700: #c2401f;
 
   /* ---------- Color: sun (player highlight) ---------- */
-  --c-sun-300: #ffe58a;
+  --c-sun-300: #ffe9a3;
   --c-sun-500: #ffc21a;
 
   /* ---------- Color: ink (text) ---------- */
   --c-ink-900: #0d2a3a;
-  --c-ink-700: #23495e;
-  --c-ink-500: #4d7187;
+  --c-ink-700: #2b4d61;
+  --c-ink-500: #557689;
   --c-ink-400: #8aa6b6;
   --c-white: #ffffff;
 
+  /* ---------- Surfaces ---------- */
+  --c-surface: #ffffff;
+  --c-surface-2: #f5fafc;          /* quiet fill inside panels */
+  --c-hairline: rgba(13, 42, 58, 0.08);
+  --c-hairline-strong: rgba(13, 42, 58, 0.14);
+
   /* ---------- Water / scene ---------- */
-  --c-water-top: #7fe0ff;
-  --c-water-mid: #23b5e6;
-  --c-water-deep: #0a5f8f;
+  --c-water-top: #9be6ff;
+  --c-water-mid: #3fbde9;
+  --c-water-deep: #0e6a9b;
 
   /* ---------- Sim view (canvas reads these at runtime) ---------- */
-  --c-sim-water: #e9f8fd;
-  --c-sim-water-deep: #c6ecf8;
-  --c-sand-300: #f1dfb4;
-  --c-sand-500: #d9b978;
-  --c-sand-700: #a8844a;
+  --c-sim-water: #f3fbfe;
+  --c-sim-water-deep: #d7f1fa;
+  --c-sand-300: #f3e4bf;
+  --c-sand-500: #ddc088;
+  --c-sand-700: #b08d55;
+  --c-sand-edge: rgba(255, 255, 255, 0.7);
   --c-larva: #ff8a3d;
-  --c-settled: #e0398f;
-  --c-flow: rgba(10, 102, 151, 0.55);
-  --c-release-band: rgba(76, 195, 238, 0.10);
-  --c-overlay-scrim: rgba(13, 42, 58, 0.35);
+  --c-larva-halo: rgba(255, 255, 255, 0.85);
+  --c-settled: #d63384;
+  --c-flow: rgba(10, 102, 151, 0.9);
+  --c-release-band: rgba(76, 195, 238, 0.08);
+  --c-overlay-scrim: rgba(13, 42, 58, 0.32);
 
   /* ---------- Glass ---------- */
-  --glass-bg: rgba(255, 255, 255, 0.55);
-  --glass-bg-strong: rgba(255, 255, 255, 0.78);
-  --glass-blur: 14px;
-  --glass-border: 1px solid rgba(255, 255, 255, 0.85);
-  --glass-sheen: linear-gradient(180deg, rgba(255,255,255,0.65) 0%, rgba(255,255,255,0.10) 40%, rgba(255,255,255,0) 41%);
+  --glass-bg: rgba(255, 255, 255, 0.66);
+  --glass-bg-strong: rgba(255, 255, 255, 0.86);
+  --glass-blur: 20px;
+  --glass-border: 1px solid rgba(255, 255, 255, 0.7);
+  --glass-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.5) 0%, rgba(255, 255, 255, 0) 38%);
 
-  /* ---------- Aqua gloss ---------- */
-  --aqua-gradient: linear-gradient(180deg, #8fdcff 0%, #2aa9e8 50%, #0b88cc 51%, #3cc0f5 100%);
-  --aqua-highlight: linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.15) 100%);
-  --titlebar-gradient: linear-gradient(180deg, #f7fbfd 0%, #d6e6ef 100%);
+  /* ---------- Aqua gloss (primary action only) ---------- */
+  --aqua-gradient: linear-gradient(180deg, #7fd6ff 0%, #2aa9e8 48%, #0e8dd0 52%, #36b9f0 100%);
+  --aqua-highlight: linear-gradient(180deg, rgba(255, 255, 255, 0.85) 0%, rgba(255, 255, 255, 0.1) 100%);
+  --titlebar-gradient: linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, rgba(240, 247, 251, 0.92) 100%);
 
   /* ---------- Radius ---------- */
-  --r-sm: 6px;
-  --r-md: 10px;
-  --r-lg: 16px;
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 18px;
+  --r-xl: 24px;
   --r-pill: 999px;
 
-  /* ---------- Shadow ---------- */
-  --shadow-panel: 0 8px 28px rgba(10, 70, 110, 0.25), 0 1px 0 rgba(255,255,255,0.9) inset;
-  --shadow-button: 0 2px 6px rgba(8, 80, 130, 0.35), 0 1px 0 rgba(255,255,255,0.6) inset;
-  --shadow-dock: 0 10px 30px rgba(5, 50, 80, 0.35);
-  --focus-ring: 0 0 0 3px rgba(31, 168, 224, 0.55);
+  /* ---------- Shadow (layered: contact + ambient + top light edge) ---------- */
+  --shadow-panel: 0 1px 2px rgba(10, 60, 95, 0.08), 0 10px 30px -6px rgba(10, 60, 95, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  --shadow-card: 0 1px 2px rgba(10, 60, 95, 0.06), 0 4px 14px -4px rgba(10, 60, 95, 0.12);
+  --shadow-button: 0 1px 2px rgba(8, 80, 130, 0.25), 0 4px 10px -2px rgba(8, 80, 130, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  --shadow-dock: 0 1px 2px rgba(5, 50, 80, 0.1), 0 18px 40px -10px rgba(5, 50, 80, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  --shadow-topbar: 0 1px 0 rgba(13, 42, 58, 0.08), 0 6px 20px -12px rgba(5, 50, 80, 0.35);
+  --shadow-tile: 0 1px 2px rgba(8, 60, 100, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  --tile-highlight: linear-gradient(180deg, rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0));
+  --focus-ring: 0 0 0 3px rgba(31, 168, 224, 0.5);
 
   /* ---------- Type ---------- */
-  --font-ui: "Segoe UI", "Frutiger", "Myriad Pro", "Hind", system-ui, sans-serif;
-  --font-mono-num: "Segoe UI", "Hind", system-ui, sans-serif; /* use font-variant-numeric: tabular-nums */
+  --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI", "Frutiger", "Myriad Pro", system-ui, sans-serif;
+  --font-display: -apple-system, BlinkMacSystemFont, "Segoe UI Variable Display", "Segoe UI", "Frutiger", system-ui, sans-serif;
+  --font-mono-num: var(--font-ui); /* use font-variant-numeric: tabular-nums */
   --fs-xs: 11px;
   --fs-sm: 13px;
   --fs-md: 15px;
-  --fs-lg: 20px;
-  --fs-score: 56px;
+  --fs-lg: 18px;
+  --fs-xl: 24px;
+  --fs-score: 64px;
+  --lh-tight: 1.05;
+  --lh-snug: 1.3;
+  --lh-body: 1.5;
+  --track-display: -0.03em; /* large text tightens */
+  --track-heading: -0.01em;
+  --track-label: 0.06em;    /* small caps labels open up */
 
   /* ---------- Space (4px scale) ---------- */
-  --sp-1: 4px;  --sp-2: 8px;  --sp-3: 12px;  --sp-4: 16px;  --sp-6: 24px;  --sp-8: 32px;
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
 
   /* ---------- Layout ---------- */
-  --topbar-h: 48px;
-  --palette-w: 72px;
-  --metrics-w: 320px;
+  --topbar-h: 52px;
+  --palette-w: 64px;
+  --metrics-w: 340px;
   --dock-h: 64px;
 
   /* ---------- Motion ---------- */
@@ -116,4 +149,13 @@
   --press-scale: 1;
   --enter-scale: 1;
   --enter-shift: 0px;
+}
+
+/* Reduced transparency: frosted surfaces become solid (apple-design §14). */
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --glass-bg: rgba(255, 255, 255, 0.96);
+    --glass-bg-strong: #ffffff;
+    --glass-blur: 0px;
+  }
 }

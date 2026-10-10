@@ -1,15 +1,14 @@
 .bar {
+  position: relative;
+  z-index: var(--z-panel);
   display: flex;
   align-items: center;
   gap: var(--sp-4);
   height: calc(var(--topbar-h) + env(safe-area-inset-top, 0px));
-  padding: env(safe-area-inset-top, 0px) calc(var(--sp-3) + env(safe-area-inset-right, 0px)) 0
-    calc(var(--sp-3) + env(safe-area-inset-left, 0px));
+  padding: env(safe-area-inset-top, 0px) calc(var(--sp-5) + env(safe-area-inset-right, 0px)) 0
+    calc(var(--sp-5) + env(safe-area-inset-left, 0px));
   background: var(--titlebar-gradient);
-  border-bottom: var(--glass-border);
-  box-shadow: var(--shadow-dock);
-  z-index: var(--z-panel);
-  position: relative;
+  box-shadow: var(--shadow-topbar);
 }
 
 .brand {
@@ -19,59 +18,50 @@
   flex: none;
 }
 
+/* A small glossy "pearl": the one bit of Aqua in the chrome. */
 .logo {
-  width: var(--sp-6);
-  height: var(--sp-6);
+  width: 22px;
+  height: 22px;
   border-radius: var(--r-pill);
-  background: radial-gradient(circle at 35% 30%, var(--c-white), var(--c-aqua-400) 45%, var(--c-aqua-700));
+  background: radial-gradient(circle at 35% 28%, var(--c-white) 0 18%, var(--c-aqua-400) 46%, var(--c-aqua-700) 100%);
   box-shadow: var(--shadow-button);
 }
 
 .name {
+  font-family: var(--font-display);
   font-size: var(--fs-lg);
-  font-weight: 600;
-  color: var(--c-aqua-700);
-  letter-spacing: -0.01em;
+  font-weight: 650;
+  letter-spacing: var(--track-heading);
+  color: var(--c-ink-900);
 }
 
-.challenge {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  flex: 1;
+.divider {
+  width: 1px;
+  height: 20px;
+  background: var(--c-hairline-strong);
 }
 
 .title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
   font-size: var(--fs-md);
-  font-weight: 600;
-  color: var(--c-ink-900);
+  font-weight: 500;
+  color: var(--c-ink-700);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.conditions {
-  font-size: var(--fs-xs);
-  color: var(--c-ink-500);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.right {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-2);
-  flex: none;
 }
 
 @media (max-width: 767px) {
   .bar {
     gap: var(--sp-2);
+    padding-left: calc(var(--sp-3) + env(safe-area-inset-left, 0px));
+    padding-right: calc(var(--sp-3) + env(safe-area-inset-right, 0px));
   }
 
   .name,
-  .conditions {
+  .divider {
     display: none;
   }
 

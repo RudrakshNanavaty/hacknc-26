@@ -1,23 +1,12 @@
 .panel {
   display: grid;
-  gap: var(--sp-1);
-  padding: 0 var(--sp-3) var(--sp-3);
-}
-
-.sub {
-  margin: 0;
-  text-align: center;
-  font-size: var(--fs-xs);
-  color: var(--c-ink-500);
-  font-variant-numeric: tabular-nums;
+  gap: var(--sp-4);
+  padding: var(--sp-2) var(--sp-4) var(--sp-4);
 }
 
 .section {
   display: grid;
-  gap: var(--sp-2);
-  padding-top: var(--sp-3);
-  border-top: 1px solid var(--c-aqua-200);
-  margin-top: var(--sp-2);
+  gap: var(--sp-3);
 }
 
 .h {
@@ -25,20 +14,149 @@
   font-size: var(--fs-xs);
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--c-ink-700);
-  cursor: default;
-}
-
-summary.h {
-  cursor: pointer;
+  letter-spacing: var(--track-label);
+  color: var(--c-ink-500);
 }
 
 .note {
   margin: 0;
   font-size: var(--fs-xs);
+  line-height: var(--lh-body);
   color: var(--c-ink-500);
-  line-height: 1.4;
+}
+
+/* Benchmark summary: one tappable card that opens the full protocol. */
+.bench {
+  display: grid;
+  gap: var(--sp-1);
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--c-hairline);
+  border-left: 3px solid var(--c-ink-400);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+  box-shadow: var(--shadow-card);
+  text-align: left;
+  font-family: var(--font-ui);
+  cursor: pointer;
+  transition:
+    transform var(--dur-fast) var(--ease-aero),
+    box-shadow var(--dur-fast) ease;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .bench:hover {
+    box-shadow: var(--shadow-panel);
+  }
+}
+
+.bench:active {
+  transform: scale(var(--press-scale));
+}
+
+.bench:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.pass {
+  border-left-color: var(--c-leaf-500);
+}
+
+.fail {
+  border-left-color: var(--c-coral-500);
+}
+
+.benchHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.benchStatus {
+  font-size: var(--fs-sm);
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: var(--c-ink-700);
+}
+
+.pass .benchStatus {
+  color: var(--c-leaf-700);
+}
+
+.fail .benchStatus {
+  color: var(--c-coral-700);
+}
+
+.benchBody {
+  font-size: var(--fs-sm);
+  line-height: var(--lh-snug);
+  color: var(--c-ink-900);
+}
+
+.benchCi {
+  font-size: var(--fs-xs);
+  color: var(--c-ink-500);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Run details: everything secondary lives one level deeper. */
+.details {
+  border-top: 1px solid var(--c-hairline);
+  padding-top: var(--sp-2);
+}
+
+.details summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  padding: var(--sp-2) 0;
+  list-style: none;
+  cursor: pointer;
+  font-size: var(--fs-sm);
+  font-weight: 650;
+  color: var(--c-ink-900);
+  border-radius: var(--r-sm);
+}
+
+.details summary::-webkit-details-marker {
+  display: none;
+}
+
+.details summary::after {
+  content: "";
+  width: var(--sp-2);
+  height: var(--sp-2);
+  margin-left: var(--sp-1);
+  border-right: 2px solid var(--c-ink-400);
+  border-bottom: 2px solid var(--c-ink-400);
+  transform: rotate(45deg) translate(-2px, -2px);
+  transition: transform var(--dur-fast) var(--ease-aero);
+}
+
+.details[open] summary::after {
+  transform: rotate(225deg) translate(-2px, -2px);
+}
+
+.details summary:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.summaryMeta {
+  margin-left: auto;
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  color: var(--c-ink-500);
+  font-variant-numeric: tabular-nums;
+}
+
+.detailsBody {
+  display: grid;
+  gap: var(--sp-4);
+  padding-top: var(--sp-2);
 }
 
 .row {
@@ -57,11 +175,11 @@ summary.h {
 
 .seed input {
   width: calc(var(--sp-8) * 2);
-  height: var(--sp-6);
+  height: var(--sp-8);
   padding: 0 var(--sp-2);
-  border: 1px solid var(--c-aqua-200);
+  border: 1px solid var(--c-hairline-strong);
   border-radius: var(--r-sm);
-  background: var(--c-white);
+  background: var(--c-surface);
   font: inherit;
   font-variant-numeric: tabular-nums;
   color: var(--c-ink-900);
@@ -81,7 +199,7 @@ summary.h {
 .diag {
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: 2px var(--sp-3);
+  gap: var(--sp-1) var(--sp-3);
   margin: 0;
   font-size: var(--fs-xs);
   font-variant-numeric: tabular-nums;
@@ -108,8 +226,20 @@ summary.h {
 }
 
 .extrusion {
+  margin: 0;
+  display: grid;
+  gap: var(--sp-1);
+}
+
+.extrusionCanvas {
   height: calc(var(--sp-8) * 4);
   border-radius: var(--r-md);
-  background: linear-gradient(180deg, var(--c-aqua-100), var(--c-aqua-200));
+  background: linear-gradient(180deg, var(--c-aqua-50), var(--c-aqua-100));
+  border: 1px solid var(--c-hairline);
   overflow: hidden;
+}
+
+.extrusion figcaption {
+  font-size: var(--fs-xs);
+  color: var(--c-ink-500);
 }

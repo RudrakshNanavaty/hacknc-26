@@ -40,11 +40,11 @@
 |---|---|
 | Problem | App loads on the **Ridge** preset. Let the larvae swirl and settle (about 7 s on first load). |
 | Edit | Press `2` (Recess), click the flat seabed between two ridges. Drag down while clicking to set depth. Then press `1` and add a ridge. |
-| Run | It re-runs automatically 300 ms after an edit. The score counts up in the Metrics panel. |
-| Compare | Point at the **Compared with baselines** bars: Flat / Ridge / Recess / **Yours** (sun color). |
+| Run | It re-runs automatically 300 ms after an edit. The score counts up in the Results panel; a thin progress line runs along the bottom of the stage. |
+| Compare | Point at the **Compared with baselines** bars (Flat / Ridge / Recess / **Yours** in sun color) and the settlement strip under the canvas, where the peaks sit at the feature bases. |
 | Benchmark | Click the **Benchmark** badge (top right). Show the prediction, the pass rule, the CI, and "what this does not show". |
-| Record | Dock → **Record**. Show seed, parameters and version, then **Re-run from this record**. The result is the same number. |
-| Critic (optional) | Metrics → **Explain this result**. Point out the "AI explanation" label and that scores come from the simulator. Skip this if no key is set (the card is hidden). |
+| Record | Results → Run details → **View experiment record** (or Dock → **Library → This run**). Show seed, parameters and version, then **Re-run from this record**. The result is the same number. |
+| Critic (optional) | Results → **Explain this result**. Point out the "AI explanation" label and that scores come from the simulator. Skip this if no key is set (the card is hidden). |
 | Leaderboard | Dock → **Leaderboard**. Show the surface budget meter, submit a design, point at "below/≈/beats" with its CI. |
 | Future | Closing slide only. There is no button for it. |
 
@@ -52,6 +52,6 @@ Shortcuts: `1–4` tools · `Ctrl+Z / Ctrl+Y` undo/redo · `Enter` or `R` re-run
 
 ## Backup procedure
 - **Sim too slow on the projector laptop:** the flow is cached per geometry. Pre-warm by loading Flat, Ridge and Recess from **Presets** before going on stage.
-- **WebGL broken:** the backdrop and 3D extrusion are decoration. Toggle **Reduce motion** in Metrics. The 2D sim canvas does not use WebGL.
-- **Browser dies:** restart with `npm run dev`. Saved designs persist in IndexedDB. Exported record JSON can be re-imported via **Compare → Import**.
+- **WebGL broken:** the backdrop and 3D extrusion are decoration. Toggle **Reduce motion** in Results → Run details. The 2D sim canvas does not use WebGL.
+- **Browser dies:** restart with `npm run dev`. Saved designs persist in IndexedDB. Exported record JSON can be re-imported via **Library → Saved designs → Import**.
 - **Everything fails:** play the backup video (record it from this script at 1920×1080), and show `benchmark/results.json` and `docs/PHASE_A.md` from the repo.

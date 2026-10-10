@@ -1,33 +1,49 @@
-.palette {
-  display: grid;
+.rail {
+  display: flex;
+  flex-direction: column;
   gap: var(--sp-2);
   padding: var(--sp-2);
 }
 
+.group {
+  display: grid;
+  gap: var(--sp-1);
+}
+
+.sep {
+  width: 60%;
+  margin: var(--sp-1) auto;
+  border: none;
+  border-top: 1px solid var(--c-hairline-strong);
+}
+
 .tool {
-  position: relative;
   display: grid;
   justify-items: center;
   gap: 2px;
-  padding: var(--sp-2) 0 var(--sp-1);
-  border: 1px solid transparent;
+  min-height: calc(var(--sp-8) + var(--sp-2));
+  padding: var(--sp-2) 0;
+  border: none;
   border-radius: var(--r-md);
   background: transparent;
   color: var(--c-ink-700);
   font-family: var(--font-ui);
   cursor: pointer;
-  transition: transform var(--dur-fast) var(--ease-aero);
+  transition:
+    transform var(--dur-fast) var(--ease-aero),
+    background-color var(--dur-fast) ease,
+    color var(--dur-fast) ease;
   user-select: none;
   -webkit-user-select: none;
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .tool:hover {
-    background: var(--glass-bg-strong);
+  .tool:hover:not(:disabled) {
+    background: var(--c-surface);
   }
 }
 
-.tool:active {
+.tool:active:not(:disabled) {
   transform: scale(var(--press-scale));
 }
 
@@ -36,23 +52,21 @@
   box-shadow: var(--focus-ring);
 }
 
-.selected {
-  background: var(--c-aqua-100);
-  border-color: var(--c-aqua-500);
-  color: var(--c-aqua-700);
-  box-shadow: var(--shadow-button);
+.tool:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* Selected: a solid white chip with the accent color — one clear "you are here". */
+.selected,
+.selected:hover {
+  background: var(--c-surface) !important;
+  color: var(--c-aqua-600);
+  box-shadow: var(--shadow-card), inset 0 0 0 1.5px var(--c-aqua-400);
 }
 
 .label {
   font-size: var(--fs-xs);
   font-weight: 600;
-}
-
-.key {
-  position: absolute;
-  top: 2px;
-  right: var(--sp-1);
-  font-family: var(--font-ui);
-  font-size: var(--fs-xs);
-  color: var(--c-ink-500);
+  letter-spacing: 0.01em;
 }

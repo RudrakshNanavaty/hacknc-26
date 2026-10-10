@@ -19,11 +19,13 @@ It is a toy model with a falsifiable, pre-registered benchmark. It is **not** a 
 | **Pitching or demoing** | [`docs/DEMO.md`](docs/DEMO.md) |
 | **An AI coding agent** | [`CLAUDE.md`](CLAUDE.md) |
 
-Live status is in [`PROGRESS.md`](PROGRESS.md). Decisions are logged in [`DECISIONS.md`](DECISIONS.md).
+**Picking this up? Start with [`HANDOFF.md`](HANDOFF.md).** Live status is in [`PROGRESS.md`](PROGRESS.md). Decisions are logged in [`DECISIONS.md`](DECISIONS.md). Results and what was verified are in [`docs/VERIFICATION.md`](docs/VERIFICATION.md).
 
 ---
 
 ## Quick start
+
+Requires Node 20.19+ (tested on 22.11).
 
 ```bash
 npm install

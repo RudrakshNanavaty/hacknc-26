@@ -1,0 +1,33 @@
+.track {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--r-pill);
+  background: var(--c-hairline);
+}
+
+.seg {
+  padding: var(--sp-1) var(--sp-4);
+  border: none;
+  border-radius: var(--r-pill);
+  background: transparent;
+  font-family: var(--font-ui);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--c-ink-500);
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+
+.seg:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.on {
+  background: var(--c-surface);
+  color: var(--c-ink-900);
+  box-shadow: var(--shadow-card);
+}

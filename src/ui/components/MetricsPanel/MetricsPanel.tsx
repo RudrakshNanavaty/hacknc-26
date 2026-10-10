@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { baselines, BENCHMARK, FROZEN } from "../../../experiment/benchmark";
+import { baselines, BENCHMARK, ciText, FROZEN } from "../../../experiment/benchmark";
 import { ASSUMPTIONS } from "../../../sim/pipeline";
 import { DEFAULT_GRID } from "../../../sim/params";
 import { useApp } from "../../../state/store";
@@ -13,13 +13,23 @@ import styles from "./MetricsPanel.module.css";
 
 const Extrusion = lazy(() => import("../../../scene/Extrusion").then((m) => ({ default: m.Extrusion })));
 
-/** Right-region content: score, baselines, controls, diagnostics. Lives inside one GlassPanel. */
-export function MetricsPanel({ showExtrusion = true }: { showExtrusion?: boolean }) {
+/**
+ * Right-region content, in reading order: the score, how it compares, whether the
+ * model's pre-registered prediction held, an optional AI explanation, then details.
+ */
+export function MetricsPanel({
+  showExtrusion = true,
+  onOpenBenchmark,
+  onOpenRecord,
+}: {
+  showExtrusion?: boolean;
+  onOpenBenchmark(): void;
+  onOpenRecord(): void;
+}) {
   const record = useApp((s) => s.record);
   const stale = useApp((s) => s.stale);
   const status = useApp((s) => s.status);
   const seed = useApp((s) => s.seed);
-  const showFlow = useApp((s) => s.showFlow);
   const reducedMotion = useApp((s) => s.reducedMotion);
   const profile = useApp((s) => s.history.present);
   const set = useApp((s) => s.set);
@@ -27,90 +37,99 @@ export function MetricsPanel({ showExtrusion = true }: { showExtrusion?: boolean
   const pct = record ? record.results.settlementPct : null;
   const delta = record && baselines ? { value: record.results.settlementPct - baselines.ridge, vs: "ridge" } : null;
   const d = record?.diagnostics;
+  const settled = record !== null && !stale && status !== "running";
 
   return (
     <div className={styles.panel}>
       <ScoreReadout pct={pct} delta={delta} dimmed={stale || status === "running"} />
-      {record && (
-        <p className={styles.sub}>
-          {record.results.settled} of {record.results.released} larvae · exposed surface {record.results.exposedLength.toFixed(1)} mm ·{" "}
-          <span title="Settlement % divided by exposed length relative to flat: adding more wall does not win by itself">
-            per-surface score {record.results.normalizedScore?.toFixed(1)}
-          </span>
-        </p>
-      )}
 
       <section className={styles.section}>
         <h3 className={styles.h}>Compared with baselines</h3>
         <BaselineBars flat={baselines?.flat ?? null} ridge={baselines?.ridge ?? null} recess={baselines?.recess ?? null} yours={pct} />
         <p className={styles.note}>
-          {BENCHMARK
-            ? `Baselines: mean of ${BENCHMARK.seeds.length} pre-registered seeds, frozen parameters.`
-            : FROZEN
-              ? "Parameters frozen; held-out run pending."
-              : "Calibration not frozen yet: scores are provisional."}
+          {BENCHMARK ? `Baselines: mean of ${BENCHMARK.seeds.length} seeds, frozen parameters.` : FROZEN ? "Held-out run pending." : "Provisional parameters."}
         </p>
       </section>
 
-      {record && !stale && status !== "running" && (
-        <section className={styles.section}>
-          <CriticCard record={record} />
-        </section>
-      )}
+      <button className={`${styles.bench} ${BENCHMARK ? (BENCHMARK.status === "PASS" ? styles.pass : styles.fail) : ""}`} onClick={onOpenBenchmark}>
+        <span className={styles.benchHead}>
+          <span className={styles.h}>Pre-registered test</span>
+          <span className={styles.benchStatus}>{BENCHMARK ? BENCHMARK.status : "PENDING"}</span>
+        </span>
+        <span className={styles.benchBody}>
+          Predicted: a recess beats a ridge.{" "}
+          {BENCHMARK ? (BENCHMARK.status === "PASS" ? "The prediction held." : "It did not.") : "Not run yet."}
+        </span>
+        <span className={styles.benchCi}>{ciText()}</span>
+      </button>
 
-      <section className={styles.section}>
-        <h3 className={styles.h}>Run</h3>
-        <div className={styles.row}>
-          <label className={styles.seed}>
-            Seed
-            <input
-              type="number"
-              min={1}
-              value={seed}
-              onChange={(e) => set({ seed: Math.max(1, Math.floor(Number(e.target.value) || 1)) })}
-            />
-          </label>
-          <GhostButton size="sm" icon="dice" onClick={() => set({ seed: seed + 1 })}>
-            Next seed
-          </GhostButton>
-        </div>
-        <Toggle checked={showFlow} label="Show flow arrows" onChange={(v) => set({ showFlow: v })} />
-        <Toggle checked={reducedMotion} label="Reduce motion" onChange={(v) => set({ reducedMotion: v })} />
-      </section>
+      {settled && <CriticCard record={record} />}
 
-      {d && (
-        <section className={styles.section}>
-          <h3 className={styles.h}>Diagnostics</h3>
-          <dl className={styles.diag}>
-            <dt>Solver</dt>
-            <dd>LBM D2Q9 (TRT)</dd>
-            <dt>Reynolds</dt>
-            <dd>{record.physical.reynolds.toFixed(0)} on 2.5 mm</dd>
-            <dt>Mass drift</dt>
-            <dd>{d.massDriftPct.toExponential(1)} %</dd>
-            <dt>Max speed</dt>
-            <dd>{((d.maxVelocity / record.config.params.peakVelocity) * record.physical.peakVelocityCmS).toFixed(1)} cm/s</dd>
-            <dt>Stable</dt>
-            <dd className={d.diverged ? styles.bad : styles.good}>{d.diverged ? "diverged" : "yes"}</dd>
-          </dl>
-        </section>
-      )}
-
-      {showExtrusion && (
-        <section className={styles.section}>
-          <h3 className={styles.h}>Decorative 3D view</h3>
-          <div className={styles.extrusion}>
-            <Suspense fallback={null}>
-              <Extrusion profile={profile} nx={DEFAULT_GRID.nx} animate={!reducedMotion} />
-            </Suspense>
+      <details className={styles.details}>
+        <summary>
+          <span>Run details</span>
+          {record && (
+            <span className={styles.summaryMeta}>
+              {record.results.settled.toLocaleString()} of {record.results.released.toLocaleString()} settled
+            </span>
+          )}
+        </summary>
+        <div className={styles.detailsBody}>
+          <div className={styles.row}>
+            <label className={styles.seed}>
+              Seed
+              <input
+                type="number"
+                inputMode="numeric"
+                min={1}
+                value={seed}
+                onChange={(e) => set({ seed: Math.max(1, Math.floor(Number(e.target.value) || 1)) })}
+              />
+            </label>
+            <GhostButton size="sm" icon="dice" onClick={() => set({ seed: seed + 1 })}>
+              Next seed
+            </GhostButton>
           </div>
-          <p className={styles.note}>Your profile stretched into 3D for looks. Only the 2D slice is simulated.</p>
-        </section>
-      )}
 
-      <details className={styles.section}>
-        <summary className={styles.h}>Assumptions</summary>
-        <AssumptionsList items={record?.assumptions ?? ASSUMPTIONS} />
+          {record && d && (
+            <dl className={styles.diag}>
+              <dt>Exposed surface</dt>
+              <dd>{record.results.exposedLength.toFixed(1)} mm</dd>
+              <dt title="Settlement % divided by exposed length relative to flat">Per-surface score</dt>
+              <dd>{record.results.normalizedScore?.toFixed(1)}</dd>
+              <dt>Reynolds (2.5 mm)</dt>
+              <dd>{record.physical.reynolds.toFixed(0)}</dd>
+              <dt>Mass drift</dt>
+              <dd>{d.massDriftPct.toExponential(1)} %</dd>
+              <dt>Solver</dt>
+              <dd className={d.diverged ? styles.bad : styles.good}>{d.diverged ? "diverged" : "LBM D2Q9 · stable"}</dd>
+            </dl>
+          )}
+
+          {record && (
+            <GhostButton size="sm" icon="file" onClick={onOpenRecord}>
+              View experiment record
+            </GhostButton>
+          )}
+
+          {showExtrusion && (
+            <figure className={styles.extrusion}>
+              <div className={styles.extrusionCanvas}>
+                <Suspense fallback={null}>
+                  <Extrusion profile={profile} nx={DEFAULT_GRID.nx} animate={!reducedMotion} />
+                </Suspense>
+              </div>
+              <figcaption>Decorative 3D view. Only the 2D slice is simulated.</figcaption>
+            </figure>
+          )}
+
+          <Toggle checked={reducedMotion} label="Reduce motion" onChange={(v) => set({ reducedMotion: v })} />
+
+          <div>
+            <h4 className={styles.h}>Assumptions</h4>
+            <AssumptionsList items={record?.assumptions ?? ASSUMPTIONS} />
+          </div>
+        </div>
       </details>
     </div>
   );

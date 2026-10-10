@@ -58,7 +58,7 @@ function LightRays() {
   );
 }
 
-const BUBBLES = 40;
+const BUBBLES = 18;
 
 function Bubbles({ animate }: { animate: boolean }) {
   const ref = useRef<InstancedMesh>(null);
@@ -90,24 +90,6 @@ function Bubbles({ animate }: { animate: boolean }) {
   );
 }
 
-function Corals() {
-  const colors = useMemo(() => [tokenColor("--c-coral-500"), tokenColor("--c-sun-300"), tokenColor("--c-coral-200"), tokenColor("--c-leaf-500")], []);
-  return (
-    <group position={[0, -3.4, -3]}>
-      {[-6, -4.6, -3.2, 3.4, 4.8, 6.2].map((x, i) => (
-        <group key={x} position={[x, 0, 0]}>
-          {[0, 1, 2].map((b) => (
-            <mesh key={b} position={[(b - 1) * 0.35, 0.5 + (b % 2) * 0.4, 0]} rotation={[0, 0, (b - 1) * 0.35]}>
-              <capsuleGeometry args={[0.12, 1.1 + ((i + b) % 3) * 0.3, 4, 8]} />
-              <meshBasicMaterial color={colors[(i + b) % colors.length]} transparent opacity={0.55} />
-            </mesh>
-          ))}
-        </group>
-      ))}
-    </group>
-  );
-}
-
 export function ReefBackdrop({ animate }: { animate: boolean }) {
   return (
     <Canvas
@@ -119,7 +101,6 @@ export function ReefBackdrop({ animate }: { animate: boolean }) {
     >
       <Caustics animate={animate} />
       <LightRays />
-      <Corals />
       <Bubbles animate={animate} />
     </Canvas>
   );

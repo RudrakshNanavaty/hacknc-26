@@ -1,0 +1,137 @@
+.stage {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-width: 0;
+  min-height: 0;
+  padding: var(--sp-4) var(--sp-5) var(--sp-3);
+  border-radius: var(--r-xl);
+  background: var(--glass-bg-strong);
+  border: var(--glass-border);
+  box-shadow: var(--shadow-panel);
+  overflow: hidden;
+}
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  padding-bottom: var(--sp-3);
+}
+
+.title {
+  min-width: 0;
+}
+
+.title h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--fs-lg);
+  font-weight: 650;
+  line-height: var(--lh-snug);
+  letter-spacing: var(--track-heading);
+  color: var(--c-ink-900);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.title p {
+  margin: 2px 0 0;
+  font-size: var(--fs-xs);
+  color: var(--c-ink-500);
+  font-variant-numeric: tabular-nums;
+}
+
+.side {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  flex: none;
+}
+
+.legend {
+  display: flex;
+  gap: var(--sp-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--fs-xs);
+  color: var(--c-ink-500);
+}
+
+.legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+}
+
+.legend i {
+  display: inline-block;
+  width: var(--sp-2);
+  height: var(--sp-2);
+  border-radius: var(--r-pill);
+}
+
+.larva {
+  background: var(--c-larva);
+}
+
+.settled {
+  background: var(--c-settled);
+}
+
+.flow {
+  width: var(--sp-3) !important;
+  height: 2px !important;
+  background: var(--c-flow);
+  opacity: 0.6;
+}
+
+.body {
+  min-height: 0;
+}
+
+/* Thin progress line along the bottom edge of the card. */
+.progress {
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 3px;
+  opacity: 0;
+  transition: opacity var(--dur-med) ease;
+}
+
+.progress[data-active="true"] {
+  opacity: 1;
+}
+
+.bar {
+  position: absolute;
+  inset: 0;
+  background: var(--c-aqua-500);
+  transform-origin: left center;
+  transition: transform var(--dur-med) linear;
+}
+
+.status {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--c-aqua-700);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 767px) {
+  .stage {
+    padding: var(--sp-3);
+    border-radius: var(--r-lg);
+  }
+
+  .legend {
+    display: none;
+  }
+
+  .title h2 {
+    font-size: var(--fs-md);
+  }
+}

@@ -1,48 +1,52 @@
 .wrap {
-  text-align: center;
-  padding: var(--sp-3) var(--sp-2) var(--sp-2);
-  transition: opacity var(--dur-med) var(--ease-aero);
+  display: grid;
+  gap: var(--sp-1);
+  padding-top: var(--sp-2);
+  transition: opacity var(--dur-med) ease;
 }
 
 .dimmed {
-  opacity: 0.5;
+  opacity: 0.45;
 }
 
 .label {
-  font-size: var(--fs-sm);
-  font-weight: 600;
-  color: var(--c-ink-700);
+  font-size: var(--fs-xs);
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: var(--track-label);
+  color: var(--c-ink-500);
 }
 
 .value {
-  font-family: var(--font-mono-num);
+  font-family: var(--font-display);
   font-variant-numeric: tabular-nums;
   font-size: var(--fs-score);
   font-weight: 300;
-  line-height: 1.05;
+  line-height: var(--lh-tight);
+  letter-spacing: var(--track-display);
   color: var(--c-aqua-700);
 }
 
 .unit {
-  font-size: var(--fs-lg);
-  margin-left: var(--sp-1);
-  color: var(--c-ink-500);
+  margin-left: 2px;
+  font-size: var(--fs-xl);
+  font-weight: 400;
+  letter-spacing: 0;
+  color: var(--c-ink-400);
 }
 
 .caption {
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   color: var(--c-ink-500);
 }
 
 .delta {
-  display: inline-block;
-  margin-top: var(--sp-2);
+  justify-self: start;
+  margin-top: var(--sp-1);
   padding: 2px var(--sp-2);
   border-radius: var(--r-pill);
   font-size: var(--fs-xs);
-  font-weight: 600;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 

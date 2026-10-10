@@ -1,12 +1,10 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import type { ExperimentRecord, Profile } from "../../contracts";
-import { BENCHMARK, ciText, FROZEN } from "../../experiment/benchmark";
+import { BENCHMARK, ciText } from "../../experiment/benchmark";
 import { saveRecord } from "../../experiment/storage";
-import { preset } from "../../geometry";
-import { isMockSim } from "../../sim/client";
 import { useApp } from "../../state/store";
 import { ShapePalette } from "../builder/ShapePalette";
-import { SimView } from "../builder/SimView";
+import { Stage } from "../builder/Stage";
 import { AquaButton } from "../components/AquaButton/AquaButton";
 import { ChallengeBar } from "../components/ChallengeBar/ChallengeBar";
 import { Dock, type DockItem } from "../components/Dock/Dock";
@@ -15,6 +13,7 @@ import { Icon } from "../components/GlossIcon/icons";
 import { MetricsPanel } from "../components/MetricsPanel/MetricsPanel";
 import { Modal } from "../components/Modal/Modal";
 import { OnboardingOverlay } from "../components/OnboardingOverlay/OnboardingOverlay";
+import { Segmented } from "../components/Segmented/Segmented";
 import { Toast } from "../components/Toast/Toast";
 import { BenchmarkView } from "../views/BenchmarkView";
 import { LeaderboardView } from "../views/LeaderboardView";
@@ -40,13 +39,15 @@ function useIsMobile() {
   return m;
 }
 
-type Sheet = "none" | "records" | "record" | "presets" | "results" | "benchmark" | "leaderboard";
+type Sheet = "none" | "library" | "presets" | "results" | "benchmark" | "leaderboard";
+type LibraryTab = "run" | "saved";
 
 export function AppShell() {
   const mobile = useIsMobile();
   const runNow = useRunner();
   const s = useApp();
   const [sheet, setSheet] = useState<Sheet>("none");
+  const [libraryTab, setLibraryTab] = useState<LibraryTab>("run");
   const profile = s.history.present;
 
   // Reduced motion is reflected on the root so tokens and CSS respect it.
@@ -79,7 +80,11 @@ export function AppShell() {
     s.set({ seed: r.config.seed });
     s.setProfile(r.profile);
     setSheet("none");
-    s.notify(`Loaded "${r.profile.name}", seed ${r.config.seed}: re-running`, "info");
+    s.notify(`Loaded "${r.profile.name}", seed ${r.config.seed}`, "info");
+  };
+  const openLibrary = (tab: LibraryTab) => {
+    setLibraryTab(tab);
+    setSheet("library");
   };
   const save = async () => {
     if (!s.record) return;
@@ -92,7 +97,7 @@ export function AppShell() {
     }
   };
 
-  // Keyboard shortcuts (desktop building).
+  // Keyboard shortcuts (desktop building). Keyboard actions never animate.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement;
@@ -125,27 +130,28 @@ export function AppShell() {
   const status = BENCHMARK ? (BENCHMARK.status === "PASS" ? "pass" : "fail") : "pending";
   const running = s.status === "running";
   const runButton = (
-    <AquaButton size={mobile ? "md" : "lg"} onClick={runNow} loading={running}>
-      <Icon name="play" size={18} /> {running ? `Running ${Math.round(s.progress * 100)}%` : "Run"}
+    <AquaButton size="lg" onClick={runNow} loading={running} className={styles.run}>
+      <Icon name="play" size={16} />
+      <span className={styles.runLabel}>{running ? `${Math.round(s.progress * 100)}%` : "Run"}</span>
     </AquaButton>
   );
 
   const desktopItems: DockItem[] = [
-    { id: "undo", label: "Undo", icon: "undo", onClick: s.undo, disabled: s.history.past.length === 0, shortcut: "Ctrl+Z" },
-    { id: "redo", label: "Redo", icon: "redo", onClick: s.redo, disabled: s.history.future.length === 0, shortcut: "Ctrl+Y" },
-    { id: "reset", label: "Reset", icon: "reset", onClick: () => loadProfile(preset("flat")), tone: "ink" },
     { id: "presets", label: "Presets", icon: "presets", onClick: () => setSheet("presets") },
     { id: "save", label: "Save", icon: "save", onClick: save, disabled: !s.record, tone: "leaf", shortcut: "Ctrl+S" },
-    { id: "records", label: "Compare", icon: "records", onClick: () => setSheet("records") },
-    { id: "record", label: "Record", icon: "file", onClick: () => setSheet("record"), disabled: !s.record },
+    { id: "library", label: "Library", icon: "records", onClick: () => openLibrary("saved") },
     { id: "leaderboard", label: "Leaderboard", icon: "trophy", onClick: () => setSheet("leaderboard"), tone: "sun" },
-    { id: "help", label: "Help", icon: "help", onClick: () => s.set({ onboarding: 1 }), tone: "sun", shortcut: "?" },
+    { id: "help", label: "Help", icon: "help", onClick: () => s.set({ onboarding: 1 }), tone: "ink", shortcut: "?" },
   ];
   const mobileItems: DockItem[] = [
     { id: "presets", label: "Presets", icon: "presets", onClick: () => setSheet("presets") },
     { id: "results", label: "Results", icon: "results", onClick: () => setSheet("results") },
-    { id: "help", label: "Help", icon: "help", onClick: () => s.set({ onboarding: 1 }), tone: "sun" },
+    { id: "help", label: "Help", icon: "help", onClick: () => s.set({ onboarding: 1 }), tone: "ink" },
   ];
+
+  const metrics = (extrusion: boolean) => (
+    <MetricsPanel showExtrusion={extrusion} onOpenBenchmark={() => setSheet("benchmark")} onOpenRecord={() => openLibrary("run")} />
+  );
 
   return (
     <div className={styles.shell}>
@@ -156,8 +162,7 @@ export function AppShell() {
       </div>
 
       <ChallengeBar
-        title={mobile ? "Where do larvae settle?" : "Shape the seabed: where do coral larvae settle?"}
-        conditions={`Waves 4.5 cm/s · 5.5 s period · 34 × 16 mm tile · 2,000 larvae · seed ${s.seed}${FROZEN ? "" : " · provisional parameters"}${isMockSim ? " · MOCK SIM" : ""}`}
+        title={mobile ? "Where do larvae settle?" : "Shape the seabed. See where coral larvae settle."}
         benchmarkStatus={status}
         ciText={ciText()}
         onBadgeClick={() => setSheet("benchmark")}
@@ -165,24 +170,29 @@ export function AppShell() {
 
       <main className={`${styles.main} ${s.metricsCollapsed ? styles.collapsed : ""}`}>
         {!mobile && (
-          <GlassPanel title="Shapes" className={styles.palette}>
-            <ShapePalette selected={s.tool} onSelect={s.setTool} />
+          <GlassPanel className={styles.rail}>
+            <ShapePalette
+              selected={s.tool}
+              onSelect={s.setTool}
+              onUndo={s.undo}
+              onRedo={s.redo}
+              canUndo={s.history.past.length > 0}
+              canRedo={s.history.future.length > 0}
+            />
           </GlassPanel>
         )}
 
-        <section className={styles.center} aria-label="Build and simulation view">
-          <SimView buildEnabled={!mobile} />
-        </section>
+        <Stage buildEnabled={!mobile} />
 
         {!mobile &&
           (s.metricsCollapsed ? (
-            <button className={styles.expand} onClick={() => s.set({ metricsCollapsed: false })} aria-label="Show metrics">
+            <button className={styles.expand} onClick={() => s.set({ metricsCollapsed: false })} aria-label="Show results">
               <Icon name="chevronLeft" size={16} />
-              <span>Metrics</span>
+              <span>Results</span>
             </button>
           ) : (
-            <GlassPanel title="Metrics" variant="strong" className={styles.metrics} onCollapse={() => s.set({ metricsCollapsed: true })}>
-              <MetricsPanel />
+            <GlassPanel title="Results" variant="strong" className={styles.metrics} onCollapse={() => s.set({ metricsCollapsed: true })}>
+              {metrics(true)}
             </GlassPanel>
           ))}
       </main>
@@ -192,13 +202,13 @@ export function AppShell() {
       </footer>
 
       {sheet === "presets" && (
-        <Modal title="Reference profiles" onClose={() => setSheet("none")}>
+        <Modal title="Start from a reference profile" onClose={() => setSheet("none")}>
           <PresetPicker current={profile.id} onPick={loadProfile} />
         </Modal>
       )}
       {sheet === "results" && (
         <Modal title="Results" onClose={() => setSheet("none")}>
-          <MetricsPanel showExtrusion={false} />
+          {metrics(false)}
         </Modal>
       )}
       {sheet === "benchmark" && (
@@ -206,19 +216,33 @@ export function AppShell() {
           <BenchmarkView />
         </Modal>
       )}
-      {sheet === "records" && (
-        <Modal title="Saved designs" onClose={() => setSheet("none")} wide>
-          <RecordsView onLoad={loadRecord} onError={(m) => s.notify(m, "fail")} />
+      {sheet === "library" && (
+        <Modal title="Library" onClose={() => setSheet("none")} wide>
+          <div className={styles.libraryTabs}>
+            <Segmented<LibraryTab>
+              label="Library"
+              value={libraryTab}
+              onChange={setLibraryTab}
+              options={[
+                { value: "run", label: "This run" },
+                { value: "saved", label: "Saved designs" },
+              ]}
+            />
+          </div>
+          {libraryTab === "run" ? (
+            s.record ? (
+              <RecordView record={s.record} onRerun={loadRecord} />
+            ) : (
+              <p className={styles.emptyNote}>Run a design first. Its reproducible record will appear here.</p>
+            )
+          ) : (
+            <RecordsView onLoad={loadRecord} onError={(m) => s.notify(m, "fail")} />
+          )}
         </Modal>
       )}
       {sheet === "leaderboard" && (
-        <Modal title="Beat the Recess · leaderboard" onClose={() => setSheet("none")} wide>
+        <Modal title="Beat the Recess" onClose={() => setSheet("none")} wide>
           <LeaderboardView profile={profile} onLoad={loadProfile} />
-        </Modal>
-      )}
-      {sheet === "record" && s.record && (
-        <Modal title="Experiment record" onClose={() => setSheet("none")} wide>
-          <RecordView record={s.record} onRerun={loadRecord} />
         </Modal>
       )}
       {s.onboarding > 0 && <OnboardingOverlay step={s.onboarding} onStep={(n) => s.set({ onboarding: n })} onClose={closeOnboarding} />}

@@ -9,15 +9,16 @@ Update this file every time you merge. Add one line per change, newest first. Ag
 | Calibration: flat vs ridge stable and frozen | 6 | ✅ | p = 0.2, v_max = 10 mm/s; flat 17.1%, ridge 30.4% (D-014); pre-registration commit `d8cf044` |
 | Held-out recess result recorded | 10 | ☒ FAIL | recess 20.5% vs ridge 30.2%, Δ −9.6 pts, CI [−10.0, −9.3]; see docs/VERIFICATION.md |
 | Real worker wired into the UI | 10 | ✅ | `src/sim/worker.ts` via `src/sim/client.ts`; mock behind `VITE_USE_MOCK_SIM=true` |
-| Visual review | 16 | ◐ | Checked at 1291×565 desktop and in a 390 px-wide frame; 1920×1080 projector not yet checked |
+| Visual review | 16 | ✅ (partial) | UI v2 (D-020) checked at 1291×510 desktop and in a 390 px frame; no console errors. Not checked: 1920×1080 projector, a real phone |
 | Feature freeze | 20 | ☐ | |
 
 ## In flight (who · branch · what)
 | Who | Branch | Task |
 |---|---|---|
-| solo | build/phase-b | — |
+| — | build/phase-b | Nothing in flight. Ready for handoff (see HANDOFF.md) |
 
 ## Done (newest first)
+- UI v2: refined Frutiger Aero redesign — rail, stage card with settlement strip, results hierarchy, 6-item dock, Library dialog (D-020).
 - Stretch: local "Beat the Recess" leaderboard (5 fixed seeds, 54 mm surface budget, second worker) — exercised end to end in the browser (D-017).
 - Stretch: Gemini critic card with grounding check; tested against a stubbed fetch; live call needs your key in `.env.local` (D-016).
 - Polish: motion/touch pass per Emil Kowalski's skills (D-019); worker scheduling + persistent flow cache + preset pre-warm (D-018).

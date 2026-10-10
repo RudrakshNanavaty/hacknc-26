@@ -1,21 +1,21 @@
+/* Restrained gloss: a soft gradient tile with a faint top highlight, not a candy button. */
 .tile {
   position: relative;
   display: inline-grid;
   place-items: center;
-  width: calc(var(--sp-8) + var(--sp-1));
-  height: calc(var(--sp-8) + var(--sp-1));
-  border-radius: var(--r-md);
+  width: var(--sp-8);
+  height: var(--sp-8);
+  border-radius: var(--r-sm);
   color: var(--c-white);
-  box-shadow: var(--shadow-button);
+  box-shadow: var(--shadow-tile);
   overflow: hidden;
 }
 
 .tile::after {
   content: "";
   position: absolute;
-  inset: 0 0 50% 0;
-  background: var(--aqua-highlight);
-  opacity: 0.55;
+  inset: 0 0 55% 0;
+  background: var(--tile-highlight);
   pointer-events: none;
 }
 
@@ -25,15 +25,15 @@
 }
 
 .aqua {
-  background: var(--aqua-gradient);
+  background: linear-gradient(180deg, var(--c-aqua-400), var(--c-aqua-600));
 }
 
 .leaf {
-  background: linear-gradient(180deg, var(--c-leaf-200), var(--c-leaf-500) 50%, var(--c-leaf-700) 51%, var(--c-leaf-500));
+  background: linear-gradient(180deg, var(--c-leaf-500), var(--c-leaf-700));
 }
 
 .coral {
-  background: linear-gradient(180deg, var(--c-coral-200), var(--c-coral-500) 50%, var(--c-coral-700) 51%, var(--c-coral-500));
+  background: linear-gradient(180deg, var(--c-coral-500), var(--c-coral-700));
 }
 
 .sun {

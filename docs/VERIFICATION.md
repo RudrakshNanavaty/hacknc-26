@@ -43,13 +43,13 @@
 
 ## Known defects and limits
 - A new geometry takes about 7 s to simulate in the browser, against the 3 s budget (D-013).
-- UI checked at 1291×565 and in a 390 px frame. Not yet checked on a 1920×1080 projector or a real phone.
+- UI v2 checked at 1291×510 and in a 390 px frame (Chrome, no console errors). Not yet checked on a 1920×1080 projector or a real phone; mobile-native fixes (safe areas, tap delay, input zoom) are verified from code only.
 - The canvas is not keyboard-operable for building (mouse only, as scoped). Shortcuts select tools and run.
 
 ## Stretch features built after the core
 | Feature | Status | Evidence |
 |---|---|---|
-| Gemini critic | ✅ code + tests; **live call untested** (no key in this session) | `tests/critic-request.test.ts` (stubbed fetch: header auth, JSON schema, error path, grounding flag); hidden when no key |
+| Gemini critic | ✅ code + tests; **live call not yet exercised** (a key is now in `.env.local`; the card appears, but no request was sent from this session) | `tests/critic-request.test.ts` (stubbed fetch: header auth, JSON schema, error path, grounding flag); hidden when no key |
 | Local leaderboard | ✅ exercised in browser | flat + 1 recess → 18.8% [17.8, 19.7] on seeds 201–205, "below recess"; delete works |
 | Persistent flow cache / pre-warm | ✅ | `benchmark:regress` still OK (bit-identical) |
 

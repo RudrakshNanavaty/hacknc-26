@@ -5,9 +5,9 @@
 
 .row {
   display: grid;
-  grid-template-columns: calc(var(--sp-8) * 1.75) 1fr calc(var(--sp-8) * 1.5);
+  grid-template-columns: calc(var(--sp-8) * 1.6) minmax(0, 1fr) calc(var(--sp-8) * 1.4);
   align-items: center;
-  gap: var(--sp-2);
+  gap: var(--sp-3);
   font-size: var(--fs-sm);
 }
 
@@ -15,10 +15,16 @@
   color: var(--c-ink-700);
 }
 
+.row:last-child .label,
+.row:last-child .value {
+  font-weight: 700;
+  color: var(--c-ink-900);
+}
+
 .track {
-  height: var(--sp-3);
+  height: var(--sp-2);
   border-radius: var(--r-pill);
-  background: var(--c-aqua-100);
+  background: var(--c-hairline);
   overflow: hidden;
 }
 
@@ -49,6 +55,5 @@
 .value {
   text-align: right;
   font-variant-numeric: tabular-nums;
-  color: var(--c-ink-900);
-  font-weight: 600;
+  color: var(--c-ink-700);
 }

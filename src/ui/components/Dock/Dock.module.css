@@ -1,19 +1,16 @@
+/* A floating pill dock: primary action first, then a short row of secondary tools. */
 .dock {
   display: flex;
-  align-items: flex-end;
-  gap: var(--sp-2);
-  padding: var(--sp-1) var(--sp-4);
-  border-radius: var(--r-lg) var(--r-lg) 0 0;
-  background: linear-gradient(180deg, var(--glass-bg-strong), var(--glass-bg));
+  align-items: center;
+  gap: var(--sp-1);
+  padding: var(--sp-2) var(--sp-3) var(--sp-2) var(--sp-2);
+  border-radius: var(--r-pill);
+  background: var(--glass-bg-strong);
   border: var(--glass-border);
-  border-bottom: none;
   box-shadow: var(--shadow-dock);
-  padding-bottom: calc(var(--sp-1) + env(safe-area-inset-bottom, 0px));
-  height: calc(var(--dock-h) + env(safe-area-inset-bottom, 0px));
 }
 
 .primary {
-  align-self: center;
   margin-right: var(--sp-2);
 }
 
@@ -21,7 +18,8 @@
   display: grid;
   justify-items: center;
   gap: 2px;
-  padding: 0 var(--sp-1);
+  min-width: calc(var(--sp-8) * 1.75);
+  padding: 2px var(--sp-1);
   border: none;
   background: transparent;
   font-family: var(--font-ui);
@@ -39,7 +37,7 @@
 }
 
 .item:disabled {
-  opacity: 0.4;
+  opacity: 0.35;
   cursor: not-allowed;
 }
 
@@ -51,7 +49,7 @@
 
 @media (hover: hover) and (pointer: fine) {
   .item:hover:not(:disabled) .icon {
-    transform: scale(1.15);
+    transform: translateY(-2px) scale(1.08);
   }
 }
 
@@ -62,12 +60,18 @@
 .label {
   font-size: var(--fs-xs);
   font-weight: 600;
+  color: var(--c-ink-500);
 }
 
 @media (max-width: 767px) {
   .dock {
-    gap: var(--sp-1);
-    padding: var(--sp-1) var(--sp-2);
-    border-radius: 0;
+    width: 100%;
+    justify-content: space-between;
+    border-radius: var(--r-xl) var(--r-xl) 0 0;
+    padding-bottom: calc(var(--sp-2) + env(safe-area-inset-bottom, 0px));
+  }
+
+  .item {
+    min-width: 0;
   }
 }

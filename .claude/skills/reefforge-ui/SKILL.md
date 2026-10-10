@@ -18,18 +18,23 @@ ReefForge looks like **a marine-science workstation from an alternate 2007**: Le
 2. Read `references/tokens.css` to see which tokens you can use.
 3. Find your region in the layout map below. Stay inside it.
 
-## Layout map (desktop ≥ 1024 px)
+## Layout map (desktop ≥ 1024 px) — v2 (D-020)
 ```
-┌──────────────────── ChallengeBar (top, 48px) ────────────────────┐
-│┌Palette┐                                          ┌─ Metrics ───┐│
-││ left  │        BUILD / SIM VIEW (center)         │ right panel ││
-││ 72px  │     ≥ 60% of viewport width, always      │ 320px,      ││
-││       │     visible; nothing floats over it      │ collapsible ││
-│└───────┘     except transient toasts              └─────────────┘│
-│               ┌──────────── Dock (bottom) ─────────────┐         │
-└───────────────┴─── Run · Reset · Compare · Save ───────┴─────────┘
+┌─ ChallengeBar (52px): ● ReefForge │ one-line challenge ······ [Benchmark: FAIL] ─┐
+│┌Rail┐ ┌─ Stage (GlassPanel-like card) ─────────────────┐ ┌─ Results ──────────┐│
+││ 64 │ │ Profile name            legend · [Flow toggle] │ │ SIMULATED SETTLEMENT││
+││Ridg│ │ conditions line                                │ │ 32.3 %   ▲ vs ridge ││
+││Rcss│ │ ┌─────────── canvas (the hero) ──────────────┐ │ │ baselines bars      ││
+││Step│ │ └────────────────────────────────────────────┘ │ │ pre-registered test ││
+││Flat│ │ where larvae settled ~~~~~~~~~ 0 5 10 … mm     │ │ AI explanation      ││
+││────│ │ ▔▔▔▔ progress line ▔▔▔▔                         │ │ ▸ Run details       ││
+││↶ ↷ │ └────────────────────────────────────────────────┘ └─────────────────────┘│
+│└────┘        ( Run │ Presets · Save · Library · Leaderboard · Help )             │
+└──────────────────────────────────────────────────────────────────────────────────┘
 ```
-- Mobile (< 768 px): the center view goes fullscreen. Metrics become a bottom sheet, and the palette is hidden (preset picker only). The dock shrinks to Run, Presets and Results. **No touch building.**
+- The rail holds the 4 shape tools and Undo/Redo, next to the canvas they affect. Reset = Presets → Flat.
+- Secondary information lives one level deeper: seed, diagnostics, the 3D view, reduced motion and assumptions are in **Run details**. The experiment record and saved designs are in **Library**.
+- Mobile (< 768 px): the stage goes full width. Results, presets and help are dialogs from the dock (Run, Presets, Results, Help). **No touch building.**
 - Register z-layers only through `--z-*` tokens: scene 0, sim overlay 10, panels 20, dock 30, sheet 40, toast 50, modal 60.
 
 ## Visual recipe

@@ -44,3 +44,12 @@ Log every non-obvious choice. Use this format: **ID · decision · why · altern
 **D-018 · Worker scheduling: `MessageChannel` yields, IndexedDB flow cache, idle preset pre-warm.** Results stay bit-identical (`benchmark:regress` OK). *Finding:* the same LBM kernel ran about 3× slower in an unfocused Chrome tab than in Node (1,070 vs 345 ms per 2,000 steps), probably Windows efficiency mode for background tabs. This needs re-measuring with the tab focused on the demo laptop. · solo
 
 **D-019 · Frontend follows Emil Kowalski's skills** (`emil-design-eng`, `review-animations`, `mobile-native`), as requested by the user. Tokens changed: `--ease-aero` is now a strong ease-out, durations are ≤ 280 ms, `--press-scale`/`--enter-scale`/`--enter-shift` were added, and reduced motion keeps fades. Toast and modal use `@starting-style` transitions instead of keyframes. Hover is gated on capable pointers. The mobile baseline adds `viewport-fit=cover`, safe areas, no tap highlight, `overscroll-behavior: none`, and 16 px inputs on touch. · solo
+
+**D-020 · UI v2: refined Frutiger Aero, full redesign** (the user disliked the clutter, the rough sim view and the typography, and chose to keep the Aero identity). Guided by Emil Kowalski's `emil-design-eng` and `apple-design` skills.
+- Layout: rail (tools + undo/redo) · stage card (name, conditions, legend, canvas, settlement strip, progress line) · Results (score → baselines → pre-registered test → AI → collapsible Run details).
+- The dock went from 9 items to Run + 5. Record and Compare merged into Library. Reset is Presets → Flat.
+- Sim view: speed-weighted sparse flow arrows, haloed larvae, a sand edge highlight, and the settlement histogram moved out of the sand into an aligned density strip.
+- Tokens v2: layered shadows, a type scale with size-specific tracking, surfaces and hairlines, solid surfaces under reduced transparency.
+- Backdrop: coral capsules removed and fewer bubbles.
+
+*Rejected:* a modern-minimal or instrument look, which would override the prompt's identity. · solo (user-directed)

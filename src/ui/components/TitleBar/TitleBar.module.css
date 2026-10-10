@@ -2,37 +2,38 @@
   position: relative;
   display: flex;
   align-items: center;
-  justify-content: center;
-  height: calc(var(--sp-6) + var(--sp-1));
+  justify-content: space-between;
   flex: none;
-  background: var(--titlebar-gradient);
-  border-bottom: var(--glass-border);
+  height: calc(var(--sp-8) + var(--sp-3));
+  padding: 0 var(--sp-2) 0 var(--sp-4);
+  border-bottom: 1px solid var(--c-hairline);
 }
 
 .title {
-  font-size: var(--fs-sm);
-  font-weight: 600;
-  color: var(--c-ink-700);
-  letter-spacing: 0.02em;
+  font-family: var(--font-display);
+  font-size: var(--fs-md);
+  font-weight: 650;
+  letter-spacing: var(--track-heading);
+  color: var(--c-ink-900);
 }
 
 .collapse {
-  position: absolute;
-  right: var(--sp-1);
   display: grid;
   place-items: center;
-  width: var(--sp-6);
-  height: var(--sp-6);
+  width: var(--sp-8);
+  height: var(--sp-8);
   border: none;
-  border-radius: var(--r-sm);
+  border-radius: var(--r-pill);
   background: transparent;
-  color: var(--c-ink-500);
+  color: var(--c-ink-400);
   cursor: pointer;
+  transition: transform var(--dur-fast) var(--ease-aero);
 }
 
 @media (hover: hover) and (pointer: fine) {
   .collapse:hover {
-    background: var(--glass-bg);
+    background: var(--c-hairline);
+    color: var(--c-ink-700);
   }
 }
 

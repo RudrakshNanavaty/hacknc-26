@@ -4,18 +4,20 @@
   flex-direction: column;
   min-height: 0;
   border: var(--glass-border);
-  border-radius: var(--r-lg);
+  border-radius: var(--r-xl);
   box-shadow: var(--shadow-panel);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
+  backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(160%);
   overflow: hidden;
   color: var(--c-ink-900);
 }
 
+/* Light catching the top of the material */
 .panel::before {
   content: "";
   position: absolute;
-  inset: 0 0 60% 0;
+  inset: 0 0 auto 0;
+  height: 40%;
   background: var(--glass-sheen);
   pointer-events: none;
 }
@@ -33,4 +35,5 @@
   flex: 1;
   min-height: 0;
   overflow: auto;
+  overscroll-behavior: contain;
 }
