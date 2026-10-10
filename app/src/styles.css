@@ -314,6 +314,48 @@ body {
   }
 }
 
+/* Reef pins on the globe: an orb, and a name that appears for the focused reef and on hover. */
+.pin {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 14px 0; /* a 44 px touch target around a 16-22 px orb */
+  background: none;
+  border: 0;
+  cursor: pointer;
+  transition: transform 0.2s ease-out;
+}
+.pin:focus-visible {
+  box-shadow: none;
+}
+.pin:focus-visible .orb {
+  box-shadow: var(--focus-ring);
+}
+.pin-label {
+  padding: 0.25rem 0.75rem;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateY(4px) scale(0.96);
+  transition: opacity 0.18s ease-out, transform 0.18s ease-out;
+  pointer-events: none;
+}
+.pin-next {
+  color: var(--sky);
+  font-weight: 500;
+}
+.pin[data-focus="true"] .pin-label,
+.pin:hover .pin-label,
+.pin:focus-visible .pin-label {
+  opacity: 1;
+  transform: none;
+}
+.pin[data-focus="true"] {
+  transform: scale(1.1);
+}
+
 /* Rising bubbles (decoration: aria-hidden, pointer-events none). */
 @keyframes rise {
   0% {

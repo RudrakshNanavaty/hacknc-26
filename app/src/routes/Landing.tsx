@@ -7,14 +7,18 @@ import { reefHeatGrid } from '../api';
 import { HEAT_COLOR, globeStyle, setLayer, type DataLayer } from '../map/globe';
 import { Link, navigate } from '../router';
 import { Bubbles } from '../ui/Bubbles';
-import { ReefCard } from '../ui/ReefCard';
+import { ReefCard, ReefFacts, ReefHero, ReefTitle } from '../ui/ReefCard';
+import { Sheet } from '../ui/Sheet';
+import { useMedia } from '../ui/useMedia';
 
 // No I or O, so codes read cleanly off a projector.
 const LETTERS = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
 const newRoomCode = () => Array.from({ length: 4 }, () => LETTERS[Math.floor(Math.random() * LETTERS.length)]).join('');
 
 /** The globe at rest: the Pacific, with Hawaiʻi and the Great Barrier Reef in view. */
-const HOME = { center: [-175, 2] as [number, number], zoom: 1.5 };
+const HOME = { center: [-175, 2] as [number, number], zoom: 2.0 };
+/** Width of the reef card plus its margin: the map keeps the focused reef clear of it on wide screens. */
+const CARD_CLEARANCE = 440;
 const LAYERS: { id: DataLayer; label: string; note: string }[] = [
   { id: 'satellite', label: 'Satellite imagery', note: 'Esri World Imagery' },
   { id: 'relief', label: 'Seafloor relief', note: 'NOAA NCEI global DEM hillshade' },
@@ -32,6 +36,9 @@ export function Landing() {
   const [heatDate, setHeatDate] = useState<string | null | 'loading'>(null);
   const [panel, setPanel] = useState(false);
   const [diving, setDiving] = useState(false);
+  const wide = useMedia('(min-width: 640px)');
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [inset, setInset] = useState(190);
   const pins = useRef(new Map<ReefId, HTMLButtonElement>());
 
   useEffect(() => {
@@ -40,7 +47,7 @@ export function Landing() {
       container: container.current,
       style: globeStyle(layers),
       center: HOME.center,
-      zoom: window.innerWidth < 640 ? 1.0 : HOME.zoom,
+      zoom: window.innerWidth < 640 ? 1.3 : HOME.zoom,
       attributionControl: { compact: true },
       maxPitch: 75,
     });
@@ -48,9 +55,9 @@ export function Landing() {
       const el = document.createElement('button');
       el.type = 'button';
       el.setAttribute('aria-label', `${reef.name}${reef.ready ? '' : ', coming next'}`);
-      el.className = 'group flex flex-col items-center gap-1 focus:outline-none';
+      el.className = 'pin';
       el.innerHTML = `
-        <span class="glass-deep rounded-full px-3 py-1 text-[13px] font-bold whitespace-nowrap">${reef.name}${reef.ready ? '' : ' <span style="color:#8fd8ff;font-weight:600">next</span>'}</span>
+        <span class="pin-label glass-deep glass-flat">${reef.name}${reef.ready ? '' : ' <span class="pin-next">next</span>'}</span>
         <span class="orb ${reef.ready ? 'orb-sun pulse' : ''}" style="width:${reef.ready ? 22 : 16}px;height:${reef.ready ? 22 : 16}px;${reef.ready ? '' : 'opacity:.85'}"></span>`;
       el.addEventListener('click', () => setFocus(reef.id));
       pins.current.set(reef.id, el);
@@ -74,7 +81,6 @@ export function Landing() {
       setTimeout(() => {
         spinning = false;
         setFocus('kaneohe');
-        flyToReef(m, 'kaneohe');
       }, reduceMotion() ? 0 : 1800);
     });
     return () => m.remove();
@@ -84,9 +90,9 @@ export function Landing() {
 
   useEffect(() => {
     if (!map) return;
-    flyToReef(map, focus);
-    for (const [id, el] of pins.current) el.style.transform = id === focus ? 'scale(1.12)' : '';
-  }, [map, focus]);
+    flyToReef(map, focus, wide ? { left: CARD_CLEARANCE } : { bottom: inset + 16 });
+    for (const [id, el] of pins.current) el.dataset.focus = String(id === focus);
+  }, [map, focus, wide, inset]);
 
   // The heat layer follows the chosen reef.
   useEffect(() => {
@@ -123,6 +129,29 @@ export function Landing() {
     if (/^[A-HJ-NP-Z]{4}$/.test(c)) navigate(`/play/${c}`);
   };
 
+  const actions = reef.ready ? (
+    <>
+      <button className="btn btn-primary btn-lg" onClick={dive}>Dive in</button>
+      <button className="btn" onClick={() => navigate(`/play/${newRoomCode()}`)}>Start a room</button>
+    </>
+  ) : (
+    <button className="btn" onClick={() => setFocus('kaneohe')}>Play Kāneʻohe Bay</button>
+  );
+  const joinFields = (
+    <>
+      <label className="sr-only" htmlFor="code">Room code</label>
+      <input
+        id="code"
+        value={code}
+        onChange={(e) => setCode(e.target.value.toUpperCase().slice(0, 4))}
+        placeholder="CODE"
+        autoComplete="off"
+        className="field tabular w-28 text-18 tracking-widest"
+      />
+      <button className="btn">Join room</button>
+    </>
+  );
+
   return (
     <main className="relative h-full overflow-hidden">
       {/* maplibre-gl.css makes the map element position: relative (unlayered, so it beats Tailwind's
@@ -150,7 +179,7 @@ export function Landing() {
         </header>
 
         {panel && (
-          <section className="glass-deep pointer-events-auto absolute top-24 right-3 w-72 max-w-[calc(100%-1.5rem)] p-4 sm:right-6" aria-label="Map data layers">
+          <section className="glass-deep pointer-events-auto absolute top-44 right-3 w-72 sm:top-24 max-w-[calc(100%-1.5rem)] p-4 sm:right-6" aria-label="Map data layers">
             <h2 className="font-display text-18 font-black">Map sources</h2>
             <ul className="mt-2 space-y-2">
               {LAYERS.map((l) => (
@@ -175,31 +204,32 @@ export function Landing() {
           </section>
         )}
 
-        <div className="pointer-events-auto flex max-h-[62vh] flex-col items-start gap-3 overflow-y-auto pb-1 sm:max-h-none">
-          <ReefCard reef={reef}>
-            {reef.ready ? (
-              <>
-                <button className="btn btn-primary btn-lg" onClick={dive}>Dive in</button>
-                <button className="btn" onClick={() => navigate(`/play/${newRoomCode()}`)}>Start a room</button>
-              </>
-            ) : (
-              <button className="btn" onClick={() => setFocus('kaneohe')}>Play Kāneʻohe Bay</button>
-            )}
-          </ReefCard>
-          <form onSubmit={joinRoom} className="glass-deep flex items-center gap-2 p-2">
-            <label className="sr-only" htmlFor="code">Room code</label>
-            <input
-              id="code"
-              value={code}
-              onChange={(e) => setCode(e.target.value.toUpperCase().slice(0, 4))}
-              placeholder="CODE"
-              autoComplete="off"
-              className="field tabular w-28 text-18 tracking-widest"
-            />
-            <button className="btn">Join room</button>
-          </form>
-        </div>
+        {wide && (
+          <div className="pointer-events-auto flex max-h-[calc(100dvh-9rem)] min-h-0 flex-col items-start gap-3">
+            <ReefCard reef={reef} className="min-h-0">{actions}</ReefCard>
+            <form onSubmit={joinRoom} className="glass-deep flex items-center gap-2 p-2">{joinFields}</form>
+          </div>
+        )}
       </div>
+
+      {!wide && (
+        <Sheet
+          label={`${reef.name} mission`}
+          open={sheetOpen}
+          onOpenChange={setSheetOpen}
+          onPeekHeight={setInset}
+          peek={
+            <>
+              <ReefTitle reef={reef} showRegion />
+              <div className="mt-3 flex flex-wrap gap-2">{actions}</div>
+            </>
+          }
+        >
+          <ReefFacts reef={reef} />
+          <ReefHero reef={reef} className="mt-4 h-28 rounded-inner" />
+          <form onSubmit={joinRoom} className="mt-4 flex items-center gap-2">{joinFields}</form>
+        </Sheet>
+      )}
 
       {diving && (
         <div className="dive-veil fixed inset-0 z-50 flex items-center justify-center">
@@ -211,7 +241,15 @@ export function Landing() {
   );
 }
 
-function flyToReef(map: MapLibreMap, id: ReefId) {
+function flyToReef(map: MapLibreMap, id: ReefId, padding: { left?: number; bottom?: number }) {
   const reef = reefById(id);
-  map.flyTo({ center: [reef.lon, reef.lat], zoom: window.innerWidth < 640 ? 4.2 : 5.2, pitch: 30, bearing: 0, duration: 2200, essential: true });
+  map.flyTo({
+    center: [reef.lon, reef.lat],
+    zoom: window.innerWidth < 640 ? 4.2 : 5.2,
+    pitch: 30,
+    bearing: 0,
+    padding: { top: 0, right: 0, left: padding.left ?? 0, bottom: padding.bottom ?? 0 },
+    duration: 2200,
+    essential: true,
+  });
 }
