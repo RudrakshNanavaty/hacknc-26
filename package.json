@@ -2,16 +2,17 @@
   "name": "coastal-clash",
   "private": true,
   "type": "module",
+  "packageManager": "bun@1.4.2",
   "workspaces": [
     "shared",
     "app",
     "server"
   ],
   "scripts": {
-    "build": "npm run build -w app",
-    "start": "npm start -w server",
-    "dev": "concurrently -k -n app,server -c blue,magenta \"npm run dev -w app\" \"npm run dev -w server\"",
-    "typecheck": "npm run typecheck -w shared -w app -w server",
+    "build": "bun run --filter @clash/app build",
+    "start": "bun run --filter @clash/server start",
+    "dev": "bun run --parallel --filter @clash/app --filter @clash/server dev",
+    "typecheck": "bun run --sequential --filter @clash/shared --filter @clash/app --filter @clash/server typecheck",
     "test": "vitest run",
     "data": "tsx pipeline/miami-beach.ts"
   },
@@ -21,7 +22,6 @@
   "devDependencies": {
     "@turf/turf": "^7.4.0",
     "@types/node": "^22.20.5",
-    "concurrently": "^10.0.5",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "vitest": "^5.0.3"

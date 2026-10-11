@@ -20,18 +20,18 @@
 | Live conditions | [NOAA CO-OPS Virginia Key 8723214](https://tidesandcurrents.noaa.gov/stationhome.html?id=8723214) water level, predictions and flood thresholds; [NWS](https://api.weather.gov) forecast for Miami Beach |
 | Street map | OpenFreeMap (OpenMapTiles, OpenStreetMap data); Esri World Imagery as an optional satellite layer |
 
-`npm run data` rebuilds `app/public/data/miami-beach/` and `shared/src/data/districts.json` (raw answers cached in `pipeline/cache/`; `--refresh` refetches). Card effects are illustrative scenario values and budgets are hypothetical; the game says so wherever it shows them.
+`bun run data` rebuilds `app/public/data/miami-beach/` and `shared/src/data/districts.json` (raw answers cached in `pipeline/cache/`; `--refresh` refetches). Card effects are illustrative scenario values and budgets are hypothetical; the game says so wherever it shows them.
 
 ## Run it
 
-Requires Node 20.19+ or 22.12+. New to the repo? Start with [`docs/contributing.md`](docs/contributing.md).
+Requires [Bun](https://bun.sh) 1.4+ (Node 20+ compatible).
 
 ```bash
-npm install
+bun install
 cp .env.example .env   # everything is optional
-npm run dev            # app on :5173, server on :8787
-npm test               # engine, rooms, a four-client WebSocket match, studio exports
-npm run typecheck
+bun run dev            # app on :5173, server on :8787
+bun run test           # engine, rooms, a four-client WebSocket match, studio exports
+bun run typecheck
 ```
 
 Architecture, the audit of the code this was built from (Pocket Rivals, Mayday Mayor), the rules and the demo script: [`docs/coastal-clash.md`](docs/coastal-clash.md).
