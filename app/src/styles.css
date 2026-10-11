@@ -974,7 +974,7 @@ button.tc:hover { transform: translateY(-4px); }
 
 /* The lobby's deck preview: a held-up fan in a tray, so it reads as a picture of the deck. */
 .deck-fan {
-  display: flex; justify-content: center; align-items: flex-end; padding: 22px 18px 14px; border-radius: 22px; overflow: hidden;
+  display: flex; justify-content: center; align-items: flex-end; padding: 26px 46px 34px; border-radius: 22px; overflow: hidden;
   background:
     radial-gradient(ellipse at 50% 120%, color-mix(in srgb, var(--tint) 34%, transparent), transparent 70%),
     linear-gradient(180deg, rgba(255, 255, 255, .25), rgba(255, 255, 255, .08));
