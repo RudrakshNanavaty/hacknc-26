@@ -212,7 +212,7 @@ export function Studio() {
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
             <section className="glass flex flex-col gap-2 p-4">
               <h2 className="font-display text-18 font-black">Cards played</h2>
-              <Bars rows={s.cards.map((c) => ({ label: `${CARDS[c.card].art} ${c.name}`, value: c.plays }))} />
+              <Bars rows={s.cards.map((c) => ({ label: c.name, value: c.plays }))} />
             </section>
             <section className="glass flex flex-col gap-2 p-4">
               <h2 className="font-display text-18 font-black">Most common objections</h2>

@@ -10,6 +10,7 @@ import { MapAnchor } from '../map/MapAnchor';
 import { playDeal } from '../ui/sound';
 import { CharacterCard } from './GameCard';
 import { CardExtras, PreviewBox, WhyButton } from './insights';
+import { CardArt } from './CardArt';
 
 /** Why a card cannot be played in an area right now (null: it can). */
 export function blocker(id: CardId, district: string, influence: number): string | null {
@@ -77,7 +78,7 @@ export function DistrictPopover({ state, room, map, district, setDistrict, onCar
                 aria-describedby={`why-${id}`}
               >
                 <span className="cost-orb">{c.cost}</span>
-                <span className="hand-art" aria-hidden>{c.art}</span>
+                <CardArt id={id} className="hand-art" />
                 <span className="min-w-0 flex-1 text-left">
                   <span className="vr block text-[16px] leading-tight">{cardName(id, state.crisis)}</span>
                   <span id={`why-${id}`} className={`block text-[12px] leading-snug ${why ? 'font-black text-[#b0123a]' : 'font-semibold opacity-80'}`}>{why ?? c.text}</span>

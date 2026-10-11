@@ -11,6 +11,7 @@ import { STATUS_STYLE } from './format';
 import { Hints, IfItPasses } from './insights';
 import { Soap, Tube } from './ui';
 import { useCard } from './story';
+import { CardArt } from './CardArt';
 
 const placeName = (id: string) => districtById(id).name;
 const who = (state: RoomState, seat: number) => state.players.find((p) => p.seat === seat);
@@ -25,7 +26,7 @@ function ClashCard({ a, state, side }: { a: Attachment; state: RoomState; side: 
   const story = useCard(a.card);
   return (
     <div className={`sc wet ${side} ${side === 'fights' ? 'land-r' : 'land-l'}`}>
-      <span className="art">{c.art}</span>
+      <CardArt id={a.card} className="sc-art" />
       <span>{story.name}</span>
       <span className="text-[11px] opacity-70">{who(state, a.seat)?.name}</span>
     </div>
@@ -33,7 +34,7 @@ function ClashCard({ a, state, side }: { a: Attachment; state: RoomState; side: 
 }
 
 function Loose({ list, state }: { list: Attachment[]; state: RoomState }) {
-  return <>{list.map((a) => <p key={a.seat} className="mt-1 text-13">{CARDS[a.card].art} <b>{cardName(a.card, state.crisis)}</b> ({who(state, a.seat)?.name}) in {placeName(a.district)}: {CARDS[a.card].fallback?.text}</p>)}</>;
+  return <>{list.map((a) => <p key={a.seat} className="mt-1 text-13"><b>{cardName(a.card, state.crisis)}</b> ({who(state, a.seat)?.name}) in {placeName(a.district)}: {CARDS[a.card].fallback?.text}</p>)}</>;
 }
 
 export function CaseFile({ state, room, map, focus, setFocus }: { state: RoomState; room: Room; map: MapLibreMap | null; focus: string | null; setFocus: (id: string | null) => void }) {

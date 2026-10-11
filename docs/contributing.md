@@ -55,6 +55,7 @@ server/src/
   db/store.ts, db/tiger.ts, db/schema.sql   FileStore or Tiger Data (Postgres) behind failSoft (local copy, retry, backfill)
   db/events.ts, db/snapshots.ts, db/derive.ts, db/persist.ts   gameplay timeline, studio history, summary/city rows, the bundle
   solana/tiger-store.ts     the civic record in Tiger Data (file fallback)
+  cardArt.ts                GET /api/card-art/:id, the picture at the top of each card, painted live by Gemini (cached, fail soft)
 app/src/
   routes/Landing.tsx, Play.tsx, Studio.tsx    the three pages (tiny router in router.tsx); Play is the stage: the map
                             is the whole board, with the HUD (meters, clock, player bubbles, the news crawl and anchor card) over it and your hand along the bottom

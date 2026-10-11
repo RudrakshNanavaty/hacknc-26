@@ -88,7 +88,7 @@ export function Landing() {
             <li><b>4. Resolve.</b> A deterministic rules engine decides, shows every rule it applied, and the city changes.</li>
           </ol>
           <div className="flex gap-2 overflow-x-auto pb-2">
-            {(['hotel-development', 'environmental-challenge', 'public-access-guarantee', 'emergency-funding', 'living-shoreline'] as const).map((c) => <GameCard key={c} id={c} />)}
+            {(['hotel-development', 'environmental-challenge', 'public-access-guarantee', 'emergency-funding', 'living-shoreline'] as const).map((c) => <GameCard key={c} id={c} size="lg" />)}
           </div>
           <p className="text-13 opacity-80">{Object.keys(CARDS).length} cards with authored, tested rules. Effects are illustrative scenario values; geography is real.</p>
         </div>

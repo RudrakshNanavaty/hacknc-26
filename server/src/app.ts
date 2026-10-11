@@ -8,6 +8,7 @@ import { type Narrator, geminiNarrator } from './ai/narrator';
 import { type Director, geminiDirector } from './ai/director';
 import { getRoom } from './rooms';
 import { registerStudio } from './studio';
+import { registerCardArt } from './cardArt';
 import { liveConditions, registerLive } from './live';
 import { type ScenarioWriter, geminiScenarioWriter, storyScenarioWriter } from './ai/scenario';
 import { loadStories } from './stories';
@@ -89,6 +90,7 @@ export function buildServer({ store = new MemoryStore(), gemini = defaultGemini,
   });
 
   registerStudio(app, store, gemini, persist.snapshots);
+  registerCardArt(app, gemini, { dir: process.env.VITEST ? null : undefined });
   app.get('/api/db/status', async () => ({ ...(await persist.status(store.kind)), pendingMatches: 'pending' in store ? (store as { pending(): number }).pending() : 0 }));
   registerLive(app);
 

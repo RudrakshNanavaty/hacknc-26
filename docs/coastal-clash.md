@@ -170,3 +170,6 @@ Ported from Mayday Mayor's civic record. Every finished match becomes publicly c
 ## 9. What is next (P3)
 
 More cities and scenarios, the Fisherman as a playable fifth seat (today a non-player role), ElevenLabs persona voices, richer layers (NOAA sea level rise), designer review of the AI combo ideas queue, and balance tuning of the 24 cards from recorded community sessions.
+
+## Card pictures
+Cards use a trading-card layout: name and cost, a picture window, then type, stats and rule text. Only the picture is generated: `GET /api/card-art/:cardId?skin=&place=&story=` asks Gemini for a small 4:3 illustration of the card in this round's story and place, caches it (memory and `server/.cache/card-art`, not in the repo) and fails soft. Until it arrives, or when the image quota is used up, the window shows a drawn placeholder in the deck's colour. Static cards (negotiation moves, Pass) always use a flat glyph.

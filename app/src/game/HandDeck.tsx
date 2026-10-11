@@ -8,6 +8,7 @@ import { CARDS, DISTRICT_IDS, PERSONA_INFO, PROJECTS, cardName, dealtHand, distr
 import type { Room } from '../room/useRoom';
 import { blocker } from './DistrictPopover';
 import { MOVE_CARDS, moveBlocker } from './moves';
+import { CardArt, StaticArt } from './CardArt';
 
 const MOVE_COLOR = { lime: '#8bd346', coral: '#ff7a6b', sun: '#ffd23f' } as const;
 const CATEGORY = { project: 'Project', support: 'Support', opposition: 'Opposition', negotiation: 'Deal' } as const;
@@ -16,7 +17,9 @@ type Tone = 'project' | 'support' | 'opposition' | 'negotiation' | 'lime' | 'cor
 
 interface Face {
   key: string;
-  icon: string;
+  /** A generated picture for a real card, or a flat glyph for a static one (moves, Pass). */
+  art?: CardId;
+  glyph?: 'back' | 'oppose' | 'fund' | 'pass';
   name: string;
   cost: number | null;
   text: string;
@@ -72,13 +75,13 @@ export function HandDeck({ state, room, armed, setArmed, onHoverCard, focus }: {
         const why = moved ? 'Move made' : !board || !proposal ? 'Nothing on the table'
           : moveBlocker(m.move, { board, seat: me.seat, influence: me.influence, proposalId: proposal.id, funding: outcome?.funding ?? null });
         return {
-          key: m.move, icon: m.icon, name: m.name, cost: m.cost, text: m.blurb, tag: 'Move', tone: m.tone, color: MOVE_COLOR[m.tone],
+          key: m.move, glyph: m.glyph, name: m.name, cost: m.cost, text: m.blurb, tag: 'Move', tone: m.tone, color: MOVE_COLOR[m.tone],
           why, foot: proposal ? PROJECTS[proposal.kind].name : undefined,
           onPick: () => proposal && room.move(m.move, proposal.id),
         };
       }),
       {
-        key: 'pass', icon: moved ? '✅' : '✋', name: moved ? 'Done' : 'Pass', cost: null, tag: 'Finish', tone: 'pass', color: '#8bd346', why: null,
+        key: 'pass', glyph: 'pass', name: moved ? 'Done' : 'Pass', cost: null, tag: 'Finish', tone: 'pass', color: '#8bd346', why: null,
         text: moved ? 'Finish the round with your move made.' : 'No move this round. Keep your influence.',
         onPick: () => room.done(),
       },
@@ -88,9 +91,9 @@ export function HandDeck({ state, room, armed, setArmed, onHoverCard, focus }: {
     faces = hand.map<Face>((id) => {
       const c = CARDS[id];
       const areas = DISTRICT_IDS.filter((d) => !blocker(id, d, me.influence));
-      const why = c.cost > me.influence ? `Needs ${c.cost} ⚡ (you have ${me.influence})` : areas.length === 0 ? 'No legal area now' : null;
+      const why = c.cost > me.influence ? `Needs ${c.cost} influence (you have ${me.influence})` : areas.length === 0 ? 'No legal area now' : null;
       return {
-        key: `${state.round}-${id}`, icon: c.art, name: cardName(id, state.crisis), cost: c.cost, text: c.text, tag: CATEGORY[c.category], tone: c.category,
+        key: `${state.round}-${id}`, art: id, name: cardName(id, state.crisis), cost: c.cost, text: c.text, tag: CATEGORY[c.category], tone: c.category,
         color: PERSONA_INFO[c.persona].color, why, card: id,
         foot: `${areas.length} of ${DISTRICT_IDS.length} areas`,
         armed: armed === id, locked: locked?.card === id,
@@ -108,7 +111,7 @@ export function HandDeck({ state, room, armed, setArmed, onHoverCard, focus }: {
 
   return (
     <div className="deck deck-block" data-open={open} data-mode={mode ?? 'select'} role="group" aria-label={mode === 'negotiate' ? 'Your negotiation move' : 'Your hand'} aria-hidden={!open}>
-      <p className="deck-label lchip">{label} · ⚡ {me.influence}</p>
+      <p className="deck-label lchip">{label} · Influence {me.influence}</p>
       {faces.map((f, i) => {
         const spread = i - (n - 1) / 2;
         const off = !!f.why || sealed;
@@ -127,7 +130,7 @@ export function HandDeck({ state, room, armed, setArmed, onHoverCard, focus }: {
               {f.cost !== null ? <span className="hc-cost" aria-label={`${f.cost} influence`}>{f.cost}</span> : <span className="hc-cost hc-free" aria-hidden>·</span>}
               <span className="hc-tag">{f.tag}</span>
             </span>
-            <span className="hc-art" aria-hidden>{f.icon}</span>
+            {f.art ? <CardArt id={f.art} className="hc-art" /> : <StaticArt glyph={f.glyph ?? 'pass'} color={f.color} className="hc-art" />}
             <span className="hc-name vr">{f.name}</span>
             <span className="hc-text">{f.text}</span>
             {f.why

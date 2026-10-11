@@ -7,7 +7,7 @@ export type MoveTone = 'lime' | 'coral' | 'sun';
 
 export interface MoveCard {
   move: NegotiationMove;
-  icon: string;
+  glyph: 'back' | 'oppose' | 'fund';
   name: string;
   tone: MoveTone;
   cost: number;
@@ -16,9 +16,9 @@ export interface MoveCard {
 }
 
 export const MOVE_CARDS: readonly MoveCard[] = [
-  { move: 'back', icon: '👍', name: 'Back', tone: 'lime', cost: NEGOTIATION_COST.back, blurb: '+1 support for this proposal' },
-  { move: 'oppose', icon: '👎', name: 'Oppose', tone: 'coral', cost: NEGOTIATION_COST.oppose, blurb: '+1 opposition against it' },
-  { move: 'fund', icon: '💰', name: 'Fund', tone: 'sun', cost: NEGOTIATION_COST.fund, blurb: 'Covers its public cost' },
+  { move: 'back', glyph: 'back', name: 'Back', tone: 'lime', cost: NEGOTIATION_COST.back, blurb: '+1 support for this proposal' },
+  { move: 'oppose', glyph: 'oppose', name: 'Oppose', tone: 'coral', cost: NEGOTIATION_COST.oppose, blurb: '+1 opposition against it' },
+  { move: 'fund', glyph: 'fund', name: 'Fund', tone: 'sun', cost: NEGOTIATION_COST.fund, blurb: 'Covers its public cost' },
 ];
 
 /** Why a move cannot be played on this proposal right now, or null. */

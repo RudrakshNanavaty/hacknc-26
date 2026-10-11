@@ -200,7 +200,7 @@ export function CardExtras({ id }: { id: CardId }) {
     <div className="flex flex-col gap-1 text-13">
       <p className="font-semibold opacity-85"><b>Trade-off:</b> {c.tradeoff}</p>
       {c.delayed && <p className="warn-line">⏳ Next round: {c.delayed.text}</p>}
-      {c.counters.length > 0 && <p className="font-semibold opacity-85"><b>Answered by:</b> {c.counters.map((x) => `${CARDS[x].art} ${CARDS[x].name}`).join(', ')}</p>}
+      {c.counters.length > 0 && <p className="font-semibold opacity-85"><b>Answered by:</b> {c.counters.map((x) => CARDS[x].name).join(', ')}</p>}
       {c.combos.map((k) => (
         <p key={k} className="combo-line">✨ <b>{COMBOS[k].name}</b>: {COMBOS[k].recipe} Bonus {deltaText(COMBOS[k].bonus)}.</p>
       ))}
