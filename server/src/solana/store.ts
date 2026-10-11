@@ -31,7 +31,7 @@ export interface MatchProof {
 }
 
 export interface CivicStore {
-  readonly kind: 'file' | 'memory';
+  readonly kind: 'file' | 'memory' | 'tiger';
   saveMatch(m: MatchProof): Promise<void>;
   match(matchId: string): Promise<MatchProof | null>;
   unanchored(limit: number): Promise<MatchProof[]>;

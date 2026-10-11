@@ -10,6 +10,7 @@ import type { MatchStore } from './db/store';
 import type { Narrator } from './ai/narrator';
 import type { ScenarioWriter } from './ai/scenario';
 import type { CivicRecord } from './solana/civic';
+import { type EventLog, noEvents } from './db/events';
 import { directorFacts, type Director } from './ai/director';
 import {
   RoomError, accept, again, applyDialogue, applyHints, applyScenario, choosePersona, done, findPlayer, getOrCreateRoom, getRoom, join, mapRoles, move,
@@ -17,6 +18,20 @@ import {
 } from './rooms';
 
 const ROOM_PATH = /^\/ws\/rooms\/([A-Za-z]{4})$/;
+
+/** What a message adds to the timeline: the choice itself, nothing typed by a person. */
+function messagePayload(msg: ClientMsg): unknown {
+  switch (msg.t) {
+    case 'select': return { card: msg.card, district: msg.district };
+    case 'move': return { move: msg.move, proposalId: msg.proposalId };
+    case 'accept': return { compromiseId: msg.compromiseId };
+    case 'respond': return { choice: msg.choice };
+    case 'bot': return { persona: msg.persona, on: msg.on };
+    case 'persona': return { persona: msg.persona };
+    case 'session': return { kind: msg.kind };
+    default: return undefined;
+  }
+}
 
 interface Conn {
   ws: WebSocket;
@@ -33,15 +48,36 @@ export interface RoomServerOptions {
   director?: Director | null;
   /** The civic record on Solana: every finished match is fingerprinted and anchored (null: off). */
   civic?: CivicRecord | null;
+  /** The gameplay timeline (every message, phase and headline); off by default. */
+  events?: EventLog;
   log: { warn: (obj: unknown, msg: string) => void; info?: (msg: string) => void };
 }
 
-export function roomServer({ store, narrator, scenario, director = null, civic = null, log }: RoomServerOptions) {
+export function roomServer({ store, narrator, scenario, director = null, civic = null, events = noEvents, log }: RoomServerOptions) {
   const wss = new WebSocketServer({ noServer: true });
   const conns = new Map<string, Set<Conn>>();
 
   const send = (ws: WebSocket, msg: ServerMsg) => ws.readyState === ws.OPEN && ws.send(JSON.stringify(msg));
+  /** One row on the gameplay timeline. Never throws. */
+  const emit = (room: Room, kind: string, player: { seat: number; persona: string; bot: boolean } | null, payload?: unknown, at = Date.now()) => {
+    try {
+      events.record({
+        at: new Date(at).toISOString(), roomCode: room.code, matchId: room.matchId, round: room.round || null, phase: room.phase, kind,
+        seat: player?.seat ?? null, persona: player?.persona ?? null, bot: player?.bot ?? null, payload,
+      });
+    } catch {}
+  };
+  /** What a table sees change: the phase, and the line the news desk is saying. */
+  const seen = new Map<string, { phase: string; round: number; headline: string | null }>();
+  function observe(room: Room) {
+    const was = seen.get(room.code);
+    const key = room.headline ? `${room.headline.key}:${room.headline.source}` : null;
+    if (!was || was.phase !== room.phase || was.round !== room.round) emit(room, 'phase', null, { phase: room.phase, round: room.round });
+    if (key && was?.headline !== key) emit(room, 'headline', null, { text: room.headline!.text, source: room.headline!.source, key: room.headline!.key });
+    seen.set(room.code, { phase: room.phase, round: room.round, headline: key });
+  }
   const broadcast = (room: Room) => {
+    observe(room);
     drain(room);
     const now = Date.now();
     for (const c of conns.get(room.code) ?? []) {
@@ -163,6 +199,7 @@ export function roomServer({ store, narrator, scenario, director = null, civic =
     if (msg.t === 'join') {
       const player = join(room, msg.name, msg.persona);
       conn.playerId = player.id;
+      emit(room, 'join', player, { persona: msg.persona, create: !!msg.create }, now);
       send(conn.ws, { t: 'joined', playerId: player.id, seat: player.seat });
       return broadcast(room);
     }
@@ -172,6 +209,7 @@ export function roomServer({ store, narrator, scenario, director = null, civic =
       for (const c of conns.get(room.code) ?? []) if (c !== conn && c.playerId === player.id) c.playerId = null;
       conn.playerId = player.id;
       presence(room, player, true, now);
+      emit(room, 'resume', player, undefined, now);
       send(conn.ws, { t: 'joined', playerId: player.id, seat: player.seat });
       return broadcast(room);
     }
@@ -196,6 +234,7 @@ export function roomServer({ store, narrator, scenario, director = null, civic =
       }
       default: throw new RoomError('Unknown message.');
     }
+    emit(room, msg.t, player, messagePayload(msg), now);
     broadcast(room);
   }
 
@@ -235,6 +274,7 @@ export function roomServer({ store, narrator, scenario, director = null, civic =
         const stillHere = player && [...(conns.get(conn.code) ?? [])].some((c) => c.playerId === player.id);
         if (room && player && !stillHere) {
           presence(room, player, false);
+          emit(room, 'leave', player);
           broadcast(room);
         }
       });

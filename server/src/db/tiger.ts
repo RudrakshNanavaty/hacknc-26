@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 import pg from 'pg';
 import { CARDS, districtById, isDistrictId, type MatchRecord } from '@shared';
 import type { MatchStore } from './store';
+import { citySnapshotRows, matchSummaryRow } from './derive';
 
 /**
  * Pool options from a connection URL. sslmode is turned into an explicit `ssl` option: node-postgres
@@ -86,6 +87,8 @@ export function decisionRows(m: MatchRecord): DecisionRow[] {
   return out;
 }
 
+const json = (v: unknown) => (v === null || v === undefined ? null : JSON.stringify(v));
+
 const COLS = ['id', 'at', 'match_id', 'round', 'kind', 'seat', 'persona', 'participant', 'session_kind', 'card', 'project', 'proposal_id', 'district', 'lon', 'lat', 'status', 'detail'] as const;
 
 export class TigerStore implements MatchStore {
@@ -107,6 +110,26 @@ export class TigerStore implements MatchStore {
       if (rows.length) {
         const values = rows.map((_, i) => `(${COLS.map((_c, j) => `$${i * COLS.length + j + 1}`).join(', ')})`).join(', ');
         await client.query(`INSERT INTO cc_decisions (${COLS.join(', ')}) VALUES ${values}`, rows.flatMap((r) => COLS.map((c) => (c === 'detail' ? (r.detail === null ? null : JSON.stringify(r.detail)) : r[c]))));
+      }
+      // The flat summary and the city after each round: what lists, filters and the final plan read.
+      const s = matchSummaryRow(m);
+      await client.query(
+        `INSERT INTO cc_match_summaries (match_id, room_code, session_kind, started_at, ended_at, completed, rounds, players, winners, scores, viable,
+           proposals, approved, stopped, twists, combos, responses, indicators_start, indicators_end, stories, scenario_source, headlines, updated_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22, now())
+         ON CONFLICT (match_id) DO UPDATE SET ended_at = EXCLUDED.ended_at, completed = EXCLUDED.completed, rounds = EXCLUDED.rounds, players = EXCLUDED.players,
+           winners = EXCLUDED.winners, scores = EXCLUDED.scores, viable = EXCLUDED.viable, proposals = EXCLUDED.proposals, approved = EXCLUDED.approved,
+           stopped = EXCLUDED.stopped, twists = EXCLUDED.twists, combos = EXCLUDED.combos, responses = EXCLUDED.responses, indicators_start = EXCLUDED.indicators_start,
+           indicators_end = EXCLUDED.indicators_end, stories = EXCLUDED.stories, scenario_source = EXCLUDED.scenario_source, headlines = EXCLUDED.headlines, updated_at = now()`,
+        [s.match_id, s.room_code, s.session_kind, s.started_at, s.ended_at, s.completed, s.rounds, JSON.stringify(s.players), json(s.winners), json(s.scores), s.viable,
+          s.proposals, s.approved, s.stopped, s.twists, s.combos, s.responses, json(s.indicators_start), json(s.indicators_end), JSON.stringify(s.stories), s.scenario_source, JSON.stringify(s.headlines)],
+      );
+      await client.query('DELETE FROM cc_city_snapshots WHERE match_id = $1', [m.id]);
+      for (const c of citySnapshotRows(m)) {
+        await client.query(
+          'INSERT INTO cc_city_snapshots (match_id, round, at, final, indicators, built) VALUES ($1, $2, $3, $4, $5, $6)',
+          [c.match_id, c.round, c.at, c.final, JSON.stringify(c.indicators), JSON.stringify(c.built)],
+        );
       }
       await client.query('COMMIT');
     } catch (err) {

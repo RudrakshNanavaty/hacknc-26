@@ -52,7 +52,9 @@ server/src/
   ai/scenario.ts            the scenario desk: Gemini writes each match's three crises and card quips (number-checked)
   live.ts                   NOAA Virginia Key tide gauge + NWS forecast, cached 10 min, each part fails soft; GET /api/live
   voice.ts                  ElevenLabs TTS with a disk cache
-  db/store.ts, db/tiger.ts, db/schema.sql   MemoryStore or Tiger Data (Postgres) behind failSoft
+  db/store.ts, db/tiger.ts, db/schema.sql   FileStore or Tiger Data (Postgres) behind failSoft (local copy, retry, backfill)
+  db/events.ts, db/snapshots.ts, db/derive.ts, db/persist.ts   gameplay timeline, studio history, summary/city rows, the bundle
+  solana/tiger-store.ts     the civic record in Tiger Data (file fallback)
 app/src/
   routes/Landing.tsx, Play.tsx, Studio.tsx    the three pages (tiny router in router.tsx); Play is the stage: the map
                             is the whole board, with the HUD (meters, clock, player bubbles, the news crawl and anchor card) over it and your hand along the bottom
@@ -226,7 +228,8 @@ Schema changes go in `server/src/db/schema.sql`, written idempotently (`IF NOT E
 | Studio says "Replay check skipped: Recorded under coastal-clash-rules/1.0.0" | Expected for matches played before the 2.0.0 rules: today's engine would not reproduce them, so they are not compared. |
 | `scenario desk: authored scenario stands in` | Gemini or the live feeds (NOAA, NWS) failed or were slow: the authored scenario, with whatever live readings arrived, is used. |
 | Avatars or effects pile up in one corner of the map | Something set `position` or animated `transform` on a MapLibre marker's root element. Animate a child instead. |
-| Studio is empty after a restart | The memory store is not persistent. Set `DATABASE_URL` for Tiger Data. |
+| Studio is empty after a restart | Without `DATABASE_URL` matches live in `server/.cache/matches.json`. Set `DATABASE_URL` for Tiger Data. |
+| `/api/db/status` shows `error: Connection terminated due to connection timeout` | The database port is not reachable from this network (venue wifi often blocks high ports). The game keeps working on local files and writes to Tiger once it connects; try a hotspot, or check the service is running in the Tiger console. |
 | `npm run data` fails | The GIS services are down or rate-limited. Run it without `--refresh` to use the cache; the committed data still works. |
 
 ## 8. Deploying

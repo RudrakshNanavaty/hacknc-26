@@ -6,3 +6,6 @@ server/.cache/
 pipeline/.venv/
 __pycache__/
 pipeline/cache/
+
+# Tiger Cloud credential downloads (contain the database password)
+tiger-cloud-*

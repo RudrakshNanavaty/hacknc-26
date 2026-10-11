@@ -75,40 +75,86 @@ export class FileStore implements MatchStore {
 
 type Log = { warn: (obj: unknown, msg: string) => void };
 
-/** Writes that fail land in memory; reads merge memory in, or answer from it alone. */
-export function failSoft(primary: MatchStore, log: Log): MatchStore {
-  const backup = new MemoryStore();
+export type ResilientStore = MatchStore & {
+  /** Matches kept locally that the database has not accepted yet. */
+  pending(): number;
+  /** Pushes every locally kept match to the database (a backfill once it is reachable). Returns how many were written. */
+  sync(): Promise<number>;
+};
+
+/**
+ * Tiger Data first, a local copy always. Every save is written to the backup (a file) and to the
+ * database; a save the database refused is retried on the next successful one and by sync(). Reads
+ * prefer the database and answer from the backup when it is down, so an outage never loses a match.
+ */
+export function failSoft(primary: MatchStore, log: Log, backup: MatchStore = new MemoryStore()): ResilientStore {
+  const waiting = new Set<string>();
+  let warned = false;
+
+  async function retryWaiting() {
+    for (const id of [...waiting]) {
+      const m = await backup.get(id);
+      if (!m) {
+        waiting.delete(id);
+        continue;
+      }
+      try {
+        await primary.save(m);
+        waiting.delete(id);
+      } catch {
+        return;
+      }
+    }
+  }
+
   return {
     kind: primary.kind,
+    pending: () => waiting.size,
     async save(match) {
+      await backup.save(match).catch(() => {});
       try {
         await primary.save(match);
+        waiting.delete(match.id);
+        warned = false;
+        if (waiting.size) void retryWaiting();
       } catch (err) {
-        log.warn({ err }, 'save failed; keeping the match in memory');
-        await backup.save(match);
+        waiting.add(match.id);
+        if (!warned) log.warn({ err }, 'database save failed; the match is kept locally and will be retried');
+        warned = true;
       }
     },
     async get(id) {
-      const local = await backup.get(id);
-      if (local) return local;
       try {
-        return await primary.get(id);
+        const remote = await primary.get(id);
+        if (remote) return remote;
       } catch (err) {
-        log.warn({ err }, 'match read failed');
-        return null;
+        log.warn({ err }, 'match read failed; answering locally');
       }
+      return backup.get(id);
     },
     async list(limit) {
       const local = await backup.list(limit);
       try {
         const remote = await primary.list(limit);
-        const ids = new Set(local.map((m) => m.id));
-        return [...local, ...remote.filter((m) => !ids.has(m.id))].sort((a, b) => b.startedAt.localeCompare(a.startedAt)).slice(0, limit);
+        const ids = new Set(remote.map((m) => m.id));
+        return [...remote, ...local.filter((m) => !ids.has(m.id))].sort((a, b) => b.startedAt.localeCompare(a.startedAt)).slice(0, limit);
       } catch (err) {
-        log.warn({ err }, 'match list failed; answering from memory');
+        log.warn({ err }, 'match list failed; answering locally');
         return local;
       }
     },
-    close: () => primary.close(),
+    async sync() {
+      let n = 0;
+      for (const m of await backup.list(10_000)) {
+        await primary.save(m);
+        waiting.delete(m.id);
+        n++;
+      }
+      return n;
+    },
+    async close() {
+      await backup.close();
+      await primary.close();
+    },
   };
 }

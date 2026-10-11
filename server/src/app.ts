@@ -14,14 +14,15 @@ import { loadStories } from './stories';
 import { devnetChain, loadAuthority } from './solana/chain';
 import { type CivicRecord, civicRecord } from './solana/civic';
 import { registerCivic } from './solana/routes';
-import { FileCivicStore, MemoryCivicStore } from './solana/store';
+import { FileCivicStore, MemoryCivicStore, type CivicStore } from './solana/store';
+import { type Persist, localPersist } from './db/persist';
 
 /** The civic record from .env: on Solana devnet with SOLANA_PAYER_SECRET_KEY, local fingerprints only without. */
-function defaultCivic(log: { info: (m: string) => void; warn: (o: unknown, m: string) => void }): CivicRecord {
+function defaultCivic(log: { info: (m: string) => void; warn: (o: unknown, m: string) => void }, civicStore: CivicStore | null): CivicRecord {
   const authority = loadAuthority();
   const chain = authority.key ? devnetChain(authority.key) : null;
   log.info(chain ? `Solana civic record on (devnet), authority ${chain.address}` : `Solana civic record off: ${authority.reason}`);
-  return civicRecord({ store: process.env.VITEST ? new MemoryCivicStore() : new FileCivicStore(), chain, log: { info: (m) => log.info(m), warn: (o, m) => log.warn(o, m) } });
+  return civicRecord({ store: process.env.VITEST ? new MemoryCivicStore() : civicStore ?? new FileCivicStore(), chain, log: { info: (m) => log.info(m), warn: (o, m) => log.warn(o, m) } });
 }
 import { registerVoice, voiceReady } from './voice';
 
@@ -37,10 +38,12 @@ export interface ServerOptions {
   director?: Director | null;
   /** Overrides the civic record (tests); null turns it off. */
   civic?: CivicRecord | null;
+  /** Where the gameplay timeline, studio history and civic record are stored (default: local only). */
+  persist?: Persist;
 }
 
 /** Builds the server without listening, so tests can inject requests. */
-export function buildServer({ store = new MemoryStore(), gemini = defaultGemini, narrator, scenario, director, civic }: ServerOptions = {}) {
+export function buildServer({ store = new MemoryStore(), gemini = defaultGemini, narrator, scenario, director, civic, persist = localPersist() }: ServerOptions = {}) {
   const app = Fastify({ logger: { level: process.env.LOG_LEVEL ?? 'info' } });
 
   app.get('/api/health', async () => ({ ok: true, voice: voiceReady(), ai: gemini.ready(), director: director === undefined ? gemini.ready() : director !== null, store: store.kind }));
@@ -85,11 +88,12 @@ export function buildServer({ store = new MemoryStore(), gemini = defaultGemini,
     }
   });
 
-  registerStudio(app, store, gemini);
+  registerStudio(app, store, gemini, persist.snapshots);
+  app.get('/api/db/status', async () => ({ ...(await persist.status(store.kind)), pendingMatches: 'pending' in store ? (store as { pending(): number }).pending() : 0 }));
   registerLive(app);
 
   // The civic record on Solana devnet (ported from Mayday Mayor): the team key is the demo authority.
-  const theCivic = civic === undefined ? defaultCivic(app.log) : civic;
+  const theCivic = civic === undefined ? defaultCivic(app.log, persist.civicStore) : civic;
   if (theCivic) registerCivic(app, theCivic);
 
   // The reviewed civic stories a match can draw from (Snowflake, or its cache), with sources and casts.
@@ -108,12 +112,14 @@ export function buildServer({ store = new MemoryStore(), gemini = defaultGemini,
     },
     director: theDirector,
     civic: theCivic,
+    events: persist.events,
     log: app.log,
   });
   app.server.on('upgrade', rooms.onUpgrade);
   app.addHook('onClose', async () => {
     await rooms.close();
     theCivic?.close();
+    await persist.close();
     await store.close();
   });
 
