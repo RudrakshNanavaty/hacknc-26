@@ -1,8 +1,9 @@
 // Over the map: the five city meters as gel tubes, the stakeholders as
 // soap bubbles with their influence pips.
 import { INDICATORS, INDICATOR_INFO, PERSONA_INFO, VIABILITY_FLOOR, type Indicator, type RoomState } from '@shared';
-import { Pips, Soap, Tube, type Tone } from './ui';
+import { Pips, Tube, type Tone } from './ui';
 import { Bill, useTween } from './insights';
+import { FaceOrb } from './Players';
 
 /** A meter's number, counting toward its new value. */
 function Count({ k, value }: { k: Indicator; value: number }) {
@@ -43,9 +44,9 @@ export function PlayerBubbles({ state }: { state: RoomState }) {
         const info = PERSONA_INFO[p.persona];
         return (
           <div key={p.seat} className={`pb wet ${p.seat === state.you ? 'is-you' : ''}`} data-seat={p.seat} style={{ opacity: p.connected ? 1 : 0.5 }}>
-            <Soap size={44} tint={info.color}>{info.emoji}</Soap>
+            <FaceOrb persona={p.persona} size={44} />
             <span className="who min-w-0">
-              <span className="vr block truncate text-15 leading-tight">{p.name}{p.seat === state.hostSeat ? ' ⭐' : ''}</span>
+              <span className="vr block truncate text-15 leading-tight">{p.name}{p.seat === state.hostSeat ? ' (host)' : ''}</span>
               <span className="block text-[11px] leading-tight opacity-75">{info.name}</span>
               <Pips n={p.influence} />
             </span>

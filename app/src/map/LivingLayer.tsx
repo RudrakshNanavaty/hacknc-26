@@ -6,14 +6,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Marker, type Map as MapLibreMap } from 'maplibre-gl';
 import {
-  CARDS, DIRECTOR_EVENTS, PROJECTS, REACTION_MOOD, SCENARIO_ROLES, districtById, resolveRound, roleInfo,
+  CARDS, DIRECTOR_EVENTS, PROJECTS, REACTION_MOOD, districtById, resolveRound, roleInfo,
   type Board, type Bubble, type Card, type Mood, type OutcomeStatus, type RoleId, type RoomState,
 } from '@shared';
 import { spriteSvg } from './sprites';
 
 /** Screen offset of each role around an area's center (px), clear of the area's chip. */
 const SLOT: Record<RoleId, [number, number]> = {
-  mayor: [-128, 18], activist: [-78, 48], resort: [78, 48], resident: [128, 18], fisherman: [0, 134],
+  mayor: [-128, 18], activist: [-78, 48], resort: [78, 48], resident: [128, 18], fisherman: [0, 134], // the fisherman is not a player and is never drawn
 };
 const slot = (role: RoleId): [number, number] => SLOT[role];
 const WALK_MS = 1500;
@@ -37,7 +37,6 @@ export function avatarSpots(state: RoomState): Partial<Record<RoleId, string>> {
     for (const p of board.proposals) if (!p.carried) out[p.persona] = p.district;
     for (const a of board.attachments) out[a.persona] = a.district;
   }
-  out.fisherman = SCENARIO_ROLES.fisherman.home;
   for (const b of state.bubbles?.list ?? []) if (b.district) out[b.speaker] = b.district;
   return out;
 }
@@ -102,7 +101,7 @@ export function LivingLayer({ map, state, onFocusProposal }: {
   bubbleList.current = state.bubbles?.list ?? [];
   const [storm, setStorm] = useState<string | null>(null);
 
-  const roles = useMemo<RoleId[]>(() => [...state.players.map((p) => p.persona), 'fisherman'], [state.players.map((p) => p.persona).join(',')]);
+  const roles = useMemo<RoleId[]>(() => state.players.map((p) => p.persona), [state.players.map((p) => p.persona).join(',')]);
   const spots = avatarSpots(state);
   const spotKey = roles.map((r) => `${r}:${spots[r] ?? ''}`).join('|');
 

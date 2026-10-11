@@ -34,7 +34,7 @@ function Agenda({ state }: { state: RoomState }) {
 
 const Source = ({ state }: { state: RoomState }) => {
   const gemini = state.crisis?.source === 'gemini';
-  return <span className="lchip">{state.crisis?.story ? (gemini ? '📄 Real story · told live by Gemini' : '📄 Real story') : gemini ? '✨ Written live by Gemini' : 'Authored scenario'}</span>;
+  return <span className="lchip">{state.crisis?.story ? (gemini ? 'Real story, told live by Gemini' : 'Real story') : gemini ? '✨ Written live by Gemini' : 'Authored scenario'}</span>;
 };
 
 /** The crisis phase, top-center: the live desk gathering readings, then the breaking story. */

@@ -10,7 +10,7 @@ import {
   DISTRICT_IDS, PING_EMOTES, buildBoard, checkAccept, checkMove, checkPlay, crisisFor, crisisHeadline, finalHeadline, finalResult, isPersonaId, newMatchRecord,
   nextInfluence, resolutionHeadline, resolveRound, revealHeadline, startCity, botPlay, districtById, authoredScenario,
   crisisBubbles, finalBubbles, resolutionBubbles, revealBubbles,
-  EVENT_RULES, SCENARIO_ROLES, applyDirectorEvent, combosInReach, mergeDialogue, negotiationCandidates, templateEventProposal, templateHints,
+  EVENT_RULES, applyDirectorEvent, combosInReach, mergeDialogue, negotiationCandidates, templateEventProposal, templateHints,
   validateComboSuggestion, validateDialogue, validateEventProposal, validateSuggestion,
   type AcceptedEvent, type CharacterDialogue, type DirectorLogEntry, type EventType, type RoleId, type RuleEvent, type TableHint,
   type Board, type CardId, type CityState, type Crisis, type FinalResult, type Headline, type MatchRecord, type NegotiationAction,
@@ -332,7 +332,7 @@ export function proposeEvent(room: Room, key: string, raw: unknown, now: number)
 }
 
 /** The roles standing on the map right now. */
-export const mapRoles = (room: Room): RoleId[] => [...room.players.map((p) => p.persona), SCENARIO_ROLES.fisherman.id];
+export const mapRoles = (room: Room): RoleId[] => room.players.map((p) => p.persona);
 
 /** Gemini lines for the current moment's bubbles. Each line is validated; failures keep the template line. */
 export function applyDialogue(room: Room, key: string, raw: unknown[], facts: unknown, now: number): number {

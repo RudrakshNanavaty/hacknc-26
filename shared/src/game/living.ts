@@ -151,15 +151,6 @@ const OUTCOME_LINES: Record<OutcomeStatus, [string, Reaction]> = {
   unfunded: ['Approved but no money. That is a very expensive maybe.', 'worry'],
 };
 
-const FISHER_ON: Partial<Record<ProjectKind, [string, Reaction]>> = {
-  hotel: ['Another hotel. More guests, more boats, less room at the pier.', 'mock'],
-  marina: ['Great, another luxury marina. Guess my boat is a tourist attraction now.', 'protest'],
-  seawall: ['A wall keeps water out. It also keeps the fish out.', 'worry'],
-  dune: ['Healthy dunes, healthy beach, healthy fishing. Finally, good news.', 'congratulate'],
-  shoreline: ['Mangroves mean baitfish. Baitfish mean dinner. I approve.', 'congratulate'],
-  drainage: ['Cleaner runoff into the bay. The snook will be pleased.', 'congratulate'],
-};
-
 /** Crisis: everyone gathers at the spotlight and says what worries them. */
 export function crisisBubbles(crisis: Crisis, personas: PersonaId[]): Bubble[] {
   // A real story scripts its own cast: each character's opening line, written for this story.
@@ -169,10 +160,7 @@ export function crisisBubbles(crisis: Crisis, personas: PersonaId[]): Bubble[] {
     : CRISIS_LINES[crisis.kind];
   const moment = `crisis-${crisis.round}`;
   const at = (i: number) => crisis.spotlight[i % crisis.spotlight.length] ?? null;
-  return [
-    ...personas.map((p, i) => bubble(moment, p, lines[p][0], lines[p][1], at(i))),
-    bubble(moment, 'fisherman', lines.fisherman[0], lines.fisherman[1], SCENARIO_ROLES.fisherman.home),
-  ];
+  return personas.map((p, i) => bubble(moment, p, lines[p][0], lines[p][1], at(i)));
 }
 
 /** Reveal: each player talks up their card; whoever is targeted by an opposition card worries. */
@@ -190,12 +178,10 @@ export function revealBubbles(board: Board): Bubble[] {
     const reaction: Reaction = cat === 'opposition' ? 'protest' : cat === 'negotiation' ? 'conditional-support' : 'congratulate';
     out.push(bubble(moment, a.persona, board.crisis.skins?.[a.card]?.line ?? PLAY_LINES[a.card] ?? `${CARDS[a.card].name}, coming right up.`, reaction, a.district));
   }
-  const near = board.proposals.find((p) => p.district === SCENARIO_ROLES.fisherman.home && FISHER_ON[p.kind]);
-  if (near) out.push(bubble(moment, 'fisherman', FISHER_ON[near.kind]![0], FISHER_ON[near.kind]![1], near.district));
   return dedupe(out);
 }
 
-/** Resolution: owners react to their verdicts; the fisherman has opinions about his waterfront. */
+/** Resolution: owners react to their verdicts. */
 export function resolutionBubbles(r: Resolution): Bubble[] {
   const moment = `resolve-${r.round}`;
   const out: Bubble[] = [];
@@ -203,17 +189,11 @@ export function resolutionBubbles(r: Resolution): Bubble[] {
     const [text, reaction] = OUTCOME_LINES[o.status];
     out.push(bubble(moment, o.persona, o.conditions.length && o.status === 'approved' ? `Approved, with conditions. ${o.conditions[0]}. I can live with that.` : text, reaction, o.district));
   }
-  const fish = r.outcomes.find((o) => o.status === 'approved' && FISHER_ON[o.kind]);
-  if (fish) out.push(bubble(moment, 'fisherman', FISHER_ON[fish.kind]![0], FISHER_ON[fish.kind]![1], fish.district));
-  if (!r.outcomes.length) out.push(bubble(moment, 'fisherman', 'Nothing got built. The tide does not wait for meetings.', 'mock', SCENARIO_ROLES.fisherman.home));
   return dedupe(out);
 }
 
 export function finalBubbles(f: FinalResult): Bubble[] {
-  return [
-    ...f.scores.map((s) => bubble('final', s.persona, f.winners.includes(s.persona) ? 'We did it. Mostly me, but we did it.' : f.viable ? 'Not my best session, but the city is standing.' : 'The city is in trouble. We all lose a little.', f.winners.includes(s.persona) ? 'celebrate' : f.viable ? 'congratulate' : 'worry', null)),
-    bubble('final', 'fisherman', f.viable ? 'City still standing. I am going fishing.' : 'Told you so. I am going fishing anyway.', f.viable ? 'congratulate' : 'mock', SCENARIO_ROLES.fisherman.home),
-  ];
+  return f.scores.map((s) => bubble('final', s.persona, f.winners.includes(s.persona) ? 'We did it. Mostly me, but we did it.' : f.viable ? 'Not my best session, but the city is standing.' : 'The city is in trouble. We all lose a little.', f.winners.includes(s.persona) ? 'celebrate' : f.viable ? 'congratulate' : 'worry', null));
 }
 
 /** One bubble per speaker per moment: the first (most important) wins. */

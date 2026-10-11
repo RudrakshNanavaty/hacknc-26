@@ -2,7 +2,8 @@
 // names of the dealt cards, each character's part, and the sources. Outside a match (lobby, landing)
 // there is no story and cards keep their own names.
 import { createContext, useContext, type ReactNode } from 'react';
-import { CARDS, PERSONA_INFO, SCENARIO_ROLES, cardName, type CardId, type Crisis, type CrisisStory, type PersonaId, type RoleId, type StorySource } from '@shared';
+import { FaceOrb } from './Players';
+import { CARDS, PERSONA_INFO, cardName, type CardId, type Crisis, type CrisisStory, type PersonaId, type RoleId, type StorySource } from '@shared';
 
 const CrisisContext = createContext<Crisis | null>(null);
 
@@ -35,19 +36,19 @@ export function SourceChips({ sources, max = 4 }: { sources: StorySource[]; max?
 }
 
 const BADGE = {
-  'sources-checked': { icon: '✅', label: 'Sources checked', tone: 'lchip-lime' },
-  resolved: { icon: '⚖️', label: 'Sources disagreed, resolved', tone: 'lchip-sun' },
-  conflict: { icon: '⚠️', label: 'Sources disagree', tone: 'lchip-coral' },
+  'sources-checked': { label: 'Sources checked', tone: 'lchip-lime' },
+  resolved: { label: 'Sources disagreed, resolved', tone: 'lchip-sun' },
+  conflict: { label: 'Sources disagree', tone: 'lchip-coral' },
 } as const;
 
 /** The reviewer's verdict on a story's sources, with what they disagreed about. */
 export function Verification({ story, detail = false }: { story: CrisisStory; detail?: boolean }) {
   const v = story.verification;
-  if (!v) return <span className="lchip" title="No review report for this story">📄 Sources linked</span>;
+  if (!v) return <span className="lchip" title="No review report for this story">Sources linked</span>;
   const b = BADGE[v.status];
   return (
     <span className="flex flex-col gap-1">
-      <span className={`lchip w-fit ${b.tone}`} title={v.notes.join(' · ')}>{b.icon} {b.label}</span>
+      <span className={`lchip w-fit ${b.tone}`} title={v.notes.join(' · ')}>{b.label}</span>
       {detail && v.notes.length > 0 && (
         <span className="text-13 font-semibold">
           {v.notes.map((n) => <span key={n} className="block">• {n}</span>)}
@@ -65,7 +66,7 @@ export function EvidenceStrip({ crisis }: { crisis: Crisis }) {
   return (
     <div className="frost flex flex-col gap-1.5 p-2.5" aria-label="Sources for this story">
       <p className="flex flex-wrap items-center gap-1.5">
-        <span className="lchip lchip-lime">📄 Real story</span>
+        <span className="lchip lchip-lime">Real story</span>
         <span className="lchip">{s.years}</span>
         <Verification story={s} />
       </p>
@@ -74,18 +75,17 @@ export function EvidenceStrip({ crisis }: { crisis: Crisis }) {
   );
 }
 
-const roleName = (r: RoleId) => (r === 'fisherman' ? SCENARIO_ROLES.fisherman.name : PERSONA_INFO[r as PersonaId].name);
-const roleEmoji = (r: RoleId) => (r === 'fisherman' ? SCENARIO_ROLES.fisherman.emoji : PERSONA_INFO[r as PersonaId].emoji);
+const roleName = (r: RoleId) => PERSONA_INFO[r as PersonaId].name;
 
 /** The real story behind the round: when it happened, who each character stands in for, the sources. */
 export function StoryPanel({ crisis, you }: { crisis: Crisis; you: PersonaId | null }) {
   const s = crisis.story;
   if (!s) return null;
-  const order: RoleId[] = [...(you ? [you] : []), ...(['mayor', 'activist', 'resort', 'resident', 'fisherman'] as RoleId[]).filter((r) => r !== you)];
+  const order: RoleId[] = [...(you ? [you] : []), ...(['mayor', 'activist', 'resort', 'resident'] as RoleId[]).filter((r) => r !== you)];
   return (
     <div className="frost flex flex-col gap-2 p-3">
       <p className="flex flex-wrap items-center gap-2">
-        <span className="lchip lchip-lime">📄 Real story</span>
+        <span className="lchip lchip-lime">Real story</span>
         <span className="vr text-16">{s.title}</span>
         <span className="lchip">{s.years}</span>
       </p>
@@ -95,7 +95,7 @@ export function StoryPanel({ crisis, you }: { crisis: Crisis; you: PersonaId | n
           if (!part) return null;
           return (
             <li key={r} className={`story-role ${r === you ? 'is-you' : ''}`}>
-              <span className="text-18" aria-hidden>{roleEmoji(r)}</span>
+              <FaceOrb persona={r as PersonaId} size={32} />
               <span className="min-w-0">
                 <b>{r === you ? `You, the ${roleName(r)}` : roleName(r)}</b>
                 {part.counterpart && <span className="opacity-75"> · in the real story: {part.counterpart}</span>}

@@ -6,7 +6,7 @@
 // cannot hand one player information the others lack. Every call has a timeout; a missing key, a slow
 // answer or malformed JSON throws AIError and the template already on screen stays.
 import {
-  DIRECTOR_EVENTS, DISTRICTS, EVENT_RULES, EVENT_TYPES, PERSONA_INFO, PROJECTS, REACTIONS, ROLES, SCENARIO_ROLES, COMBOS, checkSpoken, districtById, districtFacts,
+  DIRECTOR_EVENTS, DISTRICTS, EVENT_RULES, EVENT_TYPES, PERSONA_INFO, PROJECTS, REACTIONS, ROLES, COMBOS, checkSpoken, districtById, districtFacts,
   type ComboInReach, type EventType, type Explanation, type RoleId, type RoomState, type TableHint,
 } from '@shared';
 import { GROUNDED, type Gemini } from './gemini';
@@ -31,7 +31,6 @@ export function directorFacts(state: RoomState) {
     places: DISTRICTS.map((d) => ({ id: d.id, name: d.name, shore: d.shore, facts: districtFacts(d) })),
     stakeholders: [
       ...state.players.map((p) => ({ role: p.persona, name: PERSONA_INFO[p.persona].name, voice: PERSONA_INFO[p.persona].voice, goal: PERSONA_INFO[p.persona].goal })),
-      { role: SCENARIO_ROLES.fisherman.id, name: SCENARIO_ROLES.fisherman.name, voice: SCENARIO_ROLES.fisherman.voice, goal: SCENARIO_ROLES.fisherman.goal, note: 'not a player; reacts from the pier' },
     ],
     table: state.board
       ? {

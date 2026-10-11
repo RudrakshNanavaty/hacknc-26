@@ -198,7 +198,7 @@ describe('the Director inside a room', () => {
     expect(n).toBe(1);
     const list = room.bubbles!.list;
     expect(list.find((b) => b.speaker === 'mayor')).toMatchObject({ source: 'gemini', reaction: 'worry' });
-    expect(list.find((b) => b.speaker === 'fisherman')!.source).toBe('template');
+    expect(list.some((b) => b.speaker === 'fisherman')).toBe(false);
     expect(applyDialogue(room, 'crisis-1', [{ speaker: 'activist', line: 'Too late for this moment, sadly.', reaction: 'worry' }], facts, tick())).toBe(0);
   });
 

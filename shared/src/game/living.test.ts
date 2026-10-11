@@ -27,12 +27,12 @@ describe('living city templates', () => {
     for (const r of REACTIONS) expect(REACTION_MOOD[r]).toBeTruthy();
   });
 
-  it('crisis bubbles: every stakeholder and the fisherman, short and well formed', () => {
+  it('crisis bubbles: every stakeholder (and nobody else), short and well formed', () => {
     // Every kind of crisis a match's scenario can choose, not just the authored three.
     const crises = [...authoredScenario(null).crises, ...CRISIS_KINDS.map((k, i) => makeCrisis((i % 3) + 1, k, 'Test crisis', 'A crisis of this kind, for the test.', ['south-pointe'], [], 'authored'))];
     for (const c of crises) {
       const bs = crisisBubbles(c, [...PERSONAS]);
-      expect(bs.map((b) => b.speaker).sort()).toEqual(['activist', 'fisherman', 'mayor', 'resident', 'resort']);
+      expect(bs.map((b) => b.speaker).sort()).toEqual(['activist', 'mayor', 'resident', 'resort']);
       wellFormed(bs);
     }
   });

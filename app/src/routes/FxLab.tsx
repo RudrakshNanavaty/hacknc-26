@@ -10,7 +10,7 @@ import { spriteSvg, type SpriteRole } from '../map/sprites';
 
 const CITY = startCity();
 
-const SHEET_ROLES: SpriteRole[] = ['mayor', 'activist', 'resort', 'resident', 'fisherman', 'anchor'];
+const SHEET_ROLES: SpriteRole[] = ['mayor', 'activist', 'resort', 'resident', 'anchor'];
 const SHEET_MOODS = ['idle', 'celebrate', 'frustrated', 'worried', 'smug'] as const;
 
 /** Every character at 2x in one mood, to review the art (the map shows them at 60px). */
