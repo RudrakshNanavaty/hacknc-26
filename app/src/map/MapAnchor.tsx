@@ -1,6 +1,7 @@
 // Floating cards pinned to a place on the map: the district popover (your cards), the negotiation case
 // file. The card sits beside the area's center, flips to the other side near the screen edge, follows
-// the camera, stays clear of the HUD above and the hand below, and scrolls inside when the window is short.
+// the camera, stays clear of the HUD above and the hand below (beside it if it can, above it if not),
+// and scrolls inside when the window is short.
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import type { Map as MapLibreMap } from 'maplibre-gl';
 import { districtById } from '@shared';
@@ -58,6 +59,8 @@ export function MapAnchor({ map, district, width = 380, gap = 96, label, onClose
   useCameraTick(map);
   const body = useRef<HTMLDivElement>(null);
   const [height, setHeight] = useState(0);
+  /** The content's own height, whatever the card is cut to (decides which side has room). */
+  const [natural, setNatural] = useState(0);
   const [, setViewport] = useState(0);
 
   useLayoutEffect(() => {
@@ -67,6 +70,11 @@ export function MapAnchor({ map, district, width = 380, gap = 96, label, onClose
     setHeight(body.current.offsetHeight);
     return () => ro.disconnect();
   }, []);
+
+  useLayoutEffect(() => {
+    const n = body.current?.scrollHeight ?? 0;
+    if (n !== natural) setNatural(n);
+  });
 
   useEffect(() => {
     const on = () => setViewport((n) => n + 1);
@@ -85,10 +93,29 @@ export function MapAnchor({ map, district, width = 380, gap = 96, label, onClose
   const p = screenPoint(map, districtById(district).center);
   const vw = window.innerWidth;
   const vh = window.innerHeight;
-  const right = p.x + gap + width <= vw - EDGE || p.x - gap - width < EDGE;
-  const left = clamp(right ? p.x + gap : p.x - gap - width, EDGE, vw - width - EDGE);
-  const ceiling = hudBottom(left, left + width);
-  const floor = Math.min(vh, deckTop(left, left + width));
+  // Beside the area on the side with the room: the right unless it is cramped (the news above it, the
+  // hand below it) and the left has clearly more.
+  const place = (toRight: boolean) => {
+    let x = clamp(toRight ? p.x + gap : p.x - gap - width, EDGE, vw - width - EDGE);
+    // Slide clear of the hand sideways when there is room, rather than shrinking above it.
+    for (const el of document.querySelectorAll('.deck-block')) {
+      const r = el.getBoundingClientRect();
+      if (!r.width || !r.height || r.right <= x || r.left >= x + width) continue;
+      const beside = toRight ? r.right + 12 : r.left - 12 - width;
+      if (beside >= EDGE && beside + width <= vw - EDGE) x = beside;
+    }
+    const ceil = hudBottom(x, x + width);
+    const flr = Math.min(vh, deckTop(x, x + width));
+    return { right: toRight, left: x, ceiling: ceil, floor: flr, room: flr - ceil - EDGE };
+  };
+  const fitsRight = p.x + gap + width <= vw - EDGE;
+  const fitsLeft = p.x - gap - width >= EDGE;
+  let side = place(fitsRight || !fitsLeft);
+  if (fitsRight && fitsLeft) {
+    const other = place(!side.right);
+    if (side.room < Math.min(natural || 420, 460) && other.room > side.room + 40) side = other;
+  }
+  const { right, left, ceiling, floor } = side;
   const maxHeight = floor - ceiling - EDGE;
   const h = Math.min(height || maxHeight, maxHeight);
   const top = clamp(p.y - h / 2, ceiling, floor - h - EDGE);

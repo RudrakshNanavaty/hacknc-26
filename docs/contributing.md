@@ -56,12 +56,15 @@ server/src/
   db/store.ts, db/tiger.ts, db/schema.sql   MemoryStore or Tiger Data (Postgres) behind failSoft
 app/src/
   routes/Landing.tsx, Play.tsx, Studio.tsx    the three pages (tiny router in router.tsx); Play is the stage: the map
-                            is the whole board, with the HUD (meters, clock, player bubbles, news ticker) over it
+                            is the whole board, with the HUD (meters, clock, player bubbles, the news TV) over it and your hand along the bottom
   routes/FxLab.tsx          dev-only /fx-lab: every crisis animation, any intensity
   room/useRoom.ts           the WebSocket client: state, clock offset, one function per ClientMsg, pings
-  game/NewsTicker.tsx       the crisis as a breaking card, then a ticker with a details drawer (facts, K1, agenda, twist)
+  game/NewsTV.tsx           the news: a TV with the anchor in the top-right (latest headline, details drawer: facts, K1,
+                            agenda, twist) and the crisis briefing card while the crisis lands
+  game/HandDeck.tsx         your hand, fanned along the bottom: the dealt cards (select) or Back / Oppose / Fund / Pass
+                            (negotiate); moves.ts = move availability on top of the engine's checkMove
   game/DistrictPopover.tsx  click an area: your dealt hand (handFor: 4 of 6), illegal cards greyed with the reason,
-                            two-step deploy; GameCard.tsx (character card + mini card)
+                            two-step deploy (opens on the held card when you pick one from the hand first); GameCard.tsx (character card + mini card)
   game/CaseFile.tsx         reveal + negotiation, pinned to the proposal's area (moves, deals, hints, reactions)
   game/ResultOverlay.tsx    the round's result (side) and the podium (center)
   game/insights.tsx         what the rules and the Director add: twist card, Why?, hints, previews,
@@ -165,12 +168,13 @@ and the number check in `server/src/ai/scenario.ts`.
 2. `server/src/rooms.ts`: an exported function that checks the phase and throws `RoomError` with a readable message.
 3. `server/src/roomSocket.ts`: a `case` in the dispatch `switch`.
 4. `app/src/room/useRoom.ts`: a sender on the `Room` interface. Then the UI where that phase lives on the map
-   (`DistrictPopover`, `CaseFile`, `ResultOverlay`, `NewsTicker`).
+   (`HandDeck`, `DistrictPopover`, `CaseFile`, `ResultOverlay`, `NewsTV`).
 5. A test in `server/src/rooms.test.ts`.
 
 ### UI work
-- There is no side panel: `routes/Play.tsx` puts each phase on the map. Crisis: `NewsTicker` + `CrisisAlert` + `CrisisFx`.
-  Select: `DistrictPopover` (click an area; chips show how many cards are playable). Reveal and negotiate: `CaseFile`.
+- There is no side panel: `routes/Play.tsx` puts each phase on the map. Crisis: `CrisisBriefing` + `CrisisAlert` + `CrisisFx`, and `NewsTV` stays on top-right all match.
+  Select: `HandDeck` (point at a card to light its legal areas, click it to hold it, click a lit area) into `DistrictPopover`;
+  clicking an area first still lists your cards. Reveal and negotiate: `CaseFile` for the table, `HandDeck` for your move.
   Resolve and final: `ResultOverlay`. Rules/Director additions live in `game/insights.tsx`. Pin anything that belongs to a
   place with `MapAnchor`. The camera is directed for crisis, reveal and result, free (with Recenter) while choosing and negotiating.
 - The Aero Lagoon look: build with `wet` (glass panel), `frost` (light box), `gel` / `gel-sm` / `gel-lime` (buttons), `lchip`
