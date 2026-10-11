@@ -2,8 +2,9 @@
 // resolution with its rule trace, and the end of the session.
 import { useMemo, useState } from 'react';
 import {
-  CARDS, COMBOS, NEGOTIATION_COST, PERSONA_INFO, PREFERENCE_QUESTION, PROJECTS, cardEligibility, districtById, districtFacts, handFor, resolveRound,
-  type AcceptedEvent, type Board, type CardId, type Proposal, type RoomState, type RuleEvent, type TableHint,
+  CARDS, COMBOS, INDICATORS, INDICATOR_INFO, NEGOTIATION_COST, PERSONA_INFO, PREFERENCE_QUESTION, PROJECTS, cardEligibility, districtById, districtFacts, handFor,
+  projectPreview, resolveRound,
+  type AcceptedEvent, type Board, type CardId, type ProjectPreview, type Proposal, type RoomState, type RuleEvent, type TableHint,
 } from '@shared';
 import { explain, type ExplainAnswer } from '../api';
 import type { Room } from '../room/useRoom';
@@ -83,6 +84,28 @@ function WhyButton({ ask, label = 'Why?' }: { ask: () => Promise<ExplainAnswer>;
   );
 }
 
+/** Before -> after for the indicators a project would move, if approved as it stands. */
+function PreviewBox({ p }: { p: ProjectPreview }) {
+  const moved = INDICATORS.filter((k) => p.after[k] !== p.before[k]);
+  return (
+    <div className="preview-box">
+      <p className="text-[11px] font-black tracking-wide uppercase opacity-70">If approved as it stands · illustrative</p>
+      <div className="flex flex-wrap gap-x-3 gap-y-1">
+        {moved.map((k) => {
+          const up = p.after[k] > p.before[k];
+          const fmt = (v: number) => (k === 'budget' ? `$${v}M` : String(v));
+          return (
+            <span key={k} className="preview-chip">
+              {INDICATOR_INFO[k].icon} {fmt(p.before[k])} → <b className={up ? 'text-leaf-deep' : 'text-coral'}>{fmt(p.after[k])}</b>
+            </span>
+          );
+        })}
+      </div>
+      {p.warnings.map((w) => <p key={w} className="warn-line">⚠ {w}</p>)}
+    </div>
+  );
+}
+
 /** What a card does, what answers it, what it combos with, and what it costs later. */
 function CardDetail({ id }: { id: CardId }) {
   const c = CARDS[id];
@@ -150,6 +173,10 @@ export function HandPanel({ state, room, card, setCard, target, setTarget, onHov
       {card && (
         <div className="glass flex flex-col gap-2 p-3">
           <CardDetail id={card} />
+          {target && (() => {
+            const p = projectPreview(card, target, state.round, state.city);
+            return p && cardEligibility(card, target).ok ? <PreviewBox p={p} /> : null;
+          })()}
           <p className="text-13 font-bold">{target ? `Target: ${districtById(target).name}` : 'Tap a highlighted area on the map, or pick one:'}</p>
           <div className="flex flex-wrap gap-2">
             {state.city && Object.keys(state.city.districts).map((id) => {
@@ -255,6 +282,12 @@ export function NegotiationPanel({ state, room }: { state: RoomState; room: Room
               <b>{o.support}</b> support vs <b>{o.opposition - o.ignored}</b> opposition{o.ignored ? ` (${o.ignored} ignored)` : ''}
               {o.funding === 'budget' && ` · $${PROJECTS[p.kind].budgetCost}M from budget`}
               {o.funding === 'covered' && ' · cost covered'}
+            </p>
+            <p className="text-[12px] opacity-80">
+              {o.status === 'approved' ? 'Passing now: ' : 'If it passes: '}
+              <b>{deltaText(o.status === 'approved' ? o.delta : PROJECTS[p.kind].delta) || 'no change'}</b>
+              {PROJECTS[p.kind].upkeep > 0 && ` · then $${PROJECTS[p.kind].upkeep}M upkeep a round`}
+              <span className="opacity-70"> (illustrative)</span>
             </p>
             {moves.map((m) => <p key={m.seat} className="text-[12px]">↳ {by(m.seat)?.name} {m.move === 'back' ? 'backs it' : m.move === 'oppose' ? 'opposes it' : 'funds it'}</p>)}
             {offers.map((c) => (

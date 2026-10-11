@@ -48,15 +48,21 @@ export function avatarSpots(state: RoomState): Partial<Record<RoleId, string>> {
 
 /** What each proposal on the map looks like right now. */
 type GhostStatus = 'proposed' | OutcomeStatus;
-function ghosts(state: RoomState, preview: ReturnType<typeof resolveRound> | null): { id: string; kind: Board['proposals'][number]['kind']; district: string; status: GhostStatus }[] {
+type Deal = 'none' | 'offered' | 'agreed';
+function ghosts(state: RoomState, preview: ReturnType<typeof resolveRound> | null): { id: string; kind: Board['proposals'][number]['kind']; district: string; status: GhostStatus; deal: Deal }[] {
   if ((state.phase === 'reveal' || state.phase === 'negotiate') && state.board) {
-    return state.board.proposals.map((p) => ({
-      id: p.id, kind: p.kind, district: p.district,
-      status: state.phase === 'negotiate' ? preview?.outcomes.find((o) => o.proposalId === p.id)?.status ?? 'proposed' : 'proposed',
-    }));
+    const board = state.board;
+    return board.proposals.map((p) => {
+      const offers = board.compromises.filter((c) => c.proposalId === p.id);
+      return {
+        id: p.id, kind: p.kind, district: p.district,
+        status: state.phase === 'negotiate' ? preview?.outcomes.find((o) => o.proposalId === p.id)?.status ?? 'proposed' : 'proposed',
+        deal: offers.some((c) => c.accepted) ? 'agreed' : offers.length ? 'offered' : 'none',
+      };
+    });
   }
   if (state.phase === 'resolve') {
-    return (state.history.at(-1)?.resolution.outcomes ?? []).filter((o) => o.status !== 'approved').map((o) => ({ id: o.proposalId, kind: o.kind, district: o.district, status: o.status }));
+    return (state.history.at(-1)?.resolution.outcomes ?? []).filter((o) => o.status !== 'approved').map((o) => ({ id: o.proposalId, kind: o.kind, district: o.district, status: o.status, deal: 'none' as Deal }));
   }
   return [];
 }
@@ -222,7 +228,7 @@ export function LivingLayer({ map, state }: { map: MapLibreMap | null; state: Ro
     [state.phase, state.board, state.actions, state.city],
   );
   const ghostList = ghosts(state, preview);
-  const ghostKey = ghostList.map((g) => `${g.id}:${g.status}`).join('|');
+  const ghostKey = ghostList.map((g) => `${g.id}:${g.status}:${g.deal}`).join('|');
   useEffect(() => {
     if (!map) return;
     const live = new Set(ghostList.map((g) => g.id));
@@ -244,7 +250,8 @@ export function LivingLayer({ map, state }: { map: MapLibreMap | null; state: Ro
       const el = m.getElement();
       el.dataset.status = g.status;
       el.title = `${PROJECTS[g.kind].name} · ${districtById(g.district).name}: ${GHOST_TAG[g.status]}`;
-      el.innerHTML = `<span class="ghost-icon">${PROJECTS[g.kind].marker}</span><span class="ghost-tag">${GHOST_TAG[g.status]}</span>`;
+      const deal = g.deal === 'agreed' ? '<span class="ghost-deal" title="A condition was accepted">🤝</span>' : g.deal === 'offered' ? '<span class="ghost-deal is-offered" title="A condition is on the table">🤝?</span>' : '';
+      el.innerHTML = `<span class="ghost-icon">${PROJECTS[g.kind].marker}${deal}</span><span class="ghost-tag">${GHOST_TAG[g.status]}</span>`;
     }
     // ghostKey captures the list.
     // eslint-disable-next-line react-hooks/exhaustive-deps

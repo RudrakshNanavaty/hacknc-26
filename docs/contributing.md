@@ -38,6 +38,7 @@ shared/src/               Pure TypeScript, no I/O. Imported as '@shared' by app 
   game/engine.ts            buildBoard -> resolveRound -> finalResult, bots             [contract]
   game/narrate.ts           template headlines + the facts handed to Gemini
   game/living.ts            scenario roles (Fisherman), reaction vocabulary -> avatar moods, template speech bubbles
+  game/economy.ts           previews (projectPreview) and what the city owes next round (upcomingCosts)
   game/director.ts          Director validators (dialogue, twists, hints, combos, explanations), twist catalogue, strayNumbers
   game/record.ts            MatchRecord, Planning Studio aggregation, CSV/GeoJSON      [contract]
 server/src/

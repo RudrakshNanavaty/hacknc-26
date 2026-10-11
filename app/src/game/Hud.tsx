@@ -1,11 +1,38 @@
 // The top of the screen: round and phase with the clock, the news ticker, and the city indicators.
 import { useEffect, useRef, useState } from 'react';
-import { INDICATORS, INDICATOR_INFO, VIABILITY_FLOOR, type Indicator, type Indicators, type RoomState } from '@shared';
+import { INDICATORS, INDICATOR_INFO, VIABILITY_FLOOR, upcomingCosts, type Indicator, type Indicators, type RoomState } from '@shared';
 import { PHASE_LABEL, clock } from './format';
 import { playTick } from '../ui/sound';
 
+/** Count toward the new value (bounded: one short animation per change; none with reduced motion). */
+function useTween(value: number, ms = 900) {
+  const [shown, setShown] = useState(value);
+  const from = useRef(value);
+  useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setShown(value);
+      from.current = value;
+      return;
+    }
+    const start = from.current;
+    const t0 = performance.now();
+    let raf = 0;
+    const step = (t: number) => {
+      const k = Math.min(1, (t - t0) / ms);
+      const v = Math.round(start + (value - start) * (1 - (1 - k) ** 3));
+      setShown(v);
+      from.current = v;
+      if (k < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [value, ms]);
+  return shown;
+}
+
 export function Gauge({ k, value, compact = false }: { k: Indicator; value: number; compact?: boolean }) {
   const info = INDICATOR_INFO[k];
+  const shown = useTween(value);
   const prev = useRef(value);
   const [flash, setFlash] = useState<number | null>(null);
   useEffect(() => {
@@ -23,7 +50,7 @@ export function Gauge({ k, value, compact = false }: { k: Indicator; value: numb
       <span className="gauge-icon" aria-hidden>{info.icon}</span>
       {!compact && <span className="gauge-label">{info.short}</span>}
       <span className="gauge-bar"><span className={`gauge-fill gauge-${k}`} style={{ width: `${pct}%` }} /></span>
-      <span className="gauge-value tabular">{k === 'budget' ? `$${value}M` : value}</span>
+      <span className="gauge-value tabular">{k === 'budget' ? `$${shown}M` : shown}</span>
       {flash !== null && (
         <span key={value} className={`gauge-delta ${flash > 0 ? 'up' : 'down'}`}>
           {flash > 0 ? '+' : '−'}{Math.abs(flash)}
@@ -39,6 +66,15 @@ export function IndicatorBar({ values, compact = false }: { values: Indicators; 
       {INDICATORS.map((k) => <Gauge key={k} k={k} value={values[k]} compact={compact} />)}
     </div>
   );
+}
+
+/** What the city already owes at the next resolution (upkeep, delayed consequences). */
+function Upcoming({ state }: { state: RoomState }) {
+  if (state.phase === 'resolve' || state.phase === 'final' || state.phase === 'lobby') return null;
+  const up = upcomingCosts(state.city);
+  const parts = [...(up.upkeep ? [`−$${up.upkeep}M upkeep`] : []), ...up.pending.map((p) => p.text.replace(/\.$/, ''))];
+  if (!parts.length) return null;
+  return <p className="upcoming-chip" title="Charged when this round resolves (hypothetical, illustrative)">⏳ This round's bill: {parts.join(' · ')}</p>;
 }
 
 export function Hud({ state, left, onSkip, host }: { state: RoomState; left: number | null; onSkip: () => void; host: boolean }) {
@@ -71,7 +107,10 @@ export function Hud({ state, left, onSkip, host }: { state: RoomState; left: num
           <p key={state.headline.key + state.headline.source} className="ticker-text">{state.headline.text}</p>
         </div>
       )}
-      <IndicatorBar values={state.city.indicators} compact />
+      <div className="flex flex-col items-end gap-1">
+        <IndicatorBar values={state.city.indicators} compact />
+        <Upcoming state={state} />
+      </div>
     </header>
   );
 }

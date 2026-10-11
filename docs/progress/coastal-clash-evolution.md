@@ -66,7 +66,10 @@ The fix was environmental: `fnm install 22` and a `.node-version` file. No code 
   Live check with the real key: Gemini bubbles, twist (Investor interest at Collins), and worded hints all arrived. The first run timed
   out at 5 s, so the timeout is now 8 s and the twist is prefetched during the previous resolution.
   Hints only cover players who can still act (bots are done at once).
-- [ ] M4 economy UX
+- [x] **M4 economy UX**: `shared/src/game/economy.ts` (`projectPreview`, `upcomingCosts`; a test pins every preview to what the
+  engine really does). UI: before/after preview box with warnings (budget short, upkeep, viability floor, spotlight), "If it passes"
+  line on each negotiated proposal, a "This round's bill" chip in the HUD (upkeep + delayed consequences), tweened gauge numbers,
+  deal badges on the map's proposal ghosts (🤝 accepted, 🤝? on the table). The three-round state machine is unchanged.
 - [ ] M5 polish + Studio
 
 ## Open questions for humans

@@ -765,6 +765,13 @@ button.game-card:hover:not(:disabled) { transform: translateY(-8px) rotate(-1deg
 .why-btn { align-self: flex-start; padding: 2px 10px; border-radius: 99px; font-size: 12px; font-weight: 800; color: var(--aqua-deep); background: rgba(255, 255, 255, 0.8); border: 1px solid rgba(25, 182, 230, 0.5); }
 .why-answer { padding: 6px 9px; border-radius: 12px; font-size: 12px; line-height: 1.4; background: rgba(255, 255, 255, 0.85); border-left: 3px solid var(--aqua); }
 
+/* Economy: previews, the bill for this round, deals on the map. */
+.preview-box { display: flex; flex-direction: column; gap: 4px; padding: 8px 10px; border-radius: 14px; background: rgba(255, 255, 255, 0.7); border: 1px solid #fff; }
+.preview-chip { font-size: 13px; font-weight: 700; white-space: nowrap; }
+.upcoming-chip { padding: 1px 8px; border-radius: 99px; font-size: 11px; font-weight: 800; color: #6b5200; background: rgba(255, 224, 102, 0.55); border: 1px solid #fff; white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.ghost-deal { position: absolute; right: -10px; top: -8px; padding: 0 3px; border-radius: 99px; font-size: 11px; background: #e2ffc4; border: 1px solid #fff; box-shadow: 0 1px 4px rgba(0, 30, 60, 0.3); }
+.ghost-deal.is-offered { background: #fff7c2; font-weight: 900; }
+
 /* Card economy: public cost badge, previews, warnings, combos. */
 .hand .game-card:nth-child(4) { animation-delay: 0.21s; }
 /* Four cards in one row. */
