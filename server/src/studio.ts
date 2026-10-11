@@ -77,7 +77,7 @@ export function registerStudio(app: FastifyInstance, store: MatchStore, gemini: 
   app.get<{ Querystring: { session?: string } }>('/api/atlas/plan/export.csv', async (req, reply) => {
     const matches = await load(kindOf(req.query.session));
     const stamp = new Date().toISOString().slice(0, 10);
-    return reply.header('content-type', 'text/csv; charset=utf-8').header('content-disposition', `attachment; filename="coastal-clash-plan-${stamp}.csv"`).send(planCsv(matches));
+    return reply.header('content-type', 'text/csv; charset=utf-8').header('content-disposition', `attachment; filename="consensusclub-plan-${stamp}.csv"`).send(planCsv(matches));
   });
 
   app.get<{ Params: { id: string } }>('/api/matches/:id', async (req, reply) => {
@@ -90,14 +90,14 @@ export function registerStudio(app: FastifyInstance, store: MatchStore, gemini: 
     const matches = await load(kindOf(req.query.session));
     const stamp = new Date().toISOString().slice(0, 10);
     if (req.params.format === 'json') {
-      return reply.header('content-disposition', `attachment; filename="coastal-clash-${stamp}.json"`)
+      return reply.header('content-disposition', `attachment; filename="consensusclub-${stamp}.json"`)
         .send({ exportedAt: new Date().toISOString(), rulesVersion: RULES_VERSION, dataVersion: DATA_VERSION, sources: DATA_SOURCES, question: PREFERENCE_QUESTION, matches });
     }
     if (req.params.format === 'csv') {
-      return reply.header('content-type', 'text/csv; charset=utf-8').header('content-disposition', `attachment; filename="coastal-clash-${stamp}.csv"`).send(toCsv(matches));
+      return reply.header('content-type', 'text/csv; charset=utf-8').header('content-disposition', `attachment; filename="consensusclub-${stamp}.csv"`).send(toCsv(matches));
     }
     if (req.params.format === 'geojson') {
-      return reply.header('content-type', 'application/geo+json').header('content-disposition', `attachment; filename="coastal-clash-${stamp}.geojson"`).send(toGeoJson(matches));
+      return reply.header('content-type', 'application/geo+json').header('content-disposition', `attachment; filename="consensusclub-${stamp}.geojson"`).send(toGeoJson(matches));
     }
     return reply.code(404).send({ error: 'json, csv or geojson' });
   });

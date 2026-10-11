@@ -1,4 +1,4 @@
-// A Coastal Clash room. Lobby, then the stage: the real Miami Beach map is the whole board. Each round
+// A consensusclub room. Lobby, then the stage: the real Miami Beach map is the whole board. Each round
 // is three steps (game/Steps.tsx): Play a Card (the crisis lands on the map, then you pick a card and a
 // green area), Make a Deal (the cards are revealed and the table negotiates on a case file pinned to
 // the proposal's area), See What Happens (big verdict stamps, the storm after the last round, then the

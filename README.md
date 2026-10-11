@@ -1,10 +1,10 @@
-# Coastal Clash
+# consensusclub
 
 **Four stakeholders. Three real planning fights. One shoreline.**
 
 What if the next argument about your city's future happened around a game table instead of at a town hall?
 
-Coastal Clash is a multiplayer strategy game about real coastal planning decisions in Miami Beach. Play as the Mayor, Resident, Environmental Activist, or Resort Owner. Propose a project, negotiate a change, and vote on the plan that actually gets built. Every match leaves a record of **what people supported, what they opposed, and the conditions that changed their minds**.
+consensusclub is a multiplayer strategy game about real coastal planning decisions in Miami Beach. Play as the Mayor, Resident, Environmental Activist, or Resort Owner. Propose a project, negotiate a change, and vote on the plan that actually gets built. Every match leaves a record of **what people supported, what they opposed, and the conditions that changed their minds**.
 
 Built for **HackNC 2026**, with a Frutiger Aero + Liquid Glass interface: ocean scenery, small floating bubbles, glossy green buttons, glass panels, and animated 3D characters.
 
@@ -26,7 +26,7 @@ Our question is what happens **before** someone votes yes or no. A resident migh
 
 Miami Beach gave us a real place to try it. Its 2025 Sea Level Rise Adaptation Plan identified **67,000-plus vulnerable assets**, with the underlying work supported by a **$454,000 Resilient Florida grant** and **$100,000 city match**. [West Avenue Neighborhood Improvements](https://www.miamibeachfl.gov/projects/west-avenue-neighborhood-improvements-project-phase-ii/) has a **$100,229,771** published budget: raised roads, pumping, utilities, and harmonization, connecting raised public streets to existing private properties.
 
-That is a real, expensive, complicated decision about a neighborhood. We wondered what it would be like to play that conflict as a card game, something like a round of Clash Royale. That became Coastal Clash.
+That is a real, expensive, complicated decision about a neighborhood. We wondered what it would be like to play that conflict as a card game, something like a round of Clash Royale. That became consensusclub.
 
 ## How to play
 
@@ -88,7 +88,7 @@ After round three, **Your Miami Beach Plan** shows what passed, what failed, the
 
 ## What stays after the match
 
-A vote records which option won. Coastal Clash also records the path to that vote:
+A vote records which option won. consensusclub also records the path to that vote:
 
 - The real issue, sources, and map location.
 - Each player's project choice and stance.

@@ -90,7 +90,7 @@ export function Verify({ matchId }: { matchId: string }) {
       <LagoonBubbles count={14} />
       <div className="relative mx-auto flex max-w-2xl flex-col gap-4">
         <header className="flex items-center justify-between">
-          <Link to="/" className="vr text-24 text-white drop-shadow">Coastal Clash</Link>
+          <Link to="/" className="vr text-24 text-white drop-shadow">consensusclub</Link>
           <span className="lchip">Public record</span>
         </header>
         {view === null && <p className="wet p-6 text-18">Checking the record…</p>}

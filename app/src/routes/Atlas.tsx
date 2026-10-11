@@ -112,7 +112,7 @@ export function Atlas() {
     <main className="relative mx-auto flex min-h-full max-w-7xl flex-col gap-4 p-4 sm:p-6">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <Link to="/" className="font-display text-18 font-black text-aqua-deep">Coastal Clash</Link>
+          <Link to="/" className="font-display text-18 font-black text-aqua-deep">consensusclub</Link>
           <h1 className="atlas-title font-display text-48 leading-none font-black">Civic Atlas</h1>
           <p className="max-w-2xl text-15 font-bold text-ink">
             What many tables of residents, owners, officials and advocates do when the same coast is under pressure: decision by decision, place by place, crisis by crisis.

@@ -1,4 +1,4 @@
-// The civic record's completeness layer, ported from Mayday Mayor for Coastal Clash: every finished
+// The civic record's completeness layer, ported from Mayday Mayor for consensusclub: every finished
 // match gets a fingerprint of its decisions and its own memo (its outcomes in words) on Solana;
 // matches are anchored in batches as one Memo transaction carrying a Merkle root, and each keeps its
 // proof. Fail soft: nothing here ever blocks a match, and a failed transaction leaves matches for

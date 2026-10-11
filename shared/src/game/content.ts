@@ -1,4 +1,4 @@
-// Coastal Clash content: personas, cards, indicators and the scenario. Everything here is authored
+// consensusclub content: personas, cards, indicators and the scenario. Everything here is authored
 // game design. Numbers are ILLUSTRATIVE SCENARIO VALUES (labelled so in the UI and the exports),
 // never predictions of what a real project would do. Real-world facts live in districts.json.
 

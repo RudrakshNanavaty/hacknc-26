@@ -2,7 +2,7 @@
   "city": "Miami Beach, Florida",
   "version": "civic-corpus/0.1",
   "retrieved_at": "2026-10-11",
-  "note": "Research corpus for Coastal Clash. Facts are as reported by the linked sources; review_status must be set to approved by a human before the game uses an item.",
+  "note": "Research corpus for consensusclub. Facts are as reported by the linked sources; review_status must be set to approved by a human before the game uses an item.",
   "items": [
     {
       "id": "west-ave-road-raising",

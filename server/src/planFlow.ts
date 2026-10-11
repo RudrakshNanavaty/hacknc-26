@@ -512,7 +512,7 @@ const VERDICT_WORD = { approved: 'approved', rejected: 'rejected', delayed: 'del
  */
 export function planFacts(room: Room, moment: 'select' | 'resolved' | 'final'): Record<string, unknown> {
   const m = room.plan;
-  const base: Record<string, unknown> = { city: 'Miami Beach, Florida', game: 'Coastal Clash planning session', round: room.round, of: PLAN_ROUNDS };
+  const base: Record<string, unknown> = { city: 'Miami Beach, Florida', game: 'consensusclub planning session', round: room.round, of: PLAN_ROUNDS };
   if (!m) return base;
   const sc = (m.cur?.scenario ?? scenarioForRound(Math.max(1, room.round)));
   const story = {

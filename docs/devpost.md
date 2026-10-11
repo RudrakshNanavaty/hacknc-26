@@ -1,6 +1,6 @@
-# Coastal Clash — Devpost project context
+# consensusclub — Devpost project context
 
-Primary source for the project's public narrative, supplied by the project author on October 11, 2026. The text below preserves that context with Markdown formatting. Checkout-specific setup and verification are documented separately in [implementation notes](implementation-notes.md).
+Primary source for the project's public narrative, supplied by the project author on October 11, 2026. The text below preserves that context with Markdown formatting and the project's updated name, consensusclub. Checkout-specific setup and verification are documented separately in [implementation notes](implementation-notes.md).
 
 ## Inspiration
 
@@ -18,11 +18,11 @@ Those are good results, and they made us curious about a different question: wha
 
 Miami Beach gave us a real place to try it. In 2025 the city adopted a Sea Level Rise Adaptation Plan that identified more than 67,000 vulnerable assets, and the underlying work was backed by a $454,000 Resilient Florida grant and $100,000 in city matching funds. The West Avenue Neighborhood Improvements project has a published budget of $100,229,771 and involves raised roads, stormwater pumping, new utilities, and a problem called harmonization: connecting newly raised public streets to existing private properties so people can still get in and out safely.
 
-That is a real, expensive, complicated decision about a real neighborhood. We started wondering what it would be like to play that conflict as a card game, something like a round of Clash Royale. That became Coastal Clash.
+That is a real, expensive, complicated decision about a real neighborhood. We started wondering what it would be like to play that conflict as a card game, something like a round of Clash Royale. That became consensusclub.
 
 ## What it does
 
-Coastal Clash is a four player strategy game about real coastal planning fights. The map is Miami Beach, with four mapped areas: South Pointe, West Avenue, Collins/Mid-Beach, and North Beach Oceanside. A match plays three real fights in three of those places, so each round is a different kind of problem.
+consensusclub is a four player strategy game about real coastal planning fights. The map is Miami Beach, with four mapped areas: South Pointe, West Avenue, Collins/Mid-Beach, and North Beach Oceanside. A match plays three real fights in three of those places, so each round is a different kind of problem.
 
 Each player has a role with something at stake:
 
@@ -57,7 +57,7 @@ After round three the game shows **Your Miami Beach Plan**: the places you playe
 
 ### What stays after the match
 
-A normal vote tells you which option won. Coastal Clash saves a much fuller record:
+A normal vote tells you which option won. consensusclub saves a much fuller record:
 
 - the real issue and its map location
 - the project each player picked
@@ -118,7 +118,7 @@ Glossy collectible cards, aqua glass panels, animated 3D character miniatures, a
 
 - **General track.** The whole project.
 - **Frutiger Aero Tech.** The look is the point. The bubbles, glass panels, blue water, and green pill buttons sit on top of real ocean and flood data: FEMA flood zones, NOAA tide levels, and sea level rise planning. We wanted public planning to look like the optimistic future people used to get excited about, instead of a PDF.
-- **Community.** Coastal Clash is a tool for residents, local groups, and planners to argue about a neighborhood's future together, and it keeps what people negotiated so the conversation continues after the match.
+- **Community.** consensusclub is a tool for residents, local groups, and planners to argue about a neighborhood's future together, and it keeps what people negotiated so the conversation continues after the match.
 - **Best Use of Gemini API.** Gemini is used at both ends of the project. First, it powers the multi agent research swarm that does scenario and story research: scouting planning agendas and project pages, matching proposals to places, pulling documented arguments, and checking numbers against the documents. Second, it processes the swarm's output from Snowflake into the game: it writes each round's setup, casts the real stakeholders onto the four roles (scenario casting), and choreographs the scene, including the news anchor's line after each moment and the speech bubbles for the characters on the map. It is boxed in. It only gets verified facts, any line containing a number that is not in those facts is thrown away and replaced by a template line, and it never decides votes, verdicts, or points.
 - **Best Use of ElevenLabs.** The news anchor and each character have their own voice. The anchor reads the headline and your character speaks their lines, so the match plays as a scene you can listen to.
 - **Best Use of Snowflake API.** Snowflake is where the research swarm's output lives and the input for everything Gemini does next. Each research item carries its facts, documented positions, location, source URLs, and verification notes. The server reads it through the Snowflake SQL API, and Gemini turns it into scenarios, casting, and choreography. Game scenarios are checked against that research in tests, so a number or link in a round has to match what the swarm found.
@@ -154,7 +154,7 @@ We thought the hard part would be getting a whole city into a game. It turned ou
 
 We also learned how much city information is public but hard for an ordinary person to find and read, and that making it current, linked to its source, and tied to a place is a big part of the work. And we learned to give AI the jobs it is good at, which are finding, organizing, and explaining information, and not to have it pose as a city engineer or as the public.
 
-## What's next for Coastal Clash
+## What's next for consensusclub
 
 Run it in a real participatory planning workshop with residents and planning researchers. Check whether players understand the projects behind each card, have domain experts review the simulator's assumptions, and see whether the format surfaces conditions that a questionnaire misses. We also want to take the contribution cards from prototype to a real partner, with a city or planning group acting as the authority that recognizes useful input. After that, point the research swarm at other cities and other kinds of conflict, such as transportation, housing, public space, and utilities, knowing each city brings its own data and rules.
 

@@ -86,7 +86,7 @@ export function geminiDirector(gemini: Gemini, timeoutMs = 8_000): Director | nu
   return {
     async dialogue(facts, speakers, moment) {
       const { lines } = await gemini.json<{ lines: unknown[] }>({
-        system: `You write speech bubbles for characters standing on the map in "Coastal Clash", a playful city-planning game.
+        system: `You write speech bubbles for characters standing on the map in "consensusclub", a playful city-planning game.
 ${PERSONAS_TEXT}
 Write at most one line per character listed in "speakers": 8 to 15 words, in character, funny and warm, general-audience safe.
 React to the current moment (${moment}): the crisis, the cards just played, the deals on the table, or what was decided.
@@ -123,7 +123,7 @@ ${GROUNDED}`,
     async event(facts, round, fired) {
       const allowed = allowedEvents(fired);
       return gemini.json<unknown>({
-        system: `You are the Game Director of "Coastal Clash", a city-planning game on real Miami Beach data. Propose ONE twist for round ${round} that raises the tension in an interesting, fair way.
+        system: `You are the Game Director of "consensusclub", a city-planning game on real Miami Beach data. Propose ONE twist for round ${round} that raises the tension in an interesting, fair way.
 Choose the type and a place from "allowed" only, a magnitude from ${EVENT_RULES.magnitude.min} to ${EVENT_RULES.magnitude.max}, and write a one-sentence narrative (no numbers, under 25 words) in the playful voice of the game's narrator.
 - This is game fiction: never present it as a real event, forecast, alert or "breaking" news, and never name real agencies (NOAA, NWS, FEMA). The game computes all effects; do not state any.
 ${GROUNDED}`,
@@ -146,7 +146,7 @@ ${GROUNDED}`,
 
     async hints(facts, hints, reach) {
       const out = await gemini.json<{ suggestions: unknown[]; combos: unknown[] }>({
-        system: `You coach the whole negotiating table in "Coastal Clash" (everyone sees the same hints). The game engine has already found which moves would change an outcome ("hints") and which authored combos are within reach ("reach").
+        system: `You coach the whole negotiating table in "consensusclub" (everyone sees the same hints). The game engine has already found which moves would change an outcome ("hints") and which authored combos are within reach ("reach").
 Rewrite each hint as a short, friendly pitch (under 30 words) that names who could do it and what would change. Never invent a move, a combo or an effect; only use the hint ids and combo ids given. Players decide; you only point things out.
 For combos in reach, explain in one sentence why the pairing works. If you think of a new combo that is not in the list, put it in "novelIdea" (it will be reviewed by a designer, never played).
 ${GROUNDED}`,
@@ -170,7 +170,7 @@ ${GROUNDED}`,
 
     async explain(e) {
       const { answer } = await gemini.json<{ answer: string }>({
-        system: `You explain a rule of "Coastal Clash", a planning game on real Miami Beach data, to a player in two plain sentences (under 60 words). Use only the facts given: the game's rules and the real zoning and FEMA measurements. Do not add science, economics or advice.
+        system: `You explain a rule of "consensusclub", a planning game on real Miami Beach data, to a player in two plain sentences (under 60 words). Use only the facts given: the game's rules and the real zoning and FEMA measurements. Do not add science, economics or advice.
 ${GROUNDED}`,
         prompt: JSON.stringify({ question: e.question, answer: e.answer, facts: e.facts }),
         schema: { type: 'object', properties: { answer: { type: 'string' } }, required: ['answer'] },

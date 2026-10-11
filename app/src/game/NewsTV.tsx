@@ -135,7 +135,7 @@ function crawlItems(state: RoomState): string[] {
     const sc = scenarioById2(state.plan.scenarioId);
     const last = state.plan.rounds.at(-1);
     return [
-      sc ? `Round ${state.round} of ${state.totalRounds}: ${sc.title}` : 'Coastal Clash planning session',
+      sc ? `Round ${state.round} of ${state.totalRounds}: ${sc.title}` : 'consensusclub planning session',
       ...(sc ? sc.facts.slice(0, 3) : []),
       last ? `Round ${last.round}: ${last.verdict}` : '',
       'Real Miami Beach stories, sourced and checked',
@@ -188,7 +188,7 @@ export function NewsTV({ state, open, setOpen, quiet = false }: { state: RoomSta
   const crisisPhase = state.phase === 'crisis';
   const headline = state.headline;
   // The crisis title leads while the crisis lands; after that the narrator's line is the news.
-  const text = (crisisPhase ? c?.title : headline?.text ?? c?.title) ?? (state.plan ? 'Coastal Clash Live: the planning session is on' : 'Checking Miami Beach right now…');
+  const text = (crisisPhase ? c?.title : headline?.text ?? c?.title) ?? (state.plan ? 'consensusclub Live: the planning session is on' : 'Checking Miami Beach right now…');
   const live = !crisisPhase && headline?.source === 'gemini';
   const label = crisisPhase ? 'Breaking' : kind ? `${kind.label} alert` : 'Live desk';
 
@@ -218,7 +218,7 @@ export function NewsTV({ state, open, setOpen, quiet = false }: { state: RoomSta
       <div className={`tv-zone ${quiet ? 'is-quiet' : ''}`}>
         <button
           type="button" className="tv hud-block" onClick={() => setOpen(!open)} aria-expanded={open} aria-controls="news-drawer"
-          aria-label="Coastal Clash Live news desk. Show details"
+          aria-label="consensusclub Live news desk. Show details"
         >
           <span className="tv-face" aria-hidden>
             <span className="tv-face-clip">
@@ -227,7 +227,7 @@ export function NewsTV({ state, open, setOpen, quiet = false }: { state: RoomSta
               </svg>
               <AnchorFigure talking={talking} />
               <span className="tv-live"><i />LIVE</span>
-              <span className="tv-net">Coastal Clash News</span>
+              <span className="tv-net">consensusclub News</span>
             </span>
             <span className="tv-ring" />
           </span>

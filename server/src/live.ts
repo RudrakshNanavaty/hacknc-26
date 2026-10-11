@@ -9,7 +9,7 @@ const NOAA = 'https://api.tidesandcurrents.noaa.gov';
 const NWS_POINT = 'https://api.weather.gov/points/25.79,-80.13';
 const TTL_MS = 10 * 60 * 1000;
 const TIMEOUT_MS = 8_000;
-const UA = { 'User-Agent': process.env.NWS_USER_AGENT || 'coastal-clash (HackNC 2026 planning game)' };
+const UA = { 'User-Agent': process.env.NWS_USER_AGENT || 'consensusclub (HackNC 2026 planning game)' };
 
 async function json<T>(url: string, headers: Record<string, string> = {}): Promise<T> {
   const r = await fetch(url, { headers, signal: AbortSignal.timeout(TIMEOUT_MS) });
@@ -23,7 +23,7 @@ const r2 = (n: number) => Math.round(n * 100) / 100;
 async function tide(): Promise<LiveConditions['tide']> {
   const now = new Date();
   const week = new Date(now.getTime() + 6 * 864e5);
-  const q = `station=${STATION}&datum=MLLW&units=english&time_zone=lst_ldt&format=json&application=coastal-clash`;
+  const q = `station=${STATION}&datum=MLLW&units=english&time_zone=lst_ldt&format=json&application=consensusclub`;
   const [latest, preds, levels, datums] = await Promise.all([
     json<{ metadata?: { name: string }; data?: { t: string; v: string }[] }>(`${NOAA}/api/prod/datagetter?date=latest&product=water_level&${q}`).catch(() => null),
     json<{ predictions: { t: string; v: string; type: 'H' | 'L' }[] }>(`${NOAA}/api/prod/datagetter?begin_date=${ymd(now)}&end_date=${ymd(week)}&product=predictions&interval=hilo&${q}`),

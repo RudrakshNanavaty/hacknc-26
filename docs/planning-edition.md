@@ -48,7 +48,7 @@ One screen opens each round (the real story, your goal, how points work, three c
 
 ## The news desk and the characters
 
-Kept. The Coastal Clash anchor, the crawl and the map speech bubbles run in the Planning Edition. Gemini words the anchor's line and the characters' bubbles from `planFacts()` (the real story and what the rules decided); a line with a number outside those facts is dropped and the template line stays, and ElevenLabs reads the headline and your own character's line. None of it decides a vote, a verdict or a point. With no Gemini or ElevenLabs credit the game runs on template lines and silence.
+Kept. The consensusclub anchor, the crawl and the map speech bubbles run in the Planning Edition. Gemini words the anchor's line and the characters' bubbles from `planFacts()` (the real story and what the rules decided); a line with a number outside those facts is dropped and the template line stays, and ElevenLabs reads the headline and your own character's line. None of it decides a vote, a verdict or a point. With no Gemini or ElevenLabs credit the game runs on template lines and silence.
 
 ## The simulator
 

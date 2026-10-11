@@ -1,4 +1,4 @@
--- Coastal Clash on Tiger Data (TimescaleDB). Idempotent: the server runs this on every start.
+-- consensusclub on Tiger Data (TimescaleDB). Idempotent: the server runs this on every start.
 -- Statements are split on a semicolon at the end of a line, so keep semicolons out of the middle.
 -- Tables are prefixed cc_ so they can share a database with other projects.
 

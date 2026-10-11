@@ -1,4 +1,4 @@
-// Builds Coastal Clash's Miami Beach data from the live public GIS services (bun run data).
+// Builds consensusclub's Miami Beach data from the live public GIS services (bun run data).
 //
 //   1. Queries each ArcGIS layer for the Miami Beach area only (never the whole county), in WGS84.
 //   2. Caches the raw answers in pipeline/cache/ (so a rebuild works offline), with the fetch time.

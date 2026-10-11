@@ -1,4 +1,4 @@
-# Coastal Clash: agent instructions
+# consensusclub: agent instructions
 
 Several people and coding agents work in this repo during HackNC 2026. Follow this file.
 

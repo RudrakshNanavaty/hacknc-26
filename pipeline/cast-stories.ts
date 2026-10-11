@@ -25,7 +25,7 @@ const all = process.argv.includes('--all');
 // Approved in Snowflake: everything checked or resolved (the 3 conflicts stay out).
 const approved = (s: (typeof corpus.items)[number]) => s.verification.status !== 'conflict' && s.scope !== 'new-area';
 
-const SYSTEM = `You are the casting agent of "Coastal Clash", a four-player city-planning card game set in the real city of Miami Beach. You map a REAL civic story onto the game's fixed cast so a round of play re-enacts its real tensions.
+const SYSTEM = `You are the casting agent of "consensusclub", a four-player city-planning card game set in the real city of Miami Beach. You map a REAL civic story onto the game's fixed cast so a round of play re-enacts its real tensions.
 The cast: Mayor (pragmatic, budget-wary, politically cautious, dry humor), Environmental Activist (habitat and the long term, passionate but willing to deal), Resort Owner (ambitious, persuasive, a bit opportunistic), Resident (affordability, safety, getting to the beach; tired of flooded streets), and the Fisherman (not a player: working waterfront, clean water, direct and witty).
 For each character:
 - counterpart: the real person or group from the story's "sides" they stand in for, copied from "who", or "none" if no side fits. Never invent real people.

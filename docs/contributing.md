@@ -1,4 +1,4 @@
-# Coastal Clash: developer guide
+# consensusclub: developer guide
 
 How to set up, find your way around, make the common changes, and verify them. Read this after
 [`AGENTS.md`](../AGENTS.md) (the rules) and [`progress/map-board.md`](progress/map-board.md) (where the branch stands).

@@ -5,6 +5,16 @@ work. The game itself (Planning Edition, rules `planning-1.0.0`) is described in
 earlier map-board history is in [`map-board.md`](map-board.md) and [`coastal-clash-evolution.md`](coastal-clash-evolution.md).
 Last updated 2026-10-11.
 
+## Project rename (2026-10-11)
+
+- The project is now **consensusclub**, exactly as specified by the user: lowercase, one word.
+- Updated app titles and accessible names, news-desk branding and fallback text, AI prompt identities, export filenames,
+  the root package name and lockfile, and current project documentation. The README screenshot is refreshed with the new name.
+- Retained existing rule-version strings, room/sound storage keys, Snowflake schema, ledger memo prefixes, workspace identifiers,
+  and hosting service identifier for compatibility. Historical branch names and documentation paths are unchanged.
+- Verified: workspace typechecking, all 215 tests across 20 files, and production build pass. Chromium checks cover landing,
+  onboarding, and lobby at 1440×900, 1280×720, and 390×844, including room creation, branding fit, and page overflow.
+
 ## Devpost narrative alignment (2026-10-11)
 
 - Follow-up: removed all Devpost-context and implementation-notes references from the main README at the user's request.

@@ -1,4 +1,4 @@
--- Coastal Clash civic corpus: paste into a Snowsight worksheet and Run All.
+-- consensusclub civic corpus: paste into a Snowsight worksheet and Run All.
 USE WAREHOUSE COMPUTE_WH;
 
 CREATE DATABASE IF NOT EXISTS COASTAL_CLASH;

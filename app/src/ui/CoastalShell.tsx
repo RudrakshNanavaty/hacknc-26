@@ -6,7 +6,7 @@ import { Seascape } from './FloatingBubbles';
 export function CoastalBrand({ large = false }: { large?: boolean }) {
   return <span className={`coastal-brand${large ? ' coastal-brand-large' : ''}`}>
     <span className="coastal-brand-icon" aria-hidden>🌊</span>
-    <span className="hero-title">Coastal Clash</span>
+    <span className="hero-title">consensusclub</span>
   </span>;
 }
 
@@ -14,7 +14,7 @@ export function CoastalShell({ children, roomCode }: { children: ReactNode; room
   return <main className="coastal-shell seascape">
     <Seascape />
     <header className="coastal-header coastal-width">
-      <Link to="/" className="coastal-home" aria-label="Coastal Clash home"><CoastalBrand /></Link>
+      <Link to="/" className="coastal-home" aria-label="consensusclub home"><CoastalBrand /></Link>
       {roomCode ? <span className="coastal-badge">Room <b>{roomCode}</b></span>
         : <span className="coastal-badge">Miami Beach, Florida</span>}
     </header>

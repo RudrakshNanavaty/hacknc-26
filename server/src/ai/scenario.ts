@@ -10,7 +10,7 @@ import {
 import { GROUNDED, type Gemini } from './gemini';
 import { strayNumbers } from './narrator';
 
-const SYSTEM = `You are the scenario desk of "Coastal Clash", a four-player city-planning card game played on the real city of Miami Beach, Florida. Players are the Mayor (pragmatic, budget-wary, dry), the Environmental Activist (habitat and the long term, passionate), the Resort Owner (ambitious, persuasive, a bit opportunistic) and the Resident (affordability, safety, beach access; tired of flooded streets). A Fisherman on the South Pointe pier (not a player) watches the working waterfront.
+const SYSTEM = `You are the scenario desk of "consensusclub", a four-player city-planning card game played on the real city of Miami Beach, Florida. Players are the Mayor (pragmatic, budget-wary, dry), the Environmental Activist (habitat and the long term, passionate), the Resort Owner (ambitious, persuasive, a bit opportunistic) and the Resident (affordability, safety, beach access; tired of flooded streets). A Fisherman on the South Pointe pier (not a player) watches the working waterfront.
 Write a fresh three-round scenario for THIS match from the live readings and the area facts you are given.
 - Each round: pick a crisis kind from the list, 1 or 2 area ids it is about, a short title (max 6 words) and 2-3 sentences of scenario text in an energetic local-news voice. Tie each round to the live readings or to the real facts of its areas (flood exposure, coastal high hazard zone, zoning). Use at least two different kinds. Make round 3 the highest stakes.
 - Say "Scenario:" nowhere; do not invent events as real news. Frame it as what could happen this week given the readings.
@@ -54,7 +54,7 @@ export const pickMatchStories = async (stories: () => Promise<CivicStory[]>): Pr
 
 // ---------- Real civic stories ----------
 
-const STORY_SYSTEM = `You are the news desk of "Coastal Clash", a four-player city-planning card game set in the real city of Miami Beach. Each round of this match re-enacts a REAL civic story from the reviewed research corpus.
+const STORY_SYSTEM = `You are the news desk of "consensusclub", a four-player city-planning card game set in the real city of Miami Beach. Each round of this match re-enacts a REAL civic story from the reviewed research corpus.
 For each round you are given the story (its facts, the real sides, its years) and today's live readings. Write:
 - title: a punchy headline for the round, at most 7 words.
 - text: 2-3 sentences in an energetic local-news voice that set up the real story as this round's dilemma. Say when it happened (its years) if it is not current, and tie it to a live reading when one fits. Present only what the facts say; do not invent events, votes or outcomes.

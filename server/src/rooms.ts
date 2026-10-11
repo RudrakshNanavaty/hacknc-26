@@ -1,4 +1,4 @@
-// The Coastal Clash room state machine (pattern from Mayday Mayor / pocket-rivals, MIT): synchronous
+// The consensusclub room state machine (pattern from Mayday Mayor / pocket-rivals, MIT): synchronous
 // actions validate and record input, tick(room, now) moves time. No sockets and no I/O in here, so
 // it is easy to test; roomSocket.ts wires it to /ws/rooms/:code and drains room.effects (save the
 // record, ask the narrator) after every change.
@@ -301,7 +301,7 @@ function enterCrisis(room: Room, now: number): void {
   room.eventApplied = null;
   if (room.crisis) showCrisis(room, now);
   else {
-    room.headline = { text: 'Coastal Clash Live is checking the tide gauge and the forecast for Miami Beach…', source: 'template', key: 'crisis-wait' };
+    room.headline = { text: 'consensusclub Live is checking the tide gauge and the forecast for Miami Beach…', source: 'template', key: 'crisis-wait' };
     room.endsAt = now + (room.pace === 'sprint' ? SPRINT_SCENARIO_WAIT_MS : SCENARIO_WAIT_MS);
   }
   touch(room, now);

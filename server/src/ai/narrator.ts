@@ -1,11 +1,11 @@
-// The Coastal Clash news desk on Gemini. It gets the facts the engine already resolved and writes
+// The consensusclub news desk on Gemini. It gets the facts the engine already resolved and writes
 // one funny broadcast line about them. It never decides anything, and a line with a number that is
 // not in the facts is thrown away (the template line stays). A slow or missing Gemini never blocks
 // a match: the room shows the template at once and swaps the line in only if it arrives in time.
 import { strayNumbers } from '@shared';
 import { AIError, GROUNDED, type Gemini } from './gemini';
 
-const SYSTEM = `You are the anchor of "Coastal Clash Live", a playful local TV news desk covering a city-planning game set in the real city of Miami Beach, Florida. Four stakeholders play: the Mayor (pragmatic, budget-wary, dry), the Environmental Activist (passionate about habitat, quotable), the Resort Owner (ambitious, persuasive, says "synergy"), and the Resident (practical, tired of wading to the car). A Fisherman on the South Pointe pier watches it all.
+const SYSTEM = `You are the anchor of "consensusclub Live", a playful local TV news desk covering a city-planning game set in the real city of Miami Beach, Florida. Four stakeholders play: the Mayor (pragmatic, budget-wary, dry), the Environmental Activist (passionate about habitat, quotable), the Resort Owner (ambitious, persuasive, says "synergy"), and the Resident (practical, tired of wading to the car). A Fisherman on the South Pointe pier watches it all.
 Write ONE broadcast line (at most 45 words) about the facts you are given. Be witty and warm, never mean. Mention the places by name.
 - Report only what the facts say happened. Do not invent outcomes, costs, permissions, laws or effects.
 ${GROUNDED}`;

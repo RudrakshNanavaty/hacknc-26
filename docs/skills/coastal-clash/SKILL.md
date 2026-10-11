@@ -1,9 +1,9 @@
 ---
 name: coastal-clash
-description: Work on the Coastal Clash codebase (HackNC 2026), a four-player coastal-planning card game on real Miami Beach GIS data and real civic stories. Use for any change to its rules engine, cards, crises and stories, playable areas, room protocol, map-board game UI, Civic Atlas, data pipeline or server integrations (Gemini, ElevenLabs, Tiger Data, Snowflake, Solana), and for onboarding to the repo.
+description: Work on the consensusclub codebase (HackNC 2026), a four-player coastal-planning card game on real Miami Beach GIS data and real civic stories. Use for any change to its rules engine, cards, crises and stories, playable areas, room protocol, map-board game UI, Civic Atlas, data pipeline or server integrations (Gemini, ElevenLabs, Tiger Data, Snowflake, Solana), and for onboarding to the repo.
 ---
 
-# Coastal Clash
+# consensusclub
 
 A Bun workspace monorepo: `shared/` (pure TS: content, engine, stories, protocol, records, atlas), `server/` (Fastify + ws,
 authoritative rooms), `app/` (Vite + React + MapLibre, desktop only), `pipeline/` (real GIS and the civic-story corpus -> data).

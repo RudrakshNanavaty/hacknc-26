@@ -56,7 +56,7 @@ if (process.argv.includes('--sql')) {
   if (items.includes('$$')) throw new Error('corpus contains $$; cannot dollar-quote');
   const sql = statements(`$$${items}$$`).map((s) => `${s};`).join('\n\n');
   const out = join(HERE, 'research', 'load.sql');
-  writeFileSync(out, `-- Coastal Clash civic corpus: paste into a Snowsight worksheet and Run All.\nUSE WAREHOUSE ${process.env.SNOWFLAKE_WAREHOUSE || 'COMPUTE_WH'};\n\n${sql}\n`);
+  writeFileSync(out, `-- consensusclub civic corpus: paste into a Snowsight worksheet and Run All.\nUSE WAREHOUSE ${process.env.SNOWFLAKE_WAREHOUSE || 'COMPUTE_WH'};\n\n${sql}\n`);
   console.log(`wrote ${out}`);
   process.exit(0);
 }
@@ -79,7 +79,7 @@ async function run(statement: string, bind: boolean) {
       'x-snowflake-authorization-token-type': 'PROGRAMMATIC_ACCESS_TOKEN',
       'content-type': 'application/json',
       accept: 'application/json',
-      'user-agent': 'coastal-clash-loader/0.1',
+      'user-agent': 'consensusclub-loader/0.1',
     },
     body: JSON.stringify({
       statement,

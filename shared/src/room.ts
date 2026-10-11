@@ -1,4 +1,4 @@
-// Coastal Clash rooms: four stakeholders, one real city, three rounds. The player who opens the
+// consensusclub rooms: four stakeholders, one real city, three rounds. The player who opens the
 // room hosts it (starts the match, can skip a phase, can fill empty seats with bots).
 // Wire protocol for /ws/rooms/:code. JSON messages, one per WebSocket frame.
 import type { CardId, NegotiationMove, PersonaId } from './game/content';
