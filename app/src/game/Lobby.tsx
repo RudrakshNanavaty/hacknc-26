@@ -54,8 +54,8 @@ export function JoinForm({ room, create }: { room: Room; create: boolean }) {
         <PersonaPicker taken={taken} value={persona} onPick={setPersona} />
       </fieldset>
       {persona && (
-        <div className="flex flex-wrap items-end gap-2">
-          {handOf(persona).map((c) => <GameCard key={c} id={c} compact />)}
+        <div className="flex flex-wrap items-end gap-3 pt-2">
+          {handOf(persona).map((c) => <GameCard key={c} id={c} size="lg" />)}
           <p className="w-full text-13 opacity-70">Your deck: each crisis deals you 4 of these 6.</p>
           <p className="max-w-[16rem] text-13 opacity-80">{PERSONA_INFO[persona].voice}</p>
         </div>
