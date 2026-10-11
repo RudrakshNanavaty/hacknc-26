@@ -3,7 +3,7 @@
 // arrives (or if it never does) the window shows a drawn placeholder in the deck's color. Static
 // things (the negotiation moves, Pass) use a flat glyph instead and never ask for a picture.
 import { useEffect, useState } from 'react';
-import { CARDS, PERSONA_INFO, type CardId } from '@shared';
+import { CARDS, CARD_ART_STYLE, PERSONA_INFO, type CardId } from '@shared';
 import { useCrisis } from './story';
 
 const RETRY_MS = [20_000, 50_000];
@@ -32,13 +32,12 @@ export function GlyphIcon({ glyph, className = '' }: { glyph: Glyph; className?:
 /** Where a card's picture comes from this round: its name in the story, the area and the story itself. */
 export function useArtUrl(id: CardId): string {
   const crisis = useCrisis();
-  const q = new URLSearchParams();
+  const q = new URLSearchParams({ s: CARD_ART_STYLE });
   const skin = crisis?.skins?.[id]?.name;
   if (skin) q.set('skin', skin);
   if (crisis?.spotlight[0]) q.set('place', crisis.spotlight[0]);
   if (crisis?.story?.title) q.set('story', crisis.story.title);
-  const s = q.toString();
-  return `/api/card-art/${id}${s ? `?${s}` : ''}`;
+  return `/api/card-art/${id}?${q.toString()}`;
 }
 
 /** The window itself. Fills its parent's width at 4:3 (set `className` to size it). */

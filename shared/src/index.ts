@@ -10,3 +10,4 @@ export * from './game/living';
 export * from './game/narrate';
 export * from './game/record';
 export * from './game/proof';
+export * from './cardArt';

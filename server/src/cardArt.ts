@@ -9,12 +9,10 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { FastifyInstance } from 'fastify';
-import { CARDS, DISTRICT_IDS, districtById, type Card, type CardId } from '@shared';
+import { CARDS, CARD_ART_STYLE, DISTRICT_IDS, districtById, type Card, type CardId } from '@shared';
 import type { Gemini } from './ai/gemini';
 
 const DIR = join(dirname(fileURLToPath(import.meta.url)), '..', '.cache', 'card-art');
-/** Bump to repaint every card (the look changed). */
-const STYLE_VERSION = 'v5';
 const CONCURRENCY = 3;
 const MEMORY_MAX = 120;
 const FAIL_TTL_MS = 45_000;
@@ -69,7 +67,7 @@ export function cardArtPrompt(card: Card, theme: ArtTheme = {}): string {
   ].join(' ');
 }
 
-const keyFor = (id: CardId, t: ArtTheme) => createHash('sha1').update(`${STYLE_VERSION}|${id}|${t.skin ?? ''}|${t.place ?? ''}|${t.story ?? ''}`).digest('hex').slice(0, 24);
+const keyFor = (id: CardId, t: ArtTheme) => createHash('sha1').update(`${CARD_ART_STYLE}|${id}|${t.skin ?? ''}|${t.place ?? ''}|${t.story ?? ''}`).digest('hex').slice(0, 24);
 
 export function registerCardArt(app: FastifyInstance, gemini: Gemini, opts: { dir?: string | null } = {}) {
   const dir = opts.dir === undefined ? DIR : opts.dir;
