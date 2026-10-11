@@ -38,7 +38,10 @@ shared/src/               Pure TypeScript, no I/O. Imported as '@shared' by app 
   game/engine.ts            buildBoard -> resolveRound -> finalResult, bots             [contract]
   game/narrate.ts           template headlines + the facts handed to Gemini
   game/living.ts            scenario roles (Fisherman), reaction vocabulary -> avatar moods, template speech bubbles
-  game/economy.ts           previews (projectPreview) and what the city owes next round (upcomingCosts)
+  game/economy.ts           previews (projectPreview), the next bill (billFor), affordability, agreementPreview
+  game/money.ts             wallets, debts, scheduled payments, reserves, the ledger; Books is the only way money moves
+  game/agreements.ts        authored agreement terms (fixed at the reveal), committed money, checkFund / checkAfford
+  game/cardfacts.ts         every card face derived from the rules (the UI renders it, never types it)
   game/scenario.ts          crisis kinds and their authored K1 bonus, live readings, the authored scenario, checkScenario
   game/director.ts          Director validators (dialogue, twists, hints, combos, explanations), twist catalogue, strayNumbers
   game/record.ts            MatchRecord, Planning Studio aggregation, CSV/GeoJSON      [contract]
@@ -51,6 +54,9 @@ server/src/
   ai/director.ts            the Gemini Game Director: public-state facts, structured prompts, 8 s timeouts (proposes only)
   ai/scenario.ts            the scenario desk: Gemini writes each match's three crises and card quips (number-checked)
   live.ts                   NOAA Virginia Key tide gauge + NWS forecast, cached 10 min, each part fails soft; GET /api/live
+  bank/nessie.ts            the Nessie client (key server side, redacted errors, error kinds: uncertain vs final vs auth)
+  bank/mirror.ts            BankMirror: provision 8 fictional accounts once, idempotent outbox, reconcile uncertain writes
+  bank/store.ts             account map + outbox: Tiger Data (cc_bank_accounts, cc_bank_sync) or memory
   voice.ts                  ElevenLabs TTS with a disk cache
   db/store.ts, db/tiger.ts, db/schema.sql   MemoryStore or Tiger Data (Postgres) behind failSoft
 app/src/
@@ -61,7 +67,8 @@ app/src/
   game/insights.tsx         what the rules and the Director add to the screens: twist card, Why?, hints, previews,
                             if-it-passes, combos, recap, card extras, the round's bill, tweened numbers
   game/Deck.tsx             the dealt hand (handFor: 4 of 6) and drag-to-deploy; GameCard.tsx (character card + mini card)
-  game/Hud.tsx, ui.tsx      meters (gel tubes), timer orb, player bubbles; Aero Lagoon pieces (Tube, Soap, Pips)
+  game/Hud.tsx, ui.tsx      meters (gel tubes), timer orb, player bubbles, wallet pills; Aero Lagoon pieces (Tube, Soap, Pips)
+  game/money.tsx            agreement card, ledger panel with sync status, loan card, money toasts, round money
   game/Lobby.tsx, Players.tsx, Flights.tsx (card flights + verdict stamps + bloom numbers)
   map/CityMap.tsx, basemap.ts   tilted 3D street map (OpenFreeMap tiles), FEMA water, zoning and satellite toggles,
                             areas, chips, pins, spotlight
@@ -167,6 +174,14 @@ and the number check in `server/src/ai/scenario.ts`.
 - Indicator values are illustrative and budgets hypothetical: keep the label next to any number you add.
 - Theme: reuse classes in `styles.css` (`glass`, `aero-btn`, `chip`, …) and colors from `tokens.ts`.
 
+### Change money (amounts, wallets, agreements)
+- Starting wallets: `START_WALLETS` in `game/money.ts`; the start budget is `START_INDICATORS.budget` in `content.ts` (they must agree).
+- Agreement amounts and strings: `AGREEMENTS` in `content.ts` (and the card's `rule` text). Terms are built in `agreementTerms`.
+- A new agreement type: `AgreementType` + `AGREEMENTS`, the card's `agreement`, `offersAgreement` (which projects it fits), its
+  execution in `resolveRound` (funding chain or the other-agreements pass), a template line in `DEAL_LINES` (living.ts), and tests in
+  `money.test.ts`. Money must move only through `Books`; every movement needs a rule id. Bump `RULES_VERSION`.
+- Never add a path that changes `indicators.budget` directly: the meter mirrors the city wallet (a test checks it every round).
+
 ### Add a twist type
 Add it to `EVENT_TYPES` and `DIRECTOR_EVENTS` in `shared/src/game/director.ts`: title, `perMagnitude` (small, illustrative), resilience,
 `where` (a rule on the real district facts), a template narrative without numbers, and the map `fx`. Optionally add it to
@@ -213,6 +228,10 @@ Schema changes go in `server/src/db/schema.sql`, written idempotently (`IF NOT E
 | Avatars or effects pile up in one corner of the map | Something set `position` or animated `transform` on a MapLibre marker's root element. Animate a child instead. |
 | Studio is empty after a restart | The memory store is not persistent. Set `DATABASE_URL` for Tiger Data. |
 | `npm run data` fails | The GIS services are down or rate-limited. Run it without `--refresh` to use the cache; the committed data still works. |
+| `/api/bank` says `paused` | Nessie refused the key (auth). Fix `NESSIE_API_KEY` and restart; pending items resume. The game is unaffected. |
+| Ledger entries stay "checking" | A write timed out; the mirror reads the payer's records for the `[cc:match:entry]` marker before it sends again. |
+| A different set of CoastalClash accounts appeared | Nessie answers an unknown key with an empty namespace (200), not an error: a mistyped key provisions a fresh eight. |
+| Money looks wrong | The engine's ledger is the truth: open 📒, or `RoundRecord.ledger` in a record. Nessie balances never move (its transfers are records only). |
 
 ## 8. Deploying
 

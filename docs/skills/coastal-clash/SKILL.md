@@ -32,7 +32,17 @@ Product and rules: `docs/coastal-clash.md`. Hard rules: `AGENTS.md`.
 - **Keep data kinds apart:** in-role choices, personal preferences (`responses`), demo vs community sessions, and bot vs human.
 - **Fail soft.** Missing keys, a slow API or a database outage must never break a match.
 - **No side effects in `rooms.ts`.** Push an `Effect`; `roomSocket.ts` drains it.
-- **No secrets.** Keys come only from `.env`.
+- **No secrets.** Keys come only from `.env`. The Nessie key is server side only and never logged (`NessieClient` redacts it).
+- **Money: the ledger decides, Nessie mirrors.** All money moves through `Books` (`shared/src/game/money.ts`) in integer cents
+  and gets a rule id. No negative wallet except the simulated lender and grants; a bill the city cannot pay is arrears (B3).
+  The budget meter always equals the city wallet. Never change `indicators.budget` directly.
+- **Agreements are authored, never free-form.** Terms come from `AGREEMENTS` at the reveal; money moves only if the project is
+  approved and the payer can pay then; a wallet cannot promise money twice (`committed`, `checkAfford`, `checkFund`); never trust
+  an amount or an account id from a client or the model.
+- **The mirror is non-fatal and honest.** Turns never wait on it; its status is separate from outcomes; an uncertain write is
+  reconciled by reading (the `[cc:...]` marker), never resent blindly; only the eight fictional CoastalClash accounts are written.
+  Tests never reach Nessie: pass `bank: { client: new NessieClient({ fetch: fake ... }) }` or nothing (off).
+- **Replays never call Nessie or Gemini.**
 
 ## Where to change what
 
@@ -50,6 +60,10 @@ Product and rules: `docs/coastal-clash.md`. Hard rules: `AGENTS.md`.
 | DB | `server/src/db/schema.sql` (idempotent, `cc_` prefix), `db/tiger.ts`, `MemoryStore` in `db/store.ts` |
 | AI Director | prompts `server/src/ai/director.ts`; validators/catalogue `shared/src/game/director.ts`; apply `rooms.ts` (`applyDialogue`, `proposeEvent`, `applyHints`); wiring `roomSocket.ts` `drain` |
 | Avatars, bubbles, map fx | `shared/src/game/living.ts` (roles, reactions, template lines); `app/src/map/{LivingLayer.tsx,sprites.ts}`; CSS "Living city" in `styles.css` |
+| Money, wallets, agreements | `shared/src/game/money.ts` (Books, wallets), `agreements.ts` (terms, committed), `AGREEMENTS` in `content.ts`, the funding chain in `resolveRound`; tests `money.test.ts` |
+| Card faces | `shared/src/game/cardfacts.ts` (derived from the rules), `app/src/game/GameCard.tsx`; test in `cards.test.ts` |
+| Nessie mirror | `server/src/bank/{nessie,mirror,store}.ts`, wiring in `app.ts`/`index.ts`/`roomSocket.ts` (`ledger` effect); tests `bank.test.ts` (fake Nessie) |
+| Money UI | `app/src/game/money.tsx` (agreement card, ledger, toasts, loan card), wallets in `Hud.tsx`, Studio money in `routes/Studio.tsx` |
 
 The contracts are `shared/src/room.ts`, the exported types in `engine.ts` and `record.ts`. Name any change to them in the commit message.
 

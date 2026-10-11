@@ -29,7 +29,9 @@ Contracts live in `shared/src`: `room.ts` (wire protocol), `game/engine.ts` (Boa
    say so wherever they are shown.
 3. **Role-play is not public opinion.** Keep persona choices, personal preferences, demo sessions, bots and
    community sessions apart in records and in Planning Studio.
-4. **Fail soft.** Every server integration has a fallback (memory store, template narration, no voice).
+4. **Fail soft.** Every server integration has a fallback (memory store, template narration, no voice, bank mirror off).
+   The Nessie mirror copies the engine's ledger to fictional accounts; it never decides anything and nothing waits on it.
+   All money is simulated: integer cents, moved only through `Books` in `shared/src/game/money.ts` (see `docs/coastal-clash.md` §10).
 5. **No secrets in code.** Keys come from `.env` only (see `.env.example`).
 6. **Verify before done.** `npm run typecheck` and `npm test`. For UI, check it at 1440 px and 390 px wide.
 7. **Commit small**, on your own `<name>/dev` branch.

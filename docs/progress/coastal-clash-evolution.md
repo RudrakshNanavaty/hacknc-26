@@ -156,3 +156,59 @@ visual work follows the existing Aero Lagoon style.
   failed). A refusal is final (`failed`). An auth error pauses the mirror until a restart.
 - **Sync state survives a restart when Tiger Data is configured** (`cc_bank_sync`, `cc_bank_accounts`, idempotent schema).
   Memory otherwise. The match record carries each item's status (`MatchRecord.bank`), separate from the outcomes.
+- **Card faces are derived, not typed.** `cardFacts()` builds every card face from the rules; the hand-written stat table that
+  said Private Investment "pays cost ✓" (no longer true without acceptance) is gone. Why: accuracy by construction, pinned by a test.
+- **Money in the HUD is public.** Every wallet is visible to the whole table (the Director sees the same). Why: it is a negotiating
+  table, and hidden wallets would let the model or the UI leak one player's position to another inconsistently.
+- **New section numbers were avoided.** The money model is §10 of `coastal-clash.md`, so the §3/§4/§5 references in other docs stay valid.
+
+### Progress
+
+- [x] **M7 financial gameplay** (commit 8ee1006): money.ts, agreements.ts, the funding chain and agreement execution in
+  resolveRound, rules 3.0.0, records and replay compare the ledger, Studio money summary and CSV rows. 12 money tests.
+- [x] **M8 Nessie** (8ee1006): client, mirror, outbox, reconciliation, Tiger tables, `/api/bank`, health. 11 tests on a fake Nessie
+  (provisioning once, idempotent enqueue, timeout before/after a write, 5xx after a write, auth pause, refusal, restart with
+  pending syncs, bond loan, a WebSocket bot match mirrored end to end with replay making zero network calls).
+- [x] **M9 Director** (310dc7d): public money in the facts, deal hints with payer and amount, affordability explanation; tests for
+  an invented transfer, invented amounts (digits and words), a twist carrying its own money, and affordability from the books.
+- [x] **M6 visuals + M10 UI** (5cb3915): figurines, bubbles, money reactions, card faces, wallets, agreement card, ledger, toasts,
+  loan card, Studio money.
+
+### Verified (2026-10-11)
+
+- `npm run typecheck` clean; `npm test` **120/120** (Node 22.23.3).
+- Browser at 1440 px: a full bot match (lobby, crisis, cards, reveal, negotiation with an agreement card and its impact preview,
+  resolution, ledger panel, final, Planning Studio money). At 390 px: the stage and the ledger panel, rendered in a 390 x 740 frame
+  (the window could not be resized on this display).
+- **Live Nessie, mirror on:** a bot match on the dev server where the Mayor accepted the Resort Owner's partnership on an $8M
+  drainage. 10 ledger entries + 1 bond loan = 11 mirror items, all `confirmed`; the A1 $8M record was read back from Nessie by its
+  marker. 8 fictional customers/accounts exist in the key's namespace (plus 2 probe transfers and 1 probe deposit on the Lender and
+  Builders accounts from the semantics check, described as probes).
+- **Mirror off:** the same scripted match on a second server with `NESSIE_ENABLED=false`: identical outcomes and ledger, zero items.
+- Mocked: every automated test (fake Nessie, network tripwire). Live: provisioning, transfers, a loan record, read-back.
+- Not verified live: the Gemini side of M9 (the key still answers 402); templates and validators are covered by tests.
+
+### Known limitations and open bugs (as fix tasks)
+
+1. **Demo pace leaves little time to answer a deal.** In the browser the partnership was refused because the clock hit zero as
+   Accept was clicked. Fix: hold the negotiation clock (or add 10 s once) while an agreement owned by a connected human is
+   undecided, in `tick`/`enterNegotiate` (rooms.ts), with a test.
+2. **Reconcile-then-resend assumes reads see a landed write.** If Nessie reads lag behind writes, a write could land twice. Fix:
+   wait one retry interval and read twice before resending, or mark it `failed` after one absent read and resend only by hand.
+3. **A mistyped key is not detected.** Nessie serves an empty namespace for any key. Fix: refuse to provision when `GET /customers`
+   is empty but `cc_bank_accounts` (Tiger) already maps this host, and surface it in `/api/bank`.
+4. **Twist money is mirrored at the round's resolution,** not when the twist applies. Fix: push the `ledger` effect from
+   `enterSelect` for `t` entries, or document it as intended.
+5. **Studio money counts include bots** (money is city-level, not a player opinion). Fix if needed: filter `MoneySummary` by
+   `humansOnly` like the other panels.
+6. **Bots accept every affordable agreement and never fund.** Fix: give `botPlay` a fund preference and let bots refuse deals that
+   cost their own score.
+7. **Balance is untested.** With $16M the city often cannot pay for round 3 projects (two unfunded in the browser match). Playtest
+   the start budget, wallets, agreement amounts and the 25% bond interest; all are illustrative values in `content.ts`/`money.ts`.
+8. **Without Tiger Data, pending syncs are lost on a restart** (memory store), by design; the record still shows them pending.
+9. **No reference image was provided**, so the figurines and bubbles follow the existing Aero Lagoon look; swap the art in
+   `app/src/map/sprites.ts` (the mood classes and the base are the contract the CSS uses).
+
+### Next
+
+Fix tasks 1-3 above first (they touch the demo and the mirror's honesty), then playtest the money balance.

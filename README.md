@@ -35,3 +35,21 @@ npm run typecheck
 ```
 
 Architecture, the audit of the code this was built from (Pocket Rivals, Mayday Mayor), the rules and the demo script: [`docs/coastal-clash.md`](docs/coastal-clash.md).
+
+## Money and the Nessie bank mirror
+
+Influence, the public budget, private capital, debt and operating costs are separate resources, and authored agreements
+(public-private partnership, bond, restoration partnership, conditional investment, maintenance reserve) move money only through
+the rules engine's ledger. All money is **simulated** and illustrative. Details: [`docs/coastal-clash.md`](docs/coastal-clash.md) §10.
+
+Optionally, the server mirrors each resolved round's ledger to the [Capital One Nessie](https://prod.nessieisreal.com/docs) API, on
+eight fictional `CoastalClash` accounts it creates once and reuses. The game never waits on it; the 📒 ledger shows each entry's
+sync status. Set these in `.env` (server only; never commit the key):
+
+```bash
+NESSIE_API_KEY=...                                  # from https://prod.nessieisreal.com
+NESSIE_BASE_URL=https://prod-api.nessieisreal.com   # the host that answers (http://api.nessieisreal.com does not)
+NESSIE_ENABLED=true                                 # false or unset: mirror off, the game is unchanged
+```
+
+`GET /api/bank` shows the mirror's state (never the key). With `DATABASE_URL` set, pending syncs survive a restart.
