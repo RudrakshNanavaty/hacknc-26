@@ -22,8 +22,11 @@ Product and rules: `docs/coastal-clash.md`. Hard rules: `AGENTS.md`.
   run on the server in `server/src/rooms.ts`. The UI renders `RoomState`; it may call the shared engine for previews only.
 - **The engine is deterministic.** No `Math.random`, `Date.now` or I/O in `shared/`. Ordering uses fixed persona and area orders.
   Every effect logs a `RuleEvent` with a rule id.
-- **LLM output is narration only.** Each Gemini call uses `GROUNDED` plus a `check` that rejects numbers not in the facts
-  (`strayNumbers`). A template fallback always exists.
+- **LLM output is narration and proposals only.** Gemini proposes (dialogue, twists, hint wording, explanations); validators in
+  `shared/src/game/director.ts` accept, clamp or reject; only room functions apply. Twist effects come from `DIRECTOR_EVENTS`,
+  never from the model. Every prompt carries `GROUNDED`; numbers not in the facts are rejected (`strayNumbers`). A template always
+  shows first. The model sees `publicState(room, null)` only, so it never sees hidden picks or player names.
+- **Replays never call Gemini.** Accepted twists are stored with exact values in `RoundRecord.director`; `replayMatch` must match.
 - **Real geography, labelled game numbers.** Constraints come from `shared/src/data/districts.json` (generated; never hand-edit).
   Effect sizes are illustrative and budgets hypothetical. Any number shown to users carries that label.
 - **Keep data kinds apart:** in-role choices, personal preferences (`responses`), demo vs community sessions, and bot vs human.
@@ -45,6 +48,8 @@ Product and rules: `docs/coastal-clash.md`. Hard rules: `AGENTS.md`.
 | Phase UI | `app/src/game/panels.tsx`; shell `app/src/routes/Play.tsx` (breakpoint 1024 px) |
 | Studio finding / export | `studioSummary`, `toCsv`, `toGeoJson` in `game/record.ts`; `server/src/studio.ts`; `app/src/routes/Studio.tsx` |
 | DB | `server/src/db/schema.sql` (idempotent, `cc_` prefix), `db/tiger.ts`, `MemoryStore` in `db/store.ts` |
+| AI Director | prompts `server/src/ai/director.ts`; validators/catalogue `shared/src/game/director.ts`; apply `rooms.ts` (`applyDialogue`, `proposeEvent`, `applyHints`); wiring `roomSocket.ts` `drain` |
+| Avatars, bubbles, map fx | `shared/src/game/living.ts` (roles, reactions, template lines); `app/src/map/{LivingLayer.tsx,sprites.ts}`; CSS "Living city" in `styles.css` |
 
 The contracts are `shared/src/room.ts`, the exported types in `engine.ts` and `record.ts`. Name any change to them in the commit message.
 
@@ -71,4 +76,5 @@ The contracts are `shared/src/room.ts`, the exported types in `engine.ts` and `r
 - MapLibre positions markers with a `transform` on the marker element: never set `position` or animate `transform` on a marker's
   root element (animate a child). Breaking this stacks or teleports avatars and effects.
 - Plain cards need no engine code (`attach` / `offer` / `delayed`); a card that only targets its own persona's projects is unplayable.
+- Tests must never reach Gemini: give `buildServer` `director: null` (or a fake) and `narrator`, and give `new Gemini` a fake `client`.
 - `pipeline/cache/` is git-ignored. `npm run data -- --refresh` hits live County and City services; use it sparingly.

@@ -166,8 +166,9 @@ describe('room state machine', () => {
 
 describe('four browsers over WebSockets', () => {
   const store = new MemoryStore();
-  // A narrator that always fails: the match must not notice.
-  const app = buildServer({ store, narrator: { line: () => Promise.reject(new Error('Gemini is down')) } });
+  // A narrator and a Game Director that always fail (and never touch the network): the match must not notice.
+  const down = () => Promise.reject(new Error('Gemini is down'));
+  const app = buildServer({ store, narrator: { line: down }, director: { dialogue: down, event: down, hints: down, explain: down } });
   let base = '';
 
   beforeAll(async () => {
@@ -283,6 +284,8 @@ describe('four browsers over WebSockets', () => {
     const final = await again1.state((s) => s.phase === 'final');
     expect(final.final!.scores).toHaveLength(4);
     expect(final.headline!.source).toBe('template'); // Gemini was down; the match never noticed
+    expect(final.history[1]!.resolution.events.length).toBeGreaterThan(0);
+    expect(final.bubbles!.list.every((b) => b.source === 'template')).toBe(true);
 
     // Every screen shows the same city.
     await Promise.all([mayor, activist, resort].map((x) => x.state((s) => s.phase === 'final')));
@@ -309,6 +312,10 @@ describe('four browsers over WebSockets', () => {
     const geo = (await app.inject({ url: '/api/studio/export.geojson' })).json();
     expect(geo.features[0].geometry.coordinates[0]).toBeLessThan(-80);
     expect(geo.features[0].properties.zoning_object_ids.length).toBeGreaterThan(0);
+    // "Why can't I build here?" answers from the rules and the GIS facts even with the Director down.
+    const why = (await app.inject({ method: 'POST', url: '/api/explain', payload: { kind: 'eligibility', card: 'hotel-development', district: 'north-beach-oceanside' } })).json();
+    expect(why).toMatchObject({ source: 'template', answer: expect.stringMatching(/needs 25%/) });
+    expect((await app.inject({ method: 'POST', url: '/api/explain', payload: { kind: 'outcome', code: 'WXYZ', proposalId: shoreline.id } })).json().answer).toMatch(/approved/);
     const json = (await app.inject({ url: '/api/studio/export.json' })).json();
     expect(json.matches[0].dataSources.map((s: { id: string }) => s.id)).toEqual(['zoning', 'planningDistricts', 'floodZones']);
 

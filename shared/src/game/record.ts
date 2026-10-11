@@ -1,9 +1,10 @@
 // The planning-feedback record a match leaves behind, and what Planning Studio computes from them.
 // Role-play choices and personal preferences are kept apart, and so are demo sessions, bots and
 // community sessions: role-play is not public opinion.
-import { CARDS, PERSONA_INFO, PROJECTS, RULES_VERSION, type CardId, type CrisisId, type Indicators, type PersonaId, type ProjectKind } from './content';
+import { CARDS, PERSONA_INFO, PROJECTS, RULES_VERSION, START_INDICATORS, type CardId, type ComboId, type CrisisId, type Indicators, type PersonaId, type ProjectKind } from './content';
+import { applyDirectorEvent, type AcceptedEvent, type TableHint } from './director';
 import { DATA_SOURCES, DATA_VERSION, DISTRICTS, districtById, type DataSource } from './districts';
-import type { Attachment, Compromise, FinalResult, NegotiationAction, Outcome, Proposal, RuleEvent } from './engine';
+import { crisisFor, finalResult, resolveRound, startCity, type Attachment, type Compromise, type FinalResult, type NegotiationAction, type Outcome, type Proposal, type Resolution, type RuleEvent } from './engine';
 
 export type SessionKind = 'demo' | 'community';
 export type ParticipantKind = 'human' | 'bot';
@@ -28,6 +29,39 @@ export interface RoundRecord {
   after: Indicators;
   headline: string;
   resolvedAt: string;
+  /** Authored combos completed this round. */
+  combos?: { combo: ComboId; district: string; proposalIds: string[] }[];
+  /** What the Game Director proposed and what the rules accepted (absent on rules 1.x records). */
+  director?: RoundDirector;
+}
+
+/** One proposal from the Director (or its template fallback) and what validation did with it. */
+export interface DirectorLogEntry {
+  kind: 'event' | 'dialogue' | 'hint' | 'combo';
+  source: 'gemini' | 'template';
+  status: 'accepted' | 'clamped' | 'rejected';
+  reasons: string[];
+  /** The raw proposal, for events only (small, and what a reviewer needs). */
+  proposal?: unknown;
+  at: string;
+}
+
+export interface RoundDirector {
+  /** The twist applied at the start of play this round: exact, validated values. Replays use this, never Gemini. */
+  event: AcceptedEvent | null;
+  /** Its rule event (D1) as applied. */
+  eventRule: RuleEvent | null;
+  /** Hints shown on the negotiating table, and whether a player then made that move. */
+  hints: (TableHint & { followed: boolean })[];
+  log: DirectorLogEntry[];
+}
+
+/** A combo idea the model had that is not in the rules: kept for a designer to review, never executed. */
+export interface ReviewItem {
+  round: number;
+  idea: string;
+  source: 'gemini';
+  at: string;
 }
 
 /** "Outside your assigned character, which proposal would you personally support?" */
@@ -58,6 +92,8 @@ export interface MatchRecord {
   rounds: RoundRecord[];
   final: FinalResult | null;
   responses: PreferenceResponse[];
+  /** Novel AI ideas for designers (rules 2.x). Not rules, not evidence. */
+  reviewQueue?: ReviewItem[];
 }
 
 export const SCENARIO_ID = 'miami-beach-coastal-2026';
@@ -67,7 +103,40 @@ export function newMatchRecord(id: string, roomCode: string, sessionKind: Sessio
   return {
     id, roomCode, city: 'Miami Beach, Florida', scenario: SCENARIO_ID, rulesVersion: RULES_VERSION, dataVersion: DATA_VERSION,
     dataSources: DATA_SOURCES, sessionKind, startedAt: now.toISOString(), endedAt: null, players, rounds: [], final: null, responses: [],
+    reviewQueue: [],
   };
+}
+
+export interface Replay {
+  rounds: Resolution[];
+  final: FinalResult;
+  /** True when every round's outcomes and indicators match the record. */
+  matches: boolean;
+  mismatches: string[];
+}
+
+/**
+ * Re-run a recorded match through the engine, with each round's stored twist and no network:
+ * the same record always gives the same city.
+ */
+export function replayMatch(m: MatchRecord): Replay {
+  let city = startCity();
+  const rounds: Resolution[] = [];
+  const mismatches: string[] = [];
+  for (const r of m.rounds) {
+    const ev = r.director?.event;
+    if (ev) city = applyDirectorEvent(city, ev).city;
+    const board = { round: r.round, crisis: crisisFor(r.round), proposals: r.proposals, attachments: r.attachments, compromises: r.compromises };
+    const res = resolveRound(board, r.actions, city);
+    if (JSON.stringify(res.before) !== JSON.stringify(r.before)) mismatches.push(`round ${r.round}: indicators before`);
+    if (JSON.stringify(res.after) !== JSON.stringify(r.after)) mismatches.push(`round ${r.round}: indicators after`);
+    if (res.outcomes.map((o) => `${o.proposalId}:${o.status}`).join() !== r.outcomes.map((o) => `${o.proposalId}:${o.status}`).join()) mismatches.push(`round ${r.round}: outcomes`);
+    rounds.push(res);
+    city = res.city;
+  }
+  const final = finalResult(START_INDICATORS, city.indicators, rounds, m.players.map((p) => p.persona));
+  if (m.final && JSON.stringify(final.scores) !== JSON.stringify(m.final.scores)) mismatches.push('final scores');
+  return { rounds, final, matches: mismatches.length === 0, mismatches };
 }
 
 // ---------- Planning Studio ----------

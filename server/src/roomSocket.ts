@@ -5,12 +5,13 @@
 import type { IncomingMessage } from 'node:http';
 import type { Duplex } from 'node:stream';
 import { WebSocketServer, type WebSocket } from 'ws';
-import { narrationFacts, type ClientMsg, type RoomState, type ServerMsg } from '@shared';
+import { EVENT_RULES, TOTAL_ROUNDS, combosInReach, crisisFor, narrationFacts, type ClientMsg, type RoomState, type ServerMsg } from '@shared';
 import type { MatchStore } from './db/store';
 import type { Narrator } from './ai/narrator';
+import { directorFacts, type Director } from './ai/director';
 import {
-  RoomError, accept, again, choosePersona, done, findPlayer, getOrCreateRoom, getRoom, join, move, presence, publicState, respond,
-  select, setBot, setPace, setSession, skip, start, sweep, tick, type Room,
+  RoomError, accept, again, applyDialogue, applyHints, choosePersona, done, findPlayer, getOrCreateRoom, getRoom, join, mapRoles, move, presence,
+  proposeEarlyEvent, proposeEvent, publicState, respond, select, setBot, setPace, setSession, skip, start, sweep, tick, type Room,
 } from './rooms';
 
 const ROOM_PATH = /^\/ws\/rooms\/([A-Za-z]{4})$/;
@@ -24,10 +25,12 @@ interface Conn {
 export interface RoomServerOptions {
   store: MatchStore;
   narrator: Narrator | null;
+  /** The Gemini Game Director (null: templates only). */
+  director?: Director | null;
   log: { warn: (obj: unknown, msg: string) => void; info?: (msg: string) => void };
 }
 
-export function roomServer({ store, narrator, log }: RoomServerOptions) {
+export function roomServer({ store, narrator, director = null, log }: RoomServerOptions) {
   const wss = new WebSocketServer({ noServer: true });
   const conns = new Map<string, Set<Conn>>();
 
@@ -54,10 +57,49 @@ export function roomServer({ store, narrator, log }: RoomServerOptions) {
     );
   }
 
+  /** Ask the Director for something; apply it only through the room's validators; a failure keeps the template. */
+  function direct(room: Room, what: string, ask: () => Promise<unknown>, apply: (raw: unknown) => unknown) {
+    ask().then(
+      (raw) => {
+        if (apply(raw)) broadcast(room);
+      },
+      (err) => log.warn({ err: (err as Error).message, room: room.code, what }, 'director: template kept'),
+    );
+  }
+
+  function directMoment(room: Room, key: string) {
+    if (!director) return;
+    const facts = directorFacts(publicState(room, null, Date.now()));
+    direct(room, `dialogue ${key}`, () => director.dialogue(facts, mapRoles(room), key), (raw) => applyDialogue(room, key, Array.isArray(raw) ? raw : [], facts, Date.now()));
+  }
+
   function drain(room: Room) {
     const effects = room.effects.splice(0);
     let save = false;
     for (const e of effects) {
+      if (e.t !== 'record' && e.t !== 'negotiate') directMoment(room, e.key);
+      // Prefetch the next round's twist while everyone reads the resolution.
+      if (e.t === 'resolved' && director && e.round < TOTAL_ROUNDS && (EVENT_RULES.rounds as readonly number[]).includes(e.round + 1)) {
+        const next = crisisFor(e.round + 1);
+        const facts = { ...directorFacts(publicState(room, null, Date.now())), round: e.round + 1, crisis: { title: next.title, text: next.text, spotlight: next.spotlight } };
+        const fired = [...room.firedEvents];
+        direct(room, `event early ${e.round + 1}`, () => director.event(facts, e.round + 1, fired), (raw) => {
+          proposeEarlyEvent(room, e.round + 1, raw);
+          return false; // nothing to show until the crisis starts
+        });
+      }
+      // No prefetched proposal reached this crisis: ask now (it still lands if it arrives before play starts).
+      if (e.t === 'crisis' && director && room.event?.source === 'template') {
+        const facts = directorFacts(publicState(room, null, Date.now()));
+        const fired = [...room.firedEvents];
+        direct(room, `event ${e.key}`, () => director.event(facts, e.round, fired), (raw) => proposeEvent(room, e.key, raw, Date.now()));
+      }
+      if (e.t === 'negotiate' && director && room.hints && room.board) {
+        const facts = directorFacts(publicState(room, null, Date.now()));
+        const hints = room.hints.list;
+        const reach = combosInReach(room.board);
+        if (hints.length) direct(room, `hints ${e.key}`, () => director.hints(facts, hints, reach), (raw) => applyHints(room, e.key, raw as { suggestions?: unknown[]; combos?: unknown[] }, facts, Date.now()));
+      }
       if (e.t === 'record') save = true;
       else if (e.t === 'reveal' && room.board) narrate(room, e.key, narrationFacts('reveal', room.board));
       else if (e.t === 'resolved') {

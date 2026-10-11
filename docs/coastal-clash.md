@@ -76,7 +76,30 @@ Working Waterfront.
 
 Each round: one card per player (cost in influence; start 5, +2 per round, max 8). Project cards create proposals; support, opposition and negotiation cards act on the best-matching proposal in the same area (or fall back to a small effect or a refund). Negotiation: one move each (back 1, oppose 1, fund 2) and the proposal's owner may accept compromises offered by Public Access Guarantee (access corridor) or by an Environmental Challenge in a coastal high hazard area (dune setback). Resolution: support minus opposition decides (ties are delayed to the next round; Fast-Track breaks a tie and ignores one opposition but never overrides R1), then funding (budget, or covered by Emergency Funding, Private Investment or a fund move), then effects plus the crisis bonus. After round 3 the storm tests flood resilience. Each persona scores its own weighted indicator changes plus objective bonuses; if any of flood, economy, environment or access ends below 30, every positive score is halved.
 
-Rule ids in the event log: P1 proposal, F1-F4 funding/fast-track/bond, S1-S5 support, O1-O7 opposition (O4 moratorium, O5 habitat survey, O6 rent shield, O7 eco-certification refused), R1 coastal high hazard block, C1-C4 compromises, M1-M5 combos, N1-N3 negotiation, V1 vote, B1-B2 budget, U1 upkeep, L0/L1 delayed consequences, K1 crisis bonus, E1 built, X1-X2 fallbacks, S9 storm.
+Rule ids in the event log: P1 proposal, F1-F4 funding/fast-track/bond, S1-S5 support, O1-O7 opposition (O4 moratorium, O5 habitat survey, O6 rent shield, O7 eco-certification refused), R1 coastal high hazard block, C1-C4 compromises, M1-M5 combos, N1-N3 negotiation, V1 vote, B1-B2 budget, U1 upkeep, L0/L1 delayed consequences, K1 crisis bonus, E1 built, X1-X2 fallbacks, S9 storm; D1 a validated twist event (stored in the round's `director` record).
+
+## 4b. The living city and the AI Game Director
+
+**On the map.** Each stakeholder is a small SVG character standing near the area they played in. A Fisherman (a non-player
+scenario role) stands at the South Pointe pier. Characters walk, celebrate, protest and worry, and speak in short speech bubbles. Proposals show as
+ghost markers whose tag follows the live preview (proposed, would pass, delayed, blocked). Built projects, protests, investments,
+floods, storms and combos have short effects. All of this is decorative: positions are pixel offsets around an area, not surveyed sites.
+
+**The Director** (`server/src/ai/director.ts` proposes, `shared/src/game/director.ts` validates, `server/src/rooms.ts` applies):
+
+| Job | What Gemini may do | What decides |
+|---|---|---|
+| Speech bubbles | One 3-18 word line per character, from a fixed reaction list | `validateDialogue`: known speaker on the map, known reaction, length, no invented numbers, safe words. The template line stays otherwise. |
+| Twist event (rounds 2 and 3) | Pick a type, a place, a magnitude 1-3, write a one-line narrative | `validateEventProposal`: type enum, phase, once per type, at most 2 per match, real-geography eligibility (e.g. an algae bloom only on the bay), magnitude clamped, narrative without numbers. Effects come from the `DIRECTOR_EVENTS` catalogue (rule D1), never from the model. |
+| Negotiation hints | Word hints and explain combos | The engine finds every move that flips an outcome (`negotiationCandidates`) and every authored combo within reach (`combosInReach`). Gemini can only pick from those. Hints are public: everyone sees the same ones, built from `publicState(room, null)`. |
+| Explanations | Reword the engine's answer in plain language | `explainEligibility` / `explainOutcome` from the rules and GIS facts. A rewording with a number not in the facts is refused (`POST /api/explain`). |
+| Novel combo ideas | Suggest one | Never executed: stored in `MatchRecord.reviewQueue` for a designer. |
+
+Templates are on screen first. Gemini answers replace them only if they validate and the moment is still current. The twist for the
+next round is prefetched during the resolution, so it is ready when the crisis starts. Every call times out after 8 s and fails soft.
+Each round record stores the accepted twist with its exact values, every hint shown and whether a player followed it, and a log of every
+proposal with its status (accepted, clamped or rejected) and reasons. `replayMatch(record)` re-runs a match from the record alone,
+without Gemini.
 
 ## 5. Records and Planning Studio
 

@@ -10,6 +10,9 @@ import {
   buildBoard, checkAccept, checkMove, checkPlay, crisisFor, crisisHeadline, finalHeadline, finalResult, isPersonaId, newMatchRecord,
   nextInfluence, resolutionHeadline, resolveRound, revealHeadline, startCity, botPlay, districtById,
   crisisBubbles, finalBubbles, resolutionBubbles, revealBubbles,
+  EVENT_RULES, SCENARIO_ROLES, applyDirectorEvent, combosInReach, mergeDialogue, negotiationCandidates, templateEventProposal, templateHints,
+  validateComboSuggestion, validateDialogue, validateEventProposal, validateSuggestion,
+  type AcceptedEvent, type CharacterDialogue, type DirectorLogEntry, type EventType, type RoleId, type RuleEvent, type TableHint,
   type Board, type CardId, type CityState, type Crisis, type FinalResult, type Headline, type MatchRecord, type NegotiationAction,
   type Bubble, type PaceId, type PersonaId, type Proposal, type RoomPhase, type RoomState, type RoundSummary, type SessionKind,
 } from '@shared';
@@ -40,6 +43,8 @@ export interface Player {
 
 /** Side effects for the socket layer, drained after every change. */
 export type Effect =
+  | { t: 'crisis'; key: string; round: number }
+  | { t: 'negotiate'; key: string }
   | { t: 'reveal'; key: string }
   | { t: 'resolved'; key: string; round: number }
   | { t: 'final'; key: string }
@@ -69,6 +74,18 @@ export interface Room {
   bubbles: { key: string; list: Bubble[] } | null;
   final: FinalResult | null;
   effects: Effect[];
+  /** This round's twist (validated), shown from the crisis and applied when play starts. */
+  event: AcceptedEvent | null;
+  eventApplied: RuleEvent | null;
+  firedEvents: EventType[];
+  /** Public hints on the negotiating table. */
+  hints: { key: string; list: TableHint[] } | null;
+  /** Every hint shown this round (latest wording), for the record. */
+  hintLog: Map<string, TableHint>;
+  /** A twist proposal that arrived before its crisis (prefetched): validated when that crisis starts. */
+  earlyEvent: { round: number; raw: unknown } | null;
+  /** Director proposals this round and what validation did (flushed into the round record). */
+  directorLog: DirectorLogEntry[];
 }
 
 export const rooms = new Map<string, Room>();
@@ -78,6 +95,7 @@ export function newRoom(code: string, now = Date.now()): Room {
     code, phase: 'lobby', round: 0, endsAt: null, players: [], hostId: null, pace: 'standard', sessionKind: 'demo', touchedAt: now,
     matchId: null, record: null, city: startCity(), crisis: null, carried: [], board: null, actions: [], history: [], resolvedRound: 0,
     headline: null, bubbles: null, final: null, effects: [],
+    event: null, eventApplied: null, firedEvents: [], hints: null, hintLog: new Map(), earlyEvent: null, directorLog: [],
   };
 }
 
@@ -212,6 +230,9 @@ export function start(room: Room, player: Player, now: number): void {
   room.history = [];
   room.resolvedRound = 0;
   room.final = null;
+  room.firedEvents = [];
+  room.earlyEvent = null;
+  room.directorLog = [];
   room.round = 1;
   for (const p of room.players) {
     p.influence = START_INFLUENCE;
@@ -234,11 +255,118 @@ function enterCrisis(room: Room, now: number): void {
   }
   room.headline = { text: crisisHeadline(room.crisis, room.round), source: 'template', key: `crisis-${room.round}` };
   room.bubbles = { key: `crisis-${room.round}`, list: crisisBubbles(room.crisis, room.players.map((p) => p.persona)) };
+  room.hints = null;
+  room.event = null;
+  room.eventApplied = null;
+  // A twist for this round: the deterministic template now; Gemini may propose a better one during the crisis.
+  const proposal = templateEventProposal(room.round, room.firedEvents);
+  if (proposal) {
+    const v = validateEventProposal(proposal, eventContext(room), 'template');
+    if (v.ok) room.event = v.value;
+    logDirector(room, 'event', 'template', v, now, proposal);
+  }
+  // A Gemini proposal fetched during the last resolution is validated now, against this crisis.
+  const early = room.earlyEvent;
+  room.earlyEvent = null;
+  if (early && early.round === room.round) proposeEvent(room, `crisis-${room.round}`, early.raw, now);
+  room.effects.push({ t: 'crisis', key: `crisis-${room.round}`, round: room.round });
   room.endsAt = now + seconds(room, 'crisis');
   touch(room, now);
 }
 
+const eventContext = (room: Room) => ({ round: room.round, phase: room.phase, fired: room.firedEvents, count: room.firedEvents.length });
+
+function logDirector(room: Room, kind: DirectorLogEntry['kind'], source: DirectorLogEntry['source'], v: { ok: boolean; reasons?: string[]; clamped?: string[] }, now: number, proposal?: unknown) {
+  const reasons = v.ok ? (v as { clamped: string[] }).clamped : (v as { reasons: string[] }).reasons;
+  room.directorLog.push({ kind, source, status: !v.ok ? 'rejected' : reasons.length ? 'clamped' : 'accepted', reasons, ...(proposal !== undefined ? { proposal } : {}), at: new Date(now).toISOString() });
+}
+
+/** A twist proposal for a coming round, kept until its crisis starts (then validated like any other). */
+export function proposeEarlyEvent(room: Room, round: number, raw: unknown): boolean {
+  if (round <= room.round || room.phase === 'final' || room.phase === 'lobby') return false;
+  room.earlyEvent = { round, raw };
+  return true;
+}
+
+/** Gemini proposes this round's twist. Validated against the moment; replaces the template only if it passes. */
+export function proposeEvent(room: Room, key: string, raw: unknown, now: number): boolean {
+  if (key !== `crisis-${room.round}` || room.eventApplied) return false;
+  const v = validateEventProposal(raw, eventContext(room), 'gemini');
+  logDirector(room, 'event', 'gemini', v, now, raw);
+  if (!v.ok) return false;
+  room.event = v.value;
+  touch(room, now);
+  return true;
+}
+
+/** The roles standing on the map right now. */
+export const mapRoles = (room: Room): RoleId[] => [...room.players.map((p) => p.persona), SCENARIO_ROLES.fisherman.id];
+
+/** Gemini lines for the current moment's bubbles. Each line is validated; failures keep the template line. */
+export function applyDialogue(room: Room, key: string, raw: unknown[], facts: unknown, now: number): number {
+  if (room.bubbles?.key !== key) return 0;
+  const speakers = mapRoles(room);
+  const good: CharacterDialogue[] = [];
+  for (const r of raw.slice(0, 8)) {
+    const v = validateDialogue(r, { speakers, facts });
+    if (v.ok && !good.some((g) => g.speaker === v.value.speaker)) good.push(v.value);
+    logDirector(room, 'dialogue', 'gemini', v, now);
+  }
+  if (!good.length) return 0;
+  room.bubbles = { key, list: mergeDialogue(room.bubbles.list, good) };
+  touch(room, now);
+  return good.length;
+}
+
+/** Fresh hints from the engine; Gemini wording survives for hints that are still valid. */
+function refreshHints(room: Room): void {
+  if (room.phase !== 'negotiate' || !room.board) return;
+  // Only players who can still act get move hints (bots and finished players are done).
+  const players = room.players.map((p) => ({ seat: p.seat, persona: p.persona, influence: p.influence, moved: p.moved || p.done }));
+  const list = templateHints(room.board, negotiationCandidates(room.board, room.actions, room.city, players), combosInReach(room.board));
+  const old = new Map((room.hints?.list ?? []).map((h) => [h.id, h]));
+  room.hints = { key: room.hints?.key ?? `negotiate-${room.round}`, list: list.map((h) => (old.get(h.id)?.source === 'gemini' ? old.get(h.id)! : h)) };
+  for (const h of room.hints.list) room.hintLog.set(h.id, h);
+}
+
+/** Gemini words the hints (and may explain a combo in reach). It can only pick from what the engine found. */
+export function applyHints(room: Room, key: string, raw: { suggestions?: unknown[]; combos?: unknown[] }, facts: unknown, now: number): number {
+  if (room.hints?.key !== key || room.phase !== 'negotiate' || !room.board) return 0;
+  let n = 0;
+  const list = [...room.hints.list];
+  for (const s of (raw.suggestions ?? []).slice(0, 8)) {
+    const v = validateSuggestion(s, list, facts);
+    logDirector(room, 'hint', 'gemini', v, now);
+    if (!v.ok) continue;
+    list[list.findIndex((h) => h.id === v.value.id)] = v.value;
+    n += 1;
+  }
+  const reach = combosInReach(room.board);
+  for (const c of (raw.combos ?? []).slice(0, 4)) {
+    const v = validateComboSuggestion(c, reach, facts);
+    logDirector(room, 'combo', 'gemini', v, now);
+    if (!v.ok) continue;
+    const i = list.findIndex((h) => h.kind === 'combo' && h.combo === v.value.combo);
+    if (i >= 0) {
+      list[i] = { ...list[i]!, text: v.value.explanation, source: 'gemini' };
+      n += 1;
+    }
+    if (v.value.novelIdea && room.record) room.record.reviewQueue = [...(room.record.reviewQueue ?? []), { round: room.round, idea: v.value.novelIdea, source: 'gemini', at: new Date(now).toISOString() }];
+  }
+  room.hints = { key, list };
+  for (const h of list) room.hintLog.set(h.id, h);
+  touch(room, now);
+  return n;
+}
+
 function enterSelect(room: Room, now: number): void {
+  // The twist takes effect as play starts (rule D1): exact, validated values.
+  if (room.event && !room.eventApplied && room.event.round === room.round) {
+    const applied = applyDirectorEvent(room.city, room.event);
+    room.city = applied.city;
+    room.eventApplied = applied.event;
+    room.firedEvents.push(room.event.type);
+  }
   room.phase = 'select';
   room.endsAt = now + seconds(room, 'select');
   for (const p of room.players.filter((x) => x.bot)) p.selection = botPlay(p.persona, p.influence, room.round);
@@ -291,6 +419,10 @@ function enterNegotiate(room: Room, now: number): void {
   }
   // Bots take the compromise offered to them: a deal beats a fight.
   for (const c of room.board.compromises) if (room.players[c.owner]?.bot) c.accepted = true;
+  const key = `negotiate-${room.round}`;
+  room.hints = { key, list: [] };
+  refreshHints(room);
+  room.effects.push({ t: 'negotiate', key });
   touch(room, now);
   maybeResolve(room, now);
 }
@@ -305,6 +437,7 @@ export function move(room: Room, player: Player, mv: unknown, proposalId: unknow
   player.influence -= NEGOTIATION_COST[m];
   player.moved = true;
   room.actions.push({ seat: player.seat, persona: player.persona, move: m, proposalId: String(proposalId) });
+  refreshHints(room);
   touch(room, now);
 }
 
@@ -314,12 +447,14 @@ export function accept(room: Room, player: Player, compromiseId: unknown, now: n
   const problem = checkAccept(room.board, player.seat, compromiseId);
   if (problem) throw new RoomError(problem);
   room.board.compromises.find((c) => c.id === compromiseId)!.accepted = true;
+  refreshHints(room);
   touch(room, now);
 }
 
 export function done(room: Room, player: Player, now: number): void {
   if (room.phase !== 'negotiate') throw new RoomError('Nothing to finish right now.');
   player.done = true;
+  refreshHints(room);
   touch(room, now);
   maybeResolve(room, now);
 }
@@ -345,7 +480,16 @@ function enterResolve(room: Room, now: number): void {
     round: room.round, crisis: room.board.crisis.id, proposals: room.board.proposals, attachments: room.board.attachments,
     compromises: room.board.compromises, actions: room.actions, outcomes: resolution.outcomes, events: resolution.events,
     before: resolution.before, after: resolution.after, headline, resolvedAt: new Date(now).toISOString(),
+    combos: resolution.combos.map((c) => ({ combo: c.combo, district: c.district, proposalIds: c.proposalIds })),
+    director: {
+      event: room.eventApplied ? room.event : null,
+      eventRule: room.eventApplied,
+      hints: [...room.hintLog.values()].map((h) => ({ ...h, followed: followed(h, room) })),
+      log: room.directorLog,
+    },
   });
+  room.directorLog = [];
+  room.hintLog = new Map();
   room.phase = 'resolve';
   room.endsAt = now + seconds(room, 'resolve');
   const key = `resolve-${room.round}`;
@@ -353,6 +497,13 @@ function enterResolve(room: Room, now: number): void {
   room.bubbles = { key, list: resolutionBubbles(resolution) };
   room.effects.push({ t: 'resolved', key, round: room.round }, { t: 'record' });
   touch(room, now);
+}
+
+/** Did a player make the move a hint pointed at? (Recorded next to the hint: AI proposal vs what people did.) */
+function followed(h: TableHint, room: Room): boolean {
+  if (h.kind === 'accept') return !!room.board?.compromises.find((c) => c.id === h.compromiseId)?.accepted;
+  if (h.kind === 'move') return room.actions.some((a) => a.seat === h.seat && a.move === h.move && a.proposalId === h.proposalId);
+  return false;
 }
 
 function enterFinal(room: Room, now: number): void {
@@ -429,6 +580,9 @@ export function again(room: Room, player: Player): void {
   room.final = null;
   room.headline = null;
   room.bubbles = null;
+  room.event = null;
+  room.eventApplied = null;
+  room.hints = null;
   room.crisis = null;
   room.history = [];
   room.city = startCity();
@@ -488,6 +642,8 @@ export function publicState(room: Room, viewer: Player | null, now: number): Roo
     history: room.history,
     headline: room.headline,
     bubbles: room.bubbles,
+    event: room.event,
+    hints: room.phase === 'negotiate' ? room.hints : null,
     final: room.final,
     mine: viewer ? { selection: viewer.selection, moved: viewer.moved, responded: viewer.responded } : null,
   };

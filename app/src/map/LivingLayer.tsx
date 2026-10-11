@@ -6,7 +6,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Marker, type Map as MapLibreMap } from 'maplibre-gl';
 import {
-  CARDS, PROJECTS, REACTION_MOOD, SCENARIO_ROLES, districtById, resolveRound, roleInfo,
+  CARDS, DIRECTOR_EVENTS, PROJECTS, REACTION_MOOD, SCENARIO_ROLES, districtById, resolveRound, roleInfo,
   type Board, type Bubble, type Card, type Mood, type OutcomeStatus, type RoleId, type RoomState,
 } from '@shared';
 import { spriteSvg } from './sprites';
@@ -22,8 +22,8 @@ const slot = (role: RoleId): [number, number] => {
   return [Math.round(SLOT[role][0] * k), Math.round(SLOT[role][1] * k)];
 };
 const WALK_MS = 1500;
-const BUBBLE_GAP_MS = 1100;
-const BUBBLE_MS = 5200;
+/** Bubbles overlap a little on wide screens; phones show one at a time. */
+const bubbleTiming = () => (window.innerWidth < 1024 ? { gap: 2700, show: 2500 } : { gap: 1100, show: 5200 });
 const FX_MS = 2600;
 
 const reduceMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -167,6 +167,7 @@ export function LivingLayer({ map, state }: { map: MapLibreMap | null; state: Ro
   useEffect(() => {
     if (!map || !bubbleKey) return;
     const timers: ReturnType<typeof setTimeout>[] = [];
+    const { gap: BUBBLE_GAP_MS, show: BUBBLE_MS } = bubbleTiming();
     const order = bubbleList.current.map((b) => b.speaker);
     const setMood = (role: RoleId, mood: Mood) => {
       const a = avatars.current.get(role);
@@ -262,6 +263,8 @@ export function LivingLayer({ map, state }: { map: MapLibreMap | null; state: Ro
       if (state.crisis.id === 'king-tide') for (const d of state.crisis.spotlight) fx.push({ district: d, kind: 'flood', delay: 300 });
       if (state.crisis.id === 'storm-season') setStorm(`crisis-${state.round}`);
     }
+    // The twist lands when play starts.
+    if (state.phase === 'select' && state.event?.round === state.round) fx.push({ district: state.event.district, kind: DIRECTOR_EVENTS[state.event.type].fx, delay: 200 });
     if (state.phase === 'reveal' && state.board) {
       state.board.attachments.forEach((a, i) => {
         const kind = ANIM_FX[CARDS[a.card].anim];

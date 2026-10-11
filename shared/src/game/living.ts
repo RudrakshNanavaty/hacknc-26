@@ -77,7 +77,7 @@ const bubble = (moment: string, speaker: RoleId, text: string, reaction: Reactio
 
 const CRISIS_LINES: Record<CrisisId, Record<RoleId, [string, Reaction]>> = {
   'king-tide': {
-    mayor: ['A king tide and one budget. Fantastic. Somebody find me a pump.', 'worry'],
+    mayor: ['We have three disasters and one budget. Fantastic. Somebody find a pump.', 'worry'],
     activist: ['The bay is telling us something. Maybe this time we listen.', 'worry'],
     resort: ['Seawater in the lobby is terrible for reviews. Let us fix this fast.', 'worry'],
     resident: ['Rubber boots by the door again. West Avenue floods every high tide.', 'protest'],
@@ -91,7 +91,7 @@ const CRISIS_LINES: Record<CrisisId, Record<RoleId, [string, Reaction]>> = {
     fisherman: ['Great, another luxury marina. Guess my boat is a tourist attraction now.', 'mock'],
   },
   'storm-season': {
-    mayor: ['A storm offshore and projects half finished. A historic crossroads, everyone.', 'worry'],
+    mayor: ['A storm offshore and projects half finished. Wonderful timing, as always.', 'worry'],
     activist: ['Dunes and mangroves are free storm armor. Please, let them work.', 'negotiate'],
     resort: ['Storm season means cancellations. Protect the guests, protect the economy.', 'worry'],
     resident: ['I have sandbags, a flashlight and zero faith in the drains.', 'worry'],

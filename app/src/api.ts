@@ -36,3 +36,15 @@ async function get<T>(url: string): Promise<T | null> {
 export const studio = (session: SessionKind | 'all', bots: boolean) => get<StudioData>(`/api/studio?session=${session}${bots ? '&bots=include' : ''}`);
 export const match = (id: string) => get<MatchRecord>(`/api/matches/${id}`);
 export const brief = (session: SessionKind | 'all') => get<{ brief: string; source: 'gemini' | 'template' }>(`/api/studio/brief?session=${session}`);
+
+export interface ExplainAnswer {
+  question: string;
+  answer: string;
+  source: 'gemini' | 'template';
+}
+/** Ask the server why (engine rule + real GIS facts; Gemini may reword it). */
+export async function explain(body: { kind: 'eligibility'; card: string; district: string } | { kind: 'outcome'; code: string; proposalId: string }): Promise<ExplainAnswer> {
+  const res = await fetch('/api/explain', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  if (!res.ok) throw new Error(`explain ${res.status}`);
+  return (await res.json()) as ExplainAnswer;
+}

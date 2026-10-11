@@ -58,7 +58,14 @@ The fix was environmental: `fnm install 22` and a `.node-version` file. No code 
   Fixed: markers stacked because `.avatar`/`.fx` set `position` (overrides MapLibre); ghosts animated the marker root's transform.
   Design fixes found by tests: Working Waterfront paired two resort cards (unplayable), now marina + accepted Public Access Guarantee;
   Lobbying Blitz could only back resort projects, now also seawall/drainage/housing.
-- [ ] M2 Director
+- [x] **M2 Director**: `shared/src/game/director.ts` (validators, twist catalogue, hints/combos from the engine, explanations,
+  `strayNumbers` moved here and re-exported by `narrator.ts`), `server/src/ai/director.ts` (public-state facts, structured prompts,
+  8 s timeouts), room functions `proposeEvent`/`proposeEarlyEvent`/`applyDialogue`/`applyHints`, `POST /api/explain`,
+  `RoomState.event`/`hints` and `RoundRecord.director`/`combos`, `MatchRecord.reviewQueue`, `replayMatch` (**contract changes**).
+  UI: twist card, table hints with Do it / dismiss, Why? buttons. Persona voices updated to the brief; `GROUNDED` no longer mentions reefs.
+  Live check with the real key: Gemini bubbles, twist (Investor interest at Collins), and worded hints all arrived. The first run timed
+  out at 5 s, so the timeout is now 8 s and the twist is prefetched during the previous resolution.
+  Hints only cover players who can still act (bots are done at once).
 - [ ] M4 economy UX
 - [ ] M5 polish + Studio
 

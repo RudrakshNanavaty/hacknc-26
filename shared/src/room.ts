@@ -4,6 +4,7 @@
 import type { PaceId } from './config';
 import type { CardId, Crisis, NegotiationMove, PersonaId } from './game/content';
 import type { Board, CityState, FinalResult, NegotiationAction, Resolution } from './game/engine';
+import type { AcceptedEvent, TableHint } from './game/director';
 import type { Bubble } from './game/living';
 import type { SessionKind } from './game/record';
 
@@ -64,6 +65,10 @@ export interface RoomState {
   headline: Headline | null;
   /** What the characters on the map are saying right now (presentation only; `key` is the moment). */
   bubbles: { key: string; list: Bubble[] } | null;
+  /** This round's twist: game fiction with validated, illustrative effects (applied when play starts). */
+  event: AcceptedEvent | null;
+  /** Negotiation hints, the same for everyone at the table. */
+  hints: { key: string; list: TableHint[] } | null;
   final: FinalResult | null;
   /** Your own hidden choices. */
   mine: {

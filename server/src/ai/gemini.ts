@@ -18,8 +18,8 @@ import { ApiError, GoogleGenAI, type GenerateContentConfig, type GenerateContent
 
 /** Rules for any prompt that is given facts: the code computes numbers, Gemini only writes words. */
 export const GROUNDED = `- Every number you state must appear in the facts you are given: write it exactly as given. Never invent, estimate or calculate new numbers.
-- Use only names (reefs, species, people) that appear in the facts.
-- This is a game played on real reef data. Its results are simulated: never claim a design improves real coral settlement or survival.`;
+- Use only names (places, projects, characters) that appear in the facts.
+- This is a game played on real Miami Beach zoning and FEMA flood data. Its outcomes are game results with illustrative values: never claim a project would really protect, cost or harm the city, and never present a game event as real news.`;
 
 export class AIError extends Error {
   constructor(message: string, readonly cause?: unknown) {

@@ -3,8 +3,9 @@
 import { useMemo, useState } from 'react';
 import {
   CARDS, COMBOS, NEGOTIATION_COST, PERSONA_INFO, PREFERENCE_QUESTION, PROJECTS, cardEligibility, districtById, districtFacts, handFor, resolveRound,
-  type Board, type CardId, type Proposal, type RoomState, type RuleEvent,
+  type AcceptedEvent, type Board, type CardId, type Proposal, type RoomState, type RuleEvent, type TableHint,
 } from '@shared';
+import { explain, type ExplainAnswer } from '../api';
 import type { Room } from '../room/useRoom';
 import { Link } from '../router';
 import { GameCard } from './GameCard';
@@ -36,11 +37,49 @@ export function CrisisPanel({ state }: { state: RoomState }) {
           );
         })}
       </div>
+      {state.event && <TwistCard ev={state.event} />}
       <p className="text-13 opacity-80">Approved projects in a spotlight area this round add {deltaText(c.bonus)} (rule K1, illustrative).</p>
       {me && (
         <p className="rounded-2xl bg-white/50 p-3 text-13"><b>Your agenda ({PERSONA_INFO[me.persona].name}):</b> {PERSONA_INFO[me.persona].goal}</p>
       )}
     </div>
+  );
+}
+
+/** The round's twist: game fiction, validated by the rules; its numbers come from the rulebook, not the AI. */
+export function TwistCard({ ev }: { ev: AcceptedEvent }) {
+  return (
+    <div className="twist-card">
+      <p className="flex flex-wrap items-center gap-2">
+        <span className="chip text-[11px]">🎲 Game event · fictional</span>
+        <span className="chip text-[11px]" title={ev.source === 'gemini' ? 'Proposed by the AI Game Director, checked and sized by the rules' : 'Authored fallback event'}>
+          {ev.source === 'gemini' ? '✦ AI-proposed, rules-checked' : 'Authored'}
+        </span>
+      </p>
+      <p className="font-display text-18 font-black">{ev.title} · {districtById(ev.district).name}</p>
+      <p className="text-13">{ev.narrative}</p>
+      <p className="text-13 font-bold">{deltaText(ev.delta)}{ev.resilience ? ` · area resilience ${ev.resilience}` : ''} <span className="font-normal opacity-70">(illustrative, when play starts)</span></p>
+    </div>
+  );
+}
+
+/** "Why?": the engine's answer, optionally reworded in plain language. */
+function WhyButton({ ask, label = 'Why?' }: { ask: () => Promise<ExplainAnswer>; label?: string }) {
+  const [a, setA] = useState<ExplainAnswer | null>(null);
+  const [busy, setBusy] = useState(false);
+  return (
+    <span className="inline-flex flex-col gap-1">
+      <button
+        type="button" className="why-btn" disabled={busy}
+        onClick={() => {
+          setBusy(true);
+          ask().then(setA, () => setA({ question: '', answer: 'Could not reach the server. The rule text above is the full answer.', source: 'template' })).finally(() => setBusy(false));
+        }}
+      >
+        {busy ? '…' : `🤔 ${label}`}
+      </button>
+      {a && <span className="why-answer">{a.source === 'gemini' && <b className="text-aqua-deep">✦ </b>}{a.answer}</span>}
+    </span>
   );
 }
 
@@ -123,6 +162,7 @@ export function HandPanel({ state, room, card, setCard, target, setTarget, onHov
             })}
           </div>
           {where && <p className={`text-13 ${where.ok ? 'text-leaf-deep' : 'text-coral'}`}>{where.reason}</p>}
+          {card && target && <WhyButton key={`${card}-${target}`} label={where?.ok ? 'Why here?' : 'Why not here?'} ask={() => explain({ kind: 'eligibility', card, district: target })} />}
           <button
             type="button" className="aero-btn aero-btn-go aero-btn-lg self-start" disabled={!target || !where?.ok}
             onClick={() => {
@@ -198,6 +238,7 @@ export function NegotiationPanel({ state, room }: { state: RoomState; room: Room
     <div className="flex flex-col gap-3">
       <h2 className="font-display text-32 leading-tight font-black">Negotiate</h2>
       <p className="text-13 opacity-80">One move each: back (1), oppose (1) or fund (2). Owners can accept compromises. The preview is the rules engine run on the table as it stands.</p>
+      {state.hints && state.hints.list.length > 0 && <Hints hints={state.hints.list} state={state} room={room} />}
       {board.proposals.map((p) => {
         const o = preview.outcomes.find((x) => x.proposalId === p.id)!;
         const st = STATUS_STYLE[o.status];
@@ -248,6 +289,37 @@ export function NegotiationPanel({ state, room }: { state: RoomState; room: Room
   );
 }
 
+/** Public hints: the engine found these moves; the AI may only word them. Players decide. */
+function Hints({ hints, state, room }: { hints: TableHint[]; state: RoomState; room: Room }) {
+  const [hidden, setHidden] = useState<string[]>([]);
+  const shown = hints.filter((h) => !hidden.includes(h.id));
+  if (!shown.length) return null;
+  return (
+    <div className="hint-box">
+      <p className="text-[11px] font-black tracking-wide uppercase opacity-70">Table hints · everyone sees these</p>
+      {shown.map((h) => {
+        const mine = h.seat === state.you;
+        const canDo = mine && ((h.kind === 'move' && !state.mine?.moved) || h.kind === 'accept');
+        return (
+          <div key={h.id} className="hint-row">
+            <span className="text-15">{h.kind === 'combo' ? '✨' : h.kind === 'accept' ? '🤝' : '💡'}</span>
+            <p className="min-w-0 flex-1 text-13">{h.source === 'gemini' && <b className="text-aqua-deep" title="Worded by the AI; the move was found by the rules engine">✦ </b>}{h.text}</p>
+            {canDo && (
+              <button
+                type="button" className="aero-btn aero-btn-go !px-2 !py-0.5 text-[12px]"
+                onClick={() => (h.kind === 'accept' && h.compromiseId ? room.accept(h.compromiseId) : h.move && h.move !== 'accept' ? room.move(h.move, h.proposalId) : undefined)}
+              >
+                Do it
+              </button>
+            )}
+            <button type="button" className="hint-x" aria-label="Dismiss hint" onClick={() => setHidden([...hidden, h.id])}>✕</button>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function Rule({ e }: { e: RuleEvent }) {
   return (
     <li className="rule-line">
@@ -281,6 +353,7 @@ export function ResolvePanel({ state }: { state: RoomState }) {
               {open === o.proposalId ? 'Hide' : 'Show'} the rules that decided it
             </button>
             {open === o.proposalId && <ol className="mt-1 flex flex-col gap-1">{o.rules.map((id) => r.events.find((e) => e.id === id)).filter(Boolean).map((e) => <Rule key={e!.id} e={e!} />)}</ol>}
+            {open === o.proposalId && <WhyButton label="Explain in plain words" ask={() => explain({ kind: 'outcome', code: state.code, proposalId: o.proposalId })} />}
           </div>
         );
       })}
