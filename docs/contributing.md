@@ -23,7 +23,8 @@ Windows: the commands work in Git Bash and PowerShell. If `npm install` rewrites
 
 **Playing it locally alone.** Open `http://localhost:5173`, host a room, and as host fill the empty seats with bots in the lobby.
 Pick the Demo pace; the host's skip button ends any phase. To test real multiplayer, open the room in other browser profiles,
-or on phones on the same Wi-Fi (Vite listens on the LAN, and the room QR uses the LAN address or `PUBLIC_URL`).
+or on other laptops on the same Wi-Fi (Vite listens on the LAN, and the room QR uses the LAN address or `PUBLIC_URL`).
+The game is desktop only; `/fx-lab` (dev builds) plays every crisis animation on demand.
 
 ## 2. Map of the repo
 
@@ -54,18 +55,26 @@ server/src/
   voice.ts                  ElevenLabs TTS with a disk cache
   db/store.ts, db/tiger.ts, db/schema.sql   MemoryStore or Tiger Data (Postgres) behind failSoft
 app/src/
-  routes/Landing.tsx, Play.tsx, Studio.tsx    the three pages (tiny router in router.tsx); Play is the stage:
-                            the map arena (meters, clock, player bubbles) and the lagoon column (one screen per phase)
-  room/useRoom.ts           the WebSocket client: state, clock offset, one function per ClientMsg
-  game/screens.tsx          one screen per phase: Crisis, Card, Duel (reveal + negotiation), Result, Final
-  game/insights.tsx         what the rules and the Director add to the screens: twist card, Why?, hints, previews,
+  routes/Landing.tsx, Play.tsx, Studio.tsx    the three pages (tiny router in router.tsx); Play is the stage: the map
+                            is the whole board, with the HUD (meters, clock, player bubbles, news ticker) over it
+  routes/FxLab.tsx          dev-only /fx-lab: every crisis animation, any intensity
+  room/useRoom.ts           the WebSocket client: state, clock offset, one function per ClientMsg, pings
+  game/NewsTicker.tsx       the crisis as a breaking card, then a ticker with a details drawer (facts, K1, agenda, twist)
+  game/DistrictPopover.tsx  click an area: your dealt hand (handFor: 4 of 6), illegal cards greyed with the reason,
+                            two-step deploy; GameCard.tsx (character card + mini card)
+  game/CaseFile.tsx         reveal + negotiation, pinned to the proposal's area (moves, deals, hints, reactions)
+  game/ResultOverlay.tsx    the round's result (side) and the podium (center)
+  game/insights.tsx         what the rules and the Director add: twist card, Why?, hints, previews,
                             if-it-passes, combos, recap, card extras, the round's bill, tweened numbers
-  game/Deck.tsx             the dealt hand (handFor: 4 of 6) and drag-to-deploy; GameCard.tsx (character card + mini card)
   game/Hud.tsx, ui.tsx      meters (gel tubes), timer orb, player bubbles; Aero Lagoon pieces (Tube, Soap, Pips)
   game/Lobby.tsx, Players.tsx, Flights.tsx (card flights + verdict stamps + bloom numbers)
   map/CityMap.tsx, basemap.ts   tilted 3D street map (OpenFreeMap tiles), FEMA water, zoning and satellite toggles,
                             areas, chips, pins, spotlight
   map/LivingLayer.tsx       avatars (sprites.ts), speech bubbles, ghost proposals, map effects (all Markers)
+  map/MapAnchor.tsx         cards pinned beside an area (follows the camera, stays clear of the HUD)
+  map/CrisisFx.tsx, CrisisAlert.tsx, intensity.ts   the crisis on the map: FEMA-shaped water (flood-by-area.geojson),
+                            sand, rain, cranes, coins; breaking pins; strength from the live readings (presentation only)
+  map/PingLayer.tsx         negotiation reactions over an area
   styles.css, tokens.ts     Frutiger Aero theme (Tailwind v4 tokens live in styles.css)
   ui/                       sound (Web Audio), voice (calls /api/tts), Bubbles
 ```
@@ -155,12 +164,15 @@ and the number check in `server/src/ai/scenario.ts`.
 1. `shared/src/room.ts`: add to `ClientMsg` (and to `RoomState` if clients need to see it). This is a contract: say so in the commit.
 2. `server/src/rooms.ts`: an exported function that checks the phase and throws `RoomError` with a readable message.
 3. `server/src/roomSocket.ts`: a `case` in the dispatch `switch`.
-4. `app/src/room/useRoom.ts`: a sender on the `Room` interface. Then the UI in the phase's screen in `game/screens.tsx`.
+4. `app/src/room/useRoom.ts`: a sender on the `Room` interface. Then the UI where that phase lives on the map
+   (`DistrictPopover`, `CaseFile`, `ResultOverlay`, `NewsTicker`).
 5. A test in `server/src/rooms.test.ts`.
 
 ### UI work
-- Each phase's screen is in `game/screens.tsx`; rules/Director additions live in `game/insights.tsx`. The page shell is
-  `routes/Play.tsx`: the map is the arena, the lagoon column holds the screen (below the map on phones, under 1024 px).
+- There is no side panel: `routes/Play.tsx` puts each phase on the map. Crisis: `NewsTicker` + `CrisisAlert` + `CrisisFx`.
+  Select: `DistrictPopover` (click an area; chips show how many cards are playable). Reveal and negotiate: `CaseFile`.
+  Resolve and final: `ResultOverlay`. Rules/Director additions live in `game/insights.tsx`. Pin anything that belongs to a
+  place with `MapAnchor`. The camera is directed for crisis, reveal and result, free (with Recenter) while choosing and negotiating.
 - The Aero Lagoon look: build with `wet` (glass panel), `frost` (light box), `gel` / `gel-sm` / `gel-lime` (buttons), `lchip`
   (chips), `Tube`, `Soap` and `Pips` from `game/ui.tsx`, `glow-title` for headings.
 - The UI only shows what the server sends. Never compute an outcome in a component; call the shared engine (as the negotiation preview does) or show `state`.
@@ -185,7 +197,7 @@ Schema changes go in `server/src/db/schema.sql`, written idempotently (`IF NOT E
 
 - [ ] `npm run typecheck` passes.
 - [ ] `npm test` passes (on Node 20.19+/22.12+).
-- [ ] UI changes: played through in the browser at **1440 px and 390 px** wide (a bot-filled Demo room is fastest).
+- [ ] UI changes: played through in the browser at **1440×900 and 1280×720** (a bot-filled Demo room is fastest; desktop only).
 - [ ] No outcome or number invented in the UI or an LLM prompt. New numbers are labelled illustrative/hypothetical.
 - [ ] Role-play, personal preference, demo vs community sessions and bots are still kept apart in records.
 - [ ] Contract changes (`room.ts`, `engine.ts` types, `record.ts`) are called out in the commit; `RULES_VERSION` bumped for rule changes.
@@ -195,7 +207,7 @@ Schema changes go in `server/src/db/schema.sql`, written idempotently (`IF NOT E
 
 - Branch from `pratham/coastal-clash` (it carries `aum/coastal-clash` plus the living map, the Director, the 24 cards and the review fixes; merge `aum/coastal-clash` in again as Aum pushes) as `<name>/dev` or `<name>/<topic>`.
   `aum/dev` holds the older ReefForge project; do not merge between them.
-- Commit small with a message that says what changed and why. Pull and merge often: `content.ts`, `engine.ts`, `rooms.ts`, `screens.tsx` and `styles.css` are where people collide.
+- Commit small with a message that says what changed and why. Pull and merge often: `content.ts`, `engine.ts`, `rooms.ts`, `routes/Play.tsx` and `styles.css` are where people collide.
 - Never commit `.env`, `pipeline/cache/` or `node_modules/`.
 
 ## 7. Troubleshooting
@@ -204,7 +216,7 @@ Schema changes go in `server/src/db/schema.sql`, written idempotently (`IF NOT E
 |---|---|
 | `require() of ES Module …cookie…` in `rooms.test.ts` | Node too old for `require(esm)`. Use Node 22.12+ (or 20.19+). |
 | "Room not found" on a join link | Rooms live in server memory: a server restart (including `tsx watch` reloading after an edit) clears them. Open a new room. |
-| Phones cannot join | They must be on the same network. Check `/api/join-base`; set `PUBLIC_URL` to a tunnel when the LAN is locked down. |
+| Other laptops cannot join | They must be on the same network. Check `/api/join-base`; set `PUBLIC_URL` to a tunnel when the LAN is locked down. |
 | No AI headline / no voice | Expected without `GEMINI_API_KEY` / `ELEVENLABS_API_KEY`. `/api/health` shows what is on (`ai`, `director`, `voice`). |
 | `director: template kept ... timed out` in the server log | Gemini was slower than 8 s (big prompt, busy key). The template is already showing; nothing breaks. Raise `geminiDirector(gemini, ms)` only if it happens constantly. |
 | `error 402 ... prepayment credits are depleted` in the server log | The Gemini key's AI Studio project is out of credit. Top it up at https://ai.studio/projects; until then every AI call falls back to templates and the game plays normally. |

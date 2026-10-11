@@ -83,7 +83,7 @@ export function Landing() {
           <h3 className="font-display text-32 font-black">How a round plays</h3>
           <ol className="grid grid-cols-1 gap-2 text-15 sm:grid-cols-2 lg:grid-cols-4">
             <li><b>1. Crisis.</b> Gemini writes each match’s crises live from NOAA’s Virginia Key tide gauge, the NWS forecast and each area’s real flood and zoning profile.</li>
-            <li><b>2. Deploy.</b> Each stakeholder drags one card onto a playable area. The real zoning and FEMA layers decide where each card is allowed.</li>
+            <li><b>2. Deploy.</b> Each stakeholder clicks an area and plays one of the cards it allows. The real zoning and FEMA layers decide where each card is allowed.</li>
             <li><b>3. Clash & negotiate.</b> Cards are revealed together. Back, oppose, fund, or accept a compromise.</li>
             <li><b>4. Resolve.</b> A deterministic rules engine decides, shows every rule it applied, and the city changes.</li>
           </ol>

@@ -44,8 +44,8 @@ Product and rules: `docs/coastal-clash.md`. Hard rules: `AGENTS.md`.
 | Geography threshold | `GEO_RULES` in `game/districts.ts`; the table in `coastal-clash.md` §3 |
 | Playable area | `AREAS` in `pipeline/miami-beach.ts`, then `npm run data`; commit the generated JSON/GeoJSON; update `authoredScenario` spotlights and tests |
 | Crisis | per match: kinds and K1 bonuses in `shared/src/game/scenario.ts` (`CRISIS_KIND_INFO`), lines in `living.ts` `CRISIS_LINES`, twists in `director.ts` `TWISTS_FOR`; the desk prompt in `server/src/ai/scenario.ts` |
-| Player action | `room.ts` `ClientMsg`, an exported function in `rooms.ts` (throw `RoomError`), the `roomSocket.ts` switch, the `useRoom.ts` sender, the phase's screen in `screens.tsx`, `rooms.test.ts` |
-| Phase UI | `app/src/game/screens.tsx` (one screen per phase) + `insights.tsx` (Director/economy pieces); shell `app/src/routes/Play.tsx` (map arena + lagoon column; phones under 1024 px); look: `wet`, `frost`, `gel`, `lchip`, `Tube`/`Soap` in `ui.tsx` |
+| Player action | `room.ts` `ClientMsg`, an exported function in `rooms.ts` (throw `RoomError`), the `roomSocket.ts` switch, the `useRoom.ts` sender, the phase's UI on the map (`DistrictPopover`, `CaseFile`, `ResultOverlay`), `rooms.test.ts` |
+| Phase UI | On the map, no side panel: `NewsTicker` + `map/CrisisAlert` + `map/CrisisFx` (crisis), `DistrictPopover` (select), `CaseFile` (reveal, negotiate), `ResultOverlay` (resolve, final), pinned with `map/MapAnchor`; `insights.tsx` (Director/economy pieces); shell `app/src/routes/Play.tsx`; desktop only; look: `wet`, `frost`, `gel`, `lchip`, `Tube`/`Soap` in `ui.tsx` |
 | Studio finding / export | `studioSummary`, `toCsv`, `toGeoJson` in `game/record.ts`; `server/src/studio.ts`; `app/src/routes/Studio.tsx` |
 | DB | `server/src/db/schema.sql` (idempotent, `cc_` prefix), `db/tiger.ts`, `MemoryStore` in `db/store.ts` |
 | AI Director | prompts `server/src/ai/director.ts`; validators/catalogue `shared/src/game/director.ts`; apply `rooms.ts` (`applyDialogue`, `proposeEvent`, `applyHints`); wiring `roomSocket.ts` `drain` |
@@ -62,7 +62,7 @@ The contracts are `shared/src/room.ts`, the exported types in `engine.ts` and `r
 4. Verify:
    - `npm run typecheck`
    - `npm test`
-   - UI: run `npm run dev`, host a room, fill seats with bots, use the Demo pace and the host's skip button, and check at 1440 px and 390 px.
+   - UI: run `npm run dev`, host a room, fill seats with bots, use the Demo pace and the host's skip button, and check at 1440×900 and 1280×720 (desktop only).
 5. Update the docs when rules, areas, setup or rule ids change (`docs/coastal-clash.md`, `docs/contributing.md`, this skill).
 6. Commit small on your branch. Do not push or merge unless asked.
 

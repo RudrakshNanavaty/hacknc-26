@@ -31,5 +31,6 @@ Contracts live in `shared/src`: `room.ts` (wire protocol), `game/engine.ts` (Boa
    community sessions apart in records and in Planning Studio.
 4. **Fail soft.** Every server integration has a fallback (memory store, template narration, no voice).
 5. **No secrets in code.** Keys come from `.env` only (see `.env.example`).
-6. **Verify before done.** `bun run typecheck` and `bun run test`. For UI, check it at 1440 px and 390 px wide.
+6. **Verify before done.** `bun run typecheck` and `bun run test`. For UI, check it at 1440×900 and 1280×720: the game
+   is desktop only (one laptop per player), so there is no phone layout to keep.
 7. **Commit small**, on your own `<name>/dev` branch.
