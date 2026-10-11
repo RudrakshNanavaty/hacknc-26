@@ -8,9 +8,9 @@ import { randomUUID } from 'node:crypto';
 import {
   CARDS, LOCK_GRACE_MS, MAX_PLAYERS, NEGOTIATION_COST, PACES, PERSONA_INFO, START_INDICATORS, START_INFLUENCE, TOTAL_ROUNDS,
   buildBoard, checkAccept, checkMove, checkPlay, crisisFor, crisisHeadline, finalHeadline, finalResult, isPersonaId, newMatchRecord,
-  nextInfluence, resolutionHeadline, resolveRound, revealHeadline, startCity, botPlay, districtById,
+  nextInfluence, resolutionHeadline, resolveRound, revealHeadline, startCity, botPlay, districtById, authoredScenario,
   type Board, type CardId, type CityState, type Crisis, type FinalResult, type Headline, type MatchRecord, type NegotiationAction,
-  type PaceId, type PersonaId, type Proposal, type RoomPhase, type RoomState, type RoundSummary, type SessionKind,
+  type PaceId, type PersonaId, type Proposal, type Scenario, type RoomPhase, type RoomState, type RoundSummary, type SessionKind,
 } from '@shared';
 
 const ROOM_TTL_MS = 3 * 60 * 60 * 1000;
@@ -39,6 +39,7 @@ export interface Player {
 
 /** Side effects for the socket layer, drained after every change. */
 export type Effect =
+  | { t: 'scenario' }
   | { t: 'reveal'; key: string }
   | { t: 'resolved'; key: string; round: number }
   | { t: 'final'; key: string }
@@ -58,6 +59,8 @@ export interface Room {
   record: MatchRecord | null;
   city: CityState;
   crisis: Crisis | null;
+  /** This match's three crises and card lines; null until written. */
+  scenario: Scenario | null;
   carried: Proposal[];
   board: Board | null;
   actions: NegotiationAction[];
@@ -74,7 +77,7 @@ export const rooms = new Map<string, Room>();
 export function newRoom(code: string, now = Date.now()): Room {
   return {
     code, phase: 'lobby', round: 0, endsAt: null, players: [], hostId: null, pace: 'standard', sessionKind: 'demo', touchedAt: now,
-    matchId: null, record: null, city: startCity(), crisis: null, carried: [], board: null, actions: [], history: [], resolvedRound: 0,
+    matchId: null, record: null, city: startCity(), crisis: null, scenario: null, carried: [], board: null, actions: [], history: [], resolvedRound: 0,
     headline: null, final: null, effects: [],
   };
 }
@@ -196,6 +199,9 @@ export function setSession(room: Room, player: Player, kind: unknown): void {
   touch(room);
 }
 
+/** How long the first crisis waits for the live desk before the authored scenario stands in. */
+export const SCENARIO_WAIT_MS = 10_000;
+
 const seconds = (room: Room, phase: keyof (typeof PACES)['standard']) => PACES[room.pace][phase] * 1000;
 
 /** The host starts the match. */
@@ -211,17 +217,18 @@ export function start(room: Room, player: Player, now: number): void {
   room.resolvedRound = 0;
   room.final = null;
   room.round = 1;
+  room.scenario = null;
   for (const p of room.players) {
     p.influence = START_INFLUENCE;
     p.responded = null;
   }
-  room.effects.push({ t: 'record' });
+  room.effects.push({ t: 'scenario' }, { t: 'record' });
   enterCrisis(room, now);
 }
 
 function enterCrisis(room: Room, now: number): void {
   room.phase = 'crisis';
-  room.crisis = crisisFor(room.round);
+  room.crisis = room.scenario?.crises[room.round - 1] ?? null;
   room.board = null;
   room.actions = [];
   if (room.round > 1) for (const p of room.players) p.influence = nextInfluence(p.influence);
@@ -230,15 +237,38 @@ function enterCrisis(room: Room, now: number): void {
     p.moved = false;
     p.done = false;
   }
-  room.headline = { text: crisisHeadline(room.crisis, room.round), source: 'template', key: `crisis-${room.round}` };
+  if (room.crisis) showCrisis(room, now);
+  else {
+    room.headline = { text: 'Coastal Clash Live is checking the tide gauge and the forecast for Miami Beach…', source: 'template', key: 'crisis-wait' };
+    room.endsAt = now + SCENARIO_WAIT_MS;
+  }
+  touch(room, now);
+}
+
+function showCrisis(room: Room, now: number): void {
+  room.headline = { text: crisisHeadline(room.crisis!, room.round), source: room.crisis!.source === 'gemini' ? 'gemini' : 'template', key: `crisis-${room.round}` };
   room.endsAt = now + seconds(room, 'crisis');
+}
+
+/** The match's scenario has been written (or the authored one stands in). First one wins. */
+export function applyScenario(room: Room, scenario: Scenario, now: number): void {
+  if (room.scenario || !room.matchId) return;
+  room.scenario = scenario;
+  if (room.record) {
+    room.record.scenarioSource = scenario.source;
+    room.record.live = scenario.live;
+  }
+  if (room.phase === 'crisis' && !room.crisis) {
+    room.crisis = scenario.crises[room.round - 1] ?? crisisFor(room.round);
+    showCrisis(room, now);
+  }
   touch(room, now);
 }
 
 function enterSelect(room: Room, now: number): void {
   room.phase = 'select';
   room.endsAt = now + seconds(room, 'select');
-  for (const p of room.players.filter((x) => x.bot)) p.selection = botPlay(p.persona, p.influence, room.round);
+  for (const p of room.players.filter((x) => x.bot)) p.selection = botPlay(p.persona, p.influence, room.round, room.crisis ?? undefined);
   touch(room, now);
   maybeReveal(room, now);
 }
@@ -256,7 +286,7 @@ export function select(room: Room, player: Player, card: unknown, district: unkn
 
 function maybeReveal(room: Room, now: number): void {
   const here = present(room, now);
-  if (room.phase === 'select' && here.length && here.every((p) => p.selection || (p.bot && botPlay(p.persona, p.influence, room.round) === null))) enterReveal(room, now);
+  if (room.phase === 'select' && here.length && here.every((p) => p.selection || (p.bot && botPlay(p.persona, p.influence, room.round, room.crisis ?? undefined) === null))) enterReveal(room, now);
 }
 
 function enterReveal(room: Room, now: number): void {
@@ -267,7 +297,7 @@ function enterReveal(room: Room, now: number): void {
     p.influence -= CARDS[p.selection.card].cost;
     return [{ seat: p.seat, persona: p.persona, card: p.selection.card, district: p.selection.district }];
   });
-  room.board = buildBoard(room.round, plays, room.carried);
+  room.board = buildBoard(room.round, plays, room.carried, room.crisis ?? crisisFor(room.round));
   room.phase = 'reveal';
   room.endsAt = now + seconds(room, 'reveal');
   const key = `reveal-${room.round}`;
@@ -338,7 +368,7 @@ function enterResolve(room: Room, now: number): void {
   const headline = resolutionHeadline(resolution);
   room.history.push({ round: room.round, headline, resolution, board: room.board, actions: room.actions });
   room.record?.rounds.push({
-    round: room.round, crisis: room.board.crisis.id, proposals: room.board.proposals, attachments: room.board.attachments,
+    round: room.round, crisis: room.board.crisis, proposals: room.board.proposals, attachments: room.board.attachments,
     compromises: room.board.compromises, actions: room.actions, outcomes: resolution.outcomes, events: resolution.events,
     before: resolution.before, after: resolution.after, headline, resolvedAt: new Date(now).toISOString(),
   });
@@ -375,7 +405,9 @@ export function skip(room: Room, player: Player, now: number): void {
 function advance(room: Room, now: number): boolean {
   switch (room.phase) {
     case 'crisis':
-      enterSelect(room, now);
+      // The live desk ran out of time: the authored scenario stands in.
+      if (!room.crisis) applyScenario(room, authoredScenario(null), now);
+      else enterSelect(room, now);
       return true;
     case 'select':
       enterReveal(room, now);
@@ -423,6 +455,7 @@ export function again(room: Room, player: Player): void {
   room.final = null;
   room.headline = null;
   room.crisis = null;
+  room.scenario = null;
   room.history = [];
   room.city = startCity();
   room.matchId = null;
@@ -476,6 +509,9 @@ export function publicState(room: Room, viewer: Player | null, now: number): Roo
     })),
     city: room.city,
     crisis: room.crisis,
+    quips: room.scenario?.quips ?? {},
+    live: room.scenario?.live ?? null,
+    scenarioSource: room.scenario?.source ?? null,
     board: showBoard ? room.board : null,
     actions: showBoard ? room.actions : [],
     history: room.history,

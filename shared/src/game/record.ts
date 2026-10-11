@@ -1,8 +1,9 @@
 // The planning-feedback record a match leaves behind, and what Planning Studio computes from them.
 // Role-play choices and personal preferences are kept apart, and so are demo sessions, bots and
 // community sessions: role-play is not public opinion.
-import { CARDS, PERSONA_INFO, PROJECTS, RULES_VERSION, type CardId, type CrisisId, type Indicators, type PersonaId, type ProjectKind } from './content';
+import { CARDS, PERSONA_INFO, PROJECTS, RULES_VERSION, type CardId, type Indicators, type PersonaId, type ProjectKind } from './content';
 import { DATA_SOURCES, DATA_VERSION, DISTRICTS, districtById, type DataSource } from './districts';
+import type { Crisis, LiveConditions } from './scenario';
 import type { Attachment, Compromise, FinalResult, NegotiationAction, Outcome, Proposal, RuleEvent } from './engine';
 
 export type SessionKind = 'demo' | 'community';
@@ -17,7 +18,7 @@ export interface MatchPlayer {
 
 export interface RoundRecord {
   round: number;
-  crisis: CrisisId;
+  crisis: Crisis;
   proposals: Proposal[];
   attachments: Attachment[];
   compromises: Compromise[];
@@ -58,6 +59,9 @@ export interface MatchRecord {
   rounds: RoundRecord[];
   final: FinalResult | null;
   responses: PreferenceResponse[];
+  /** Where this match's crises came from, and the live readings they were written from. */
+  scenarioSource?: 'gemini' | 'authored';
+  live?: LiveConditions | null;
 }
 
 export const SCENARIO_ID = 'miami-beach-coastal-2026';

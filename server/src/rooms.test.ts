@@ -1,11 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { AddressInfo } from 'node:net';
 import WebSocket from 'ws';
-import { type PersonaId, type RoomState, type ServerMsg } from '@shared';
+import { authoredScenario, type PersonaId, type RoomState, type ServerMsg } from '@shared';
 import { buildServer } from './app';
 import { MemoryStore } from './db/store';
 import {
-  RECONNECT_GRACE_MS, RoomError, accept, again, choosePersona, done, getOrCreateRoom, join, move, presence, publicState, respond, rooms, select, setBot, skip, start, tick,
+  RECONNECT_GRACE_MS, RoomError, accept, again, applyScenario, choosePersona, done, getOrCreateRoom, join, move, presence, publicState, respond, rooms, select, setBot, skip, start, tick,
 } from './rooms';
 
 const fresh = (code = 'ABCD') => {
@@ -30,6 +30,7 @@ describe('room state machine', () => {
     choosePersona(room, b, 'resort');
     expect(() => start(room, b, 1000)).toThrow(/Only the host/);
     start(room, a, 1000);
+    applyScenario(room, authoredScenario(null), 1000);
     expect(room.phase).toBe('crisis');
     expect(() => join(room, 'Cy', 'resident')).toThrow(/under way/);
   });
@@ -52,6 +53,7 @@ describe('room state machine', () => {
     const a = join(room, 'Ana', 'resort');
     const b = join(room, 'Ben', 'mayor');
     start(room, a, 0);
+    applyScenario(room, authoredScenario(null), 0);
     skip(room, a, 1);
     expect(room.phase).toBe('select');
     expect(() => select(room, a, 'hotel-development', 'north-beach-oceanside', 2)).toThrow(/zoned for hotel/);
@@ -74,6 +76,7 @@ describe('room state machine', () => {
     const room = fresh();
     const a = join(room, 'Ana', 'mayor');
     start(room, a, 0);
+    applyScenario(room, authoredScenario(null), 0);
     skip(room, a, 1); // select
     select(room, a, 'drainage-upgrade', 'west-avenue', 2); // everyone in: reveal
     skip(room, a, 3); // negotiate
@@ -97,6 +100,7 @@ describe('room state machine', () => {
     const resident = join(room, 'Ben', 'resident');
     const mayor = join(room, 'Cy', 'mayor');
     start(room, resort, 0);
+    applyScenario(room, authoredScenario(null), 0);
     skip(room, resort, 1);
     select(room, resort, 'hotel-development', 'collins-mid-beach', 2);
     select(room, resident, 'public-access-guarantee', 'collins-mid-beach', 2);
@@ -124,6 +128,7 @@ describe('room state machine', () => {
     const a = join(room, 'Ana', 'mayor');
     const b = join(room, 'Ben', 'activist');
     start(room, a, 0);
+    applyScenario(room, authoredScenario(null), 0);
     skip(room, a, 1);
     select(room, a, 'drainage-upgrade', 'west-avenue', 2);
     expect(room.phase).toBe('select');
@@ -141,6 +146,7 @@ describe('room state machine', () => {
     const a = join(room, 'Ana', 'mayor');
     for (const p of ['activist', 'resort', 'resident'] as PersonaId[]) setBot(room, a, p, true);
     start(room, a, 0);
+    applyScenario(room, authoredScenario(null), 0);
     let now = 0;
     while (room.phase !== 'final') {
       now += 1;
@@ -166,7 +172,12 @@ describe('room state machine', () => {
 describe('four browsers over WebSockets', () => {
   const store = new MemoryStore();
   // A narrator that always fails: the match must not notice.
-  const app = buildServer({ store, narrator: { line: () => Promise.reject(new Error('Gemini is down')) } });
+  const app = buildServer({
+    store,
+    narrator: { line: () => Promise.reject(new Error('Gemini is down')) },
+    // No network in tests: no live readings, and the scenario desk is down too.
+    scenario: { live: async () => null, write: () => Promise.reject(new Error('Gemini is down')) },
+  });
   let base = '';
 
   beforeAll(async () => {

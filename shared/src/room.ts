@@ -2,7 +2,8 @@
 // room hosts it (starts the match, can skip a phase, can fill empty seats with bots).
 // Wire protocol for /ws/rooms/:code. JSON messages, one per WebSocket frame.
 import type { PaceId } from './config';
-import type { CardId, Crisis, NegotiationMove, PersonaId } from './game/content';
+import type { CardId, NegotiationMove, PersonaId } from './game/content';
+import type { Crisis, LiveConditions } from './game/scenario';
 import type { Board, CityState, FinalResult, NegotiationAction, Resolution } from './game/engine';
 import type { SessionKind } from './game/record';
 
@@ -53,7 +54,13 @@ export interface RoomState {
   matchId: string | null;
   players: RoomPlayer[];
   city: CityState;
+  /** null while the live desk is still writing this match's scenario. */
   crisis: Crisis | null;
+  /** This match's card lines (Gemini, in each persona's voice). */
+  quips: Partial<Record<CardId, string>>;
+  /** The live readings the scenario was written from. */
+  live: LiveConditions | null;
+  scenarioSource: 'gemini' | 'authored' | null;
   /** The revealed board (reveal and negotiation; null while cards are hidden). */
   board: Board | null;
   /** Negotiation moves so far (public: it is a negotiating table). */

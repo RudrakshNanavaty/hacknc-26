@@ -260,36 +260,5 @@ export const handOf = (persona: PersonaId): CardId[] => CARD_IDS.filter((id) => 
 export const NEGOTIATION_COST = { back: 1, oppose: 1, fund: 2 } as const;
 export type NegotiationMove = keyof typeof NEGOTIATION_COST;
 
-export type CrisisId = 'king-tide' | 'hotel-boom' | 'storm-season';
-export interface Crisis {
-  id: CrisisId;
-  round: number;
-  title: string;
-  text: string;
-  /** Districts the crisis is about (highlighted on the map). */
-  spotlight: string[];
-  /** Approved projects in a spotlight district add this (rule K1). */
-  bonus: Delta;
-  refs: string[];
-}
-
-export const CRISES: Crisis[] = [
-  {
-    id: 'king-tide', round: 1, title: 'King tide warning',
-    text: 'Scenario: a seasonal king tide is forecast. In low-lying bayfront blocks like West Avenue, water comes up through the storm drains. The city must prioritize resilience investment.',
-    spotlight: ['west-avenue', 'south-pointe'], bonus: { flood: 2 }, refs: [NOAA_SLR, MB_PROJECTS],
-  },
-  {
-    id: 'hotel-boom', round: 2, title: 'Oceanfront hotel boom',
-    text: 'Scenario: tourism is surging and developers are circling the oceanfront along Collins Avenue and South Pointe. Jobs are on the table, and so are the dunes.',
-    spotlight: ['collins-mid-beach', 'south-pointe'], bonus: { economy: 2 }, refs: [MB_ZONING],
-  },
-  {
-    id: 'storm-season', round: 3, title: 'Storm season',
-    text: 'Scenario: a tropical storm is churning offshore. Oceanfront parks and dunes in North Beach and South Pointe are the first line. After this round, the storm tests the city.',
-    spotlight: ['north-beach-oceanside', 'south-pointe'], bonus: { environment: 2 }, refs: [FEMA_NFHL, NOAA_SLR],
-  },
-];
-
 /** The storm at the end of round 3 (rule S1): weak flood resilience costs the economy. */
 export const STORM_TEST = { threshold: 50, economyLossPerPoint: 0.25 };

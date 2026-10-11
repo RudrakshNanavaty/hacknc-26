@@ -5,11 +5,12 @@
 import type { IncomingMessage } from 'node:http';
 import type { Duplex } from 'node:stream';
 import { WebSocketServer, type WebSocket } from 'ws';
-import { narrationFacts, type ClientMsg, type RoomState, type ServerMsg } from '@shared';
+import { authoredScenario, narrationFacts, type ClientMsg, type LiveConditions, type RoomState, type ServerMsg } from '@shared';
 import type { MatchStore } from './db/store';
 import type { Narrator } from './ai/narrator';
+import type { ScenarioWriter } from './ai/scenario';
 import {
-  RoomError, accept, again, choosePersona, done, findPlayer, getOrCreateRoom, getRoom, join, move, presence, publicState, respond,
+  RoomError, accept, again, applyScenario, choosePersona, done, findPlayer, getOrCreateRoom, getRoom, join, move, presence, publicState, respond,
   select, setBot, setPace, setSession, skip, start, sweep, tick, type Room,
 } from './rooms';
 
@@ -24,10 +25,12 @@ interface Conn {
 export interface RoomServerOptions {
   store: MatchStore;
   narrator: Narrator | null;
+  /** Writes each match's scenario; the authored one stands in when it fails. */
+  scenario: { live: () => Promise<LiveConditions | null>; write: ScenarioWriter };
   log: { warn: (obj: unknown, msg: string) => void; info?: (msg: string) => void };
 }
 
-export function roomServer({ store, narrator, log }: RoomServerOptions) {
+export function roomServer({ store, narrator, scenario, log }: RoomServerOptions) {
   const wss = new WebSocketServer({ noServer: true });
   const conns = new Map<string, Set<Conn>>();
 
@@ -54,11 +57,26 @@ export function roomServer({ store, narrator, log }: RoomServerOptions) {
     );
   }
 
+  function writeScenario(room: Room) {
+    const matchId = room.matchId;
+    void (async () => {
+      const live = await scenario.live().catch(() => null);
+      const written = await scenario.write(live).catch((err) => {
+        log.warn({ err: (err as Error).message, room: room.code }, 'scenario desk: authored scenario stands in');
+        return authoredScenario(live);
+      });
+      if (room.matchId !== matchId) return; // a new match started meanwhile
+      applyScenario(room, written, Date.now());
+      broadcast(room);
+    })();
+  }
+
   function drain(room: Room) {
     const effects = room.effects.splice(0);
     let save = false;
     for (const e of effects) {
       if (e.t === 'record') save = true;
+      else if (e.t === 'scenario') writeScenario(room);
       else if (e.t === 'reveal' && room.board) narrate(room, e.key, narrationFacts('reveal', room.board));
       else if (e.t === 'resolved') {
         const h = room.history.find((x) => x.round === e.round);
