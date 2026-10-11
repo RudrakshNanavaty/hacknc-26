@@ -11,8 +11,9 @@ Several people and coding agents work in this repo during HackNC 2026. Follow th
    Agents: `docs/skills/coastal-clash/SKILL.md` is the same as a skill (copy it to `.claude/skills/` to load it in Claude Code).
 
 ## Where to work
-- This `simple-clash/` folder holds `aum/simple-clash` (Planning Edition) and `pratham/seascape-bubbles` (on top of it). The
-  `map-board/` folder holds the map-board branches. Commit on the branch you were asked to work on; see the handoff.
+- This `simple-clash/` folder now checks out `main`, promoted at the user's request from `pratham/seascape-bubbles`
+  (the Planning Edition plus the shared glass UI). The `map-board/` folder holds the map-board branches.
+  Commit on the branch you were asked to work on; see the handoff.
 - Do not pull from, merge into or push to any other branch (`main`, `pratham/*`, `aum/*`, `rdx/dev`, `rdx/ui-refresh`)
   unless the person you are working with asks for it in so many words.
 

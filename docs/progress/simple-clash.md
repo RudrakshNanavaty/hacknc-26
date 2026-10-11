@@ -5,16 +5,27 @@ work. The game itself (Planning Edition, rules `planning-1.0.0`) is described in
 earlier map-board history is in [`map-board.md`](map-board.md) and [`coastal-clash-evolution.md`](coastal-clash-evolution.md).
 Last updated 2026-10-11.
 
-## The branches (the `simple-clash/` git worktree of `github.com/RudrakshNanavaty/hacknc-26`)
+## Main release (2026-10-11)
+
+- The user explicitly requested committing and pushing this work to `main`. This worktree now checks out local `main`,
+  fast-forwarded from the original starter to the complete `pratham/seascape-bubbles` history, including UI commit `b75c47b`.
+- Rewrote the root README for the Planning Edition using the supplied project story: inspiration, roles, negotiation,
+  scoring, the simulator, Civic Atlas, integrations, setup, research provenance, lessons and next steps. Added a real onboarding screenshot.
+- Checked README claims against the code: the current scenarios are committed, autonomous scout orchestration is not packaged here,
+  Solana anchors legacy records only, and contribution-card minting is not implemented in this tree.
+- The release is a normal fast-forward update to `origin/main`; no force push or other worktree changes are needed.
+
+## Branch history (the `simple-clash/` git worktree of `github.com/RudrakshNanavaty/hacknc-26`)
 
 ```
 pratham/map-board-onboarding   d6b311f   three round steps, plain cards, Sprint (see map-board.md)
 └─ aum/simple-clash            5ef187a   Aum: Planning Edition (three real fights, one plan, a simulator) + explicit role objectives
-   └─ pratham/seascape-bubbles 6676bf4   + underwater seascape, floating bubbles, liquid-glass join panel     (pushed, checked out here)
+   └─ pratham/seascape-bubbles          + seascape and shared pre-game glass UI
+      └─ main                         promoted here at the user's request; adds the project README
 ```
 
-- `pratham/seascape-bubbles` is `aum/simple-clash` plus the visual pass below; it changes no rules or game logic. Ready for a PR into
-  `aum/simple-clash`: https://github.com/RudrakshNanavaty/hacknc-26/pull/new/pratham/seascape-bubbles
+- `pratham/seascape-bubbles` is `aum/simple-clash` plus the visual pass below; it changes no rules or game logic.
+  The user chose to promote this work to `main` instead of opening the previously proposed PR into `aum/simple-clash`.
 - Other lines of work live in other folders: `map-board/` (`rdx/map-board`, `pratham/map-board-onboarding`, `pratham/beginner-mode`,
   the unpushed `pratham/intro`; handoff in that branch's `docs/progress/map-board.md`). Do not merge across them without asking.
 - `.env` in this folder holds the keys (git-ignored). Untracked and not committed: `background_seascape.png`, `bubbles.png` and
@@ -84,12 +95,11 @@ On the onboarding (join form), loading ("Connecting to room…") and lobby scree
 
 ## Open questions for humans
 
-- Merge `pratham/seascape-bubbles` into `aum/simple-clash` (Aum's branch), or keep it separate?
 - Delete the duplicate images at the folder root? Move `bubbles.png` out of `app/public/`?
 - Should the seascape also go behind the Atlas?
 
 ## Next steps
 
-1. Open the PR for `pratham/seascape-bubbles` and ask Aum to review the join-panel layout.
+1. Review the Planning Edition release on `main` and coordinate any subsequent branch integration with its owners.
 2. Verify the full Planning Edition match at 1280×720 and on physical devices; this pass covers the pre-game screens and starting a match.
 3. Top up the Gemini key and replay one match with narration and card art.
