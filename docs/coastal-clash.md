@@ -35,7 +35,7 @@ Both earlier projects were available locally: Pocket Rivals at `~/Documents/Proj
 
 ```
 pipeline/miami-beach.ts       ArcGIS REST -> cache -> app/public/data/miami-beach/*.geojson + shared/src/data/districts.json
-shared/src/game/content.ts    personas, 24 cards (6 per deck), HANDS, projects, COMBOS, indicators (RULES_VERSION 2.0.0)
+shared/src/game/content.ts    personas, 24 cards (6 per deck), HANDS, projects, COMBOS, indicators (`coastal-clash-rules/2.0.0`)
 shared/src/game/districts.ts  playable areas (real measurements) and geographic eligibility
 shared/src/game/scenario.ts   crisis kinds (authored K1 bonuses), live readings, the authored scenario, scenario checks
 shared/src/game/engine.ts     buildBoard (reveal) -> resolveRound (deterministic, rule event log) -> finalResult; bots

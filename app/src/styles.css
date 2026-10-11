@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* ReefForge's Frutiger Aero look: glossy glass, aqua gel buttons, sky-to-ocean gradients, bubbles,
+/* The Frutiger Aero look: glossy glass, aqua gel buttons, sky-to-ocean gradients, bubbles,
    and optimistic greens. Colour tokens are defined once here; Tailwind reads them through @theme
    inline below, and MapLibre / three.js read them at runtime (src/tokens.ts). */
 :root {
@@ -180,7 +180,7 @@ body {
   height: 2.6rem;
 }
 
-/* A glossy orb (reef pins, avatars). */
+/* A glossy orb (map pins, avatars). */
 .orb {
   border-radius: 999px;
   background:

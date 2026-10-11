@@ -11,7 +11,7 @@ Product and rules: `docs/coastal-clash.md`. Hard rules: `AGENTS.md`.
 
 ## Start of every task
 
-1. Read `AGENTS.md`. Read `docs/coastal-clash.md` §3-§4 if the task touches rules or geography.
+1. Read `AGENTS.md`. Read `docs/coastal-clash.md` §3 for geography and §5 for rules (§4 is live crises).
 2. `git status -sb`. Work on a `<name>/...` branch made from `pratham/coastal-clash` (which carries `aum/coastal-clash`), never on `main` or on someone else's branch.
 3. `node -v`. It must be 20.19+ or 22.12+, or the WebSocket test fails for reasons unrelated to your change.
 4. `npm install` if `node_modules/` is missing. Run `npm run typecheck && npm test` once to get a baseline before you change anything.

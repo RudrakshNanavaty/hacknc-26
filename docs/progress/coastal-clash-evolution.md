@@ -8,7 +8,7 @@ This file is the source of truth if a session is cut off. **Re-read it before co
 - **Pushed:** `origin/pratham/coastal-clash` at the commit that adds this section. It holds all five milestones, the merge of
   `aum/coastal-clash` (3D street map, live crises, Aero Lagoon UI) and the review fixes. The work was done on the local branch
   `pratham/living-city` (same commits); the temporary `pratham/integrate-aum` worktree branch has been deleted.
-- **Green:** `npm run typecheck` and `npm test` (92 tests). Full bot matches checked in the browser at 1440 px and 390 px.
+- **Green:** `npm run typecheck` and `npm test` (92 tests) on Node **20.19+ or 22.12+** (see `docs/contributing.md` §7 if the WebSocket match test fails on older 22.x). Full bot matches checked in the browser at 1440 px and 390 px.
 - **Gemini key out of credit:** every call returns HTTP 402 ("prepayment credits are depleted"). Top up the AI Studio project;
   until then the scenario desk, narrator and Director run on their authored templates (the game is unaffected).
 - **Next:** playtest the balance numbers; Aum to review the merge into his screens (`app/src/game/insights.tsx` holds our

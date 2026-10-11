@@ -1,4 +1,4 @@
-// POST /api/tts (AGENTS.md): ElevenLabs speech for the briefing and the reef guide.
+// POST /api/tts (AGENTS.md): ElevenLabs speech for reading the news aloud.
 // Plain fetch to the REST API (no SDK dependency). Every clip is cached on disk by a hash of
 // voice + model + text, so a replayed briefing costs no credits and still plays when the API is down.
 import { createHash } from 'node:crypto';

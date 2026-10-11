@@ -10,7 +10,7 @@ Coding agents: the same material, as a checklist, is in [`skills/coastal-clash/S
 |---|---|
 | Node **20.19+ or 22.12+** | Older 22.x (e.g. 22.11) typechecks fine but the WebSocket match test crashes with `require() of ES Module …/cookie/dist/index.js`: Fastify's test helper `require`s an ESM-only package, which needs a Node with `require(esm)` on by default. `node -v` first. |
 | npm 10+ | npm workspaces: `shared`, `app`, `server`. One `npm install` at the root. |
-| `.env` (optional) | `cp .env.example .env`. Every key is optional; without them the game uses template narration, no voice and an in-memory store. |
+| `.env` (optional) | `cp .env.example .env` in **this** monorepo root (`coastal-clash/`, not the parent `hack_nc/` folder). Every key is optional; without them the game uses template narration, no voice and an in-memory store. Put `GEMINI_API_KEY` here — the server does not read `.env.local`. Vite may use `.env.local` only for extra `VITE_*` overrides. |
 
 ```bash
 npm install
@@ -84,7 +84,7 @@ client <--ServerMsg {t:'state'}-- publicState(room, viewer)  (one per connection
   record. `tick(room, now)` moves time: each phase ends at `endsAt`, or early when every present player is ready.
   Phases: `lobby -> [crisis -> select -> reveal -> negotiate -> resolve] x3 -> final -> lobby`.
 - The engine (`shared/src/game/engine.ts`) is pure and deterministic. `resolveRound` writes every effect to a `RuleEvent`
-  with a rule id (P1, R1, C1, …, listed in `coastal-clash.md` §4). The same engine runs on the client only for the
+  with a rule id (P1, R1, C1, …, listed in `coastal-clash.md` §5). The same engine runs on the client only for the
   negotiation preview.
 - Side effects never run inside `rooms.ts`. It pushes `Effect`s (`record`, `reveal`, `resolved`, `final`) and
   `roomSocket.ts` drains them: it saves the `MatchRecord` and asks Gemini for a headline. The Gemini line replaces the
@@ -123,7 +123,7 @@ Before each: write or adjust a test first where you can. After each: run §5.
    needs a `case` in the attachment `switch` in `resolveRound`.
    Check that the card can meet its targets: a card that only acts on its own persona's projects can never be played in the
    same round as one (one card per player per round). `cards.test.ts` checks this for combos.
-4. Tests: a clash test in `shared/src/game/engine.test.ts`. Document a new rule id in `coastal-clash.md` §4.
+4. Tests: a clash test in `shared/src/game/engine.test.ts`. Document a new rule id in `coastal-clash.md` §5.
 5. Bump `RULES_VERSION`.
 
 ### Add a project kind
