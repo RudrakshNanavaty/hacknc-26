@@ -1,5 +1,5 @@
 {
-  "name": "reefforge",
+  "name": "coastal-clash",
   "private": true,
   "type": "module",
   "workspaces": [
@@ -12,21 +12,18 @@
     "start": "npm start -w server",
     "dev": "concurrently -k -n app,server -c blue,magenta \"npm run dev -w app\" \"npm run dev -w server\"",
     "typecheck": "npm run typecheck -w shared -w app -w server",
-    "test": "vitest run"
+    "test": "vitest run",
+    "data": "tsx pipeline/miami-beach.ts"
   },
   "engines": {
     "node": ">=20.19"
   },
   "devDependencies": {
+    "@turf/turf": "^7.4.0",
     "@types/node": "^22.20.5",
-    "@types/three": "^0.170.0",
     "concurrently": "^10.0.5",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "vitest": "^5.0.3"
-  },
-  "overrides": {
-    "@types/three": "0.170.0",
-    "three": "0.170.0"
   }
 }

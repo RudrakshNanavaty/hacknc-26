@@ -1,0 +1,548 @@
+// The deterministic rules engine. Pure functions, no I/O, no randomness: the server runs it, the
+// tests pin it, and every effect it applies is written to an event log with the rule that caused it.
+//
+// A round:  plays (one card each, hidden)  ->  buildBoard (reveal: proposals, who acts on what,
+//           compromises on the table)  ->  negotiation (back / oppose / fund, accept compromises)
+//           ->  resolveRound (support vs opposition, geography, funding, effects)  ->  next round.
+import {
+  CARDS, CRISES, INDICATORS, INFLUENCE_PER_ROUND, MAX_INFLUENCE, NEGOTIATION_COST, PERSONAS, PERSONA_INFO, PROJECTS,
+  START_INDICATORS, STORM_TEST, TOTAL_ROUNDS, VIABILITY_FLOOR, handOf,
+  type CardId, type Crisis, type Delta, type Indicator, type Indicators, type NegotiationMove, type PersonaId, type ProjectKind,
+} from './content';
+import { DISTRICTS, DISTRICT_IDS, cardEligibility, coastalHighHazard, districtById, startResilience } from './districts';
+
+export interface Play {
+  seat: number;
+  persona: PersonaId;
+  card: CardId;
+  district: string;
+}
+
+export interface Proposal {
+  id: string;
+  /** The round it was first proposed in. */
+  round: number;
+  seat: number;
+  persona: PersonaId;
+  kind: ProjectKind;
+  district: string;
+  /** Delayed from an earlier round. */
+  carried: boolean;
+}
+
+/** A support, opposition or negotiation card and the proposal it acts on (null: nothing to act on). */
+export interface Attachment {
+  seat: number;
+  persona: PersonaId;
+  card: CardId;
+  district: string;
+  proposalId: string | null;
+}
+
+export type CompromiseKind = 'access' | 'setback';
+export interface Compromise {
+  id: string;
+  kind: CompromiseKind;
+  proposalId: string;
+  /** Who offered it (the card's player) and who must accept (the proposal's owner). */
+  offeredBy: number;
+  owner: number;
+  accepted: boolean;
+  title: string;
+  text: string;
+}
+
+export interface Board {
+  round: number;
+  crisis: Crisis;
+  proposals: Proposal[];
+  attachments: Attachment[];
+  compromises: Compromise[];
+}
+
+export interface NegotiationAction {
+  seat: number;
+  persona: PersonaId;
+  move: NegotiationMove;
+  proposalId: string;
+}
+
+export type OutcomeStatus = 'approved' | 'blocked' | 'rejected' | 'delayed' | 'unfunded';
+
+export interface Outcome {
+  proposalId: string;
+  kind: ProjectKind;
+  district: string;
+  seat: number;
+  persona: PersonaId;
+  status: OutcomeStatus;
+  support: number;
+  opposition: number;
+  /** Opposition ignored by Fast-Track. */
+  ignored: number;
+  /** How the public cost was paid. */
+  funding: 'budget' | 'covered' | 'free' | null;
+  /** Effect on the city (approved only). */
+  delta: Delta;
+  conditions: string[];
+  /** The rule events that decided it, in order. */
+  rules: string[];
+}
+
+export interface RuleEvent {
+  id: string;
+  rule: string;
+  text: string;
+  seat?: number;
+  proposalId?: string;
+  district?: string;
+  delta?: Delta;
+}
+
+export type MapFeatureKind = ProjectKind | 'access-corridor' | 'dune-setback';
+export interface MapFeature {
+  kind: MapFeatureKind;
+  round: number;
+  proposalId: string;
+  label: string;
+}
+
+export interface DistrictState {
+  resilience: number;
+  features: MapFeature[];
+}
+
+export interface CityState {
+  indicators: Indicators;
+  districts: Record<string, DistrictState>;
+}
+
+export interface Resolution {
+  round: number;
+  before: Indicators;
+  after: Indicators;
+  outcomes: Outcome[];
+  events: RuleEvent[];
+  /** Influence handed back per seat (fizzled cards). */
+  refunds: Record<number, number>;
+  /** Proposals delayed into the next round. */
+  carried: Proposal[];
+  city: CityState;
+}
+
+export class RuleError extends Error {}
+
+const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
+const personaOrder = (p: PersonaId) => PERSONAS.indexOf(p);
+const districtOrder = (id: string) => DISTRICT_IDS.indexOf(id);
+
+export function startCity(): CityState {
+  return {
+    indicators: { ...START_INDICATORS },
+    districts: Object.fromEntries(DISTRICTS.map((d) => [d.id, { resilience: startResilience(d), features: [] }])),
+  };
+}
+
+export const crisisFor = (round: number): Crisis => CRISES[clamp(round, 1, CRISES.length) - 1]!;
+
+/** Influence at the start of a round (round 1: the starting amount was already given). */
+export const nextInfluence = (current: number) => Math.min(MAX_INFLUENCE, current + INFLUENCE_PER_ROUND);
+
+/** Why this play is not allowed, or null. */
+export function checkPlay(persona: PersonaId, influence: number, card: unknown, district: unknown): string | null {
+  if (typeof card !== 'string' || !(card in CARDS)) return 'Pick a card.';
+  const c = CARDS[card as CardId];
+  if (c.persona !== persona) return `${c.name} is not in your hand.`;
+  if (c.cost > influence) return `${c.name} costs ${c.cost} influence; you have ${influence}.`;
+  const where = cardEligibility(card as CardId, String(district ?? ''));
+  if (!where.ok) return `${c.name} cannot go there: ${where.reason}`;
+  return null;
+}
+
+/** Sort key: district order on the map, then persona order, carried proposals first. */
+const proposalOrder = (a: Proposal, b: Proposal) =>
+  districtOrder(a.district) - districtOrder(b.district) || Number(b.carried) - Number(a.carried) || personaOrder(a.persona) - personaOrder(b.persona);
+
+/** The reveal: turn the round's plays (and proposals carried over) into the board everyone negotiates on. */
+export function buildBoard(round: number, plays: Play[], carried: Proposal[] = []): Board {
+  const crisis = crisisFor(round);
+  const sorted = [...plays].sort((a, b) => personaOrder(a.persona) - personaOrder(b.persona));
+  const proposals: Proposal[] = [
+    ...carried.map((p) => ({ ...p, carried: true })),
+    ...sorted.flatMap((p) => {
+      const kind = CARDS[p.card].project;
+      return kind ? [{ id: `r${round}-${p.persona}-${kind}`, round, seat: p.seat, persona: p.persona, kind, district: p.district, carried: false }] : [];
+    }),
+  ].sort(proposalOrder);
+
+  const attachments: Attachment[] = sorted
+    .filter((p) => CARDS[p.card].category !== 'project')
+    .map((p) => {
+      const card = CARDS[p.card];
+      const acts = card.acts ?? [];
+      // Opposition and conditions only act on other players' proposals.
+      const others = card.category === 'opposition' || card.category === 'negotiation';
+      const candidates = proposals
+        .filter((x) => x.district === p.district && acts.includes(x.kind) && (!others || x.seat !== p.seat))
+        .sort((a, b) => acts.indexOf(a.kind) - acts.indexOf(b.kind) || Number(b.carried) - Number(a.carried) || personaOrder(a.persona) - personaOrder(b.persona));
+      return { seat: p.seat, persona: p.persona, card: p.card, district: p.district, proposalId: candidates[0]?.id ?? null };
+    });
+
+  const compromises: Compromise[] = [];
+  for (const a of attachments) {
+    const target = proposals.find((x) => x.id === a.proposalId);
+    if (!target) continue;
+    if (a.card === 'public-access-guarantee') {
+      compromises.push({
+        id: `c${round}-access-${target.id}`, kind: 'access', proposalId: target.id, offeredBy: a.seat, owner: target.seat, accepted: false,
+        title: 'Public beach access corridor',
+        text: `Keep a public path to the beach through the ${PROJECTS[target.kind].name.toLowerCase()} site. Accept: +1 support, +4 access${target.kind === 'hotel' ? ', 2 less economy from the hotel' : ''}. Refuse: +1 opposition.`,
+      });
+    }
+    if (a.card === 'environmental-challenge' && target.kind === 'hotel' && coastalHighHazard(districtById(target.district))) {
+      compromises.push({
+        id: `c${round}-setback-${target.id}`, kind: 'setback', proposalId: target.id, offeredBy: a.seat, owner: target.seat, accepted: false,
+        title: 'Dune setback and elevated design',
+        text: 'Build behind the dune line, elevated above base flood. Accept: the legal challenge is withdrawn, the hotel gives 3 less economy and 3 more environment. Refuse: the challenge blocks the hotel (rule R1).',
+      });
+    }
+  }
+  return { round, crisis, proposals, attachments, compromises };
+}
+
+/** Why this negotiation move is not allowed, or null. */
+export function checkMove(board: Board, seat: number, influence: number, move: unknown, proposalId: unknown): string | null {
+  if (move !== 'back' && move !== 'oppose' && move !== 'fund') return 'Pick back, oppose or fund.';
+  const p = board.proposals.find((x) => x.id === proposalId);
+  if (!p) return 'That proposal is not on the table.';
+  const cost = NEGOTIATION_COST[move];
+  if (cost > influence) return `That costs ${cost} influence; you have ${influence}.`;
+  if (move === 'oppose' && p.seat === seat) return 'You cannot oppose your own proposal.';
+  if (move === 'fund' && PROJECTS[p.kind].budgetCost === 0) return 'That proposal is privately funded already.';
+  return null;
+}
+
+export function checkAccept(board: Board, seat: number, compromiseId: unknown): string | null {
+  const c = board.compromises.find((x) => x.id === compromiseId);
+  if (!c) return 'That compromise is not on the table.';
+  if (c.owner !== seat) return 'Only the proposal\'s owner can accept that.';
+  return null;
+}
+
+function addDelta(into: Delta, d: Delta) {
+  for (const k of INDICATORS) if (d[k]) into[k] = (into[k] ?? 0) + d[k]!;
+}
+
+function applyDelta(ind: Indicators, d: Delta): Indicators {
+  const out = { ...ind };
+  for (const k of INDICATORS) {
+    if (!d[k]) continue;
+    out[k] = k === 'budget' ? Math.max(0, out[k] + d[k]!) : clamp(out[k] + d[k]!, 0, 100);
+  }
+  return out;
+}
+
+const deltaText = (d: Delta) =>
+  INDICATORS.filter((k) => d[k]).map((k) => `${d[k]! > 0 ? '+' : '−'}${k === 'budget' ? '$' : ''}${Math.abs(d[k]!)}${k === 'budget' ? 'M' : ''} ${k}`).join(', ');
+
+/** Resolve the round. Same inputs, same result, every time. */
+export function resolveRound(board: Board, actions: NegotiationAction[], city: CityState): Resolution {
+  const events: RuleEvent[] = [];
+  const log = (e: Omit<RuleEvent, 'id'>) => {
+    const ev = { id: `r${board.round}-e${events.length + 1}`, ...e };
+    events.push(ev);
+    return ev.id;
+  };
+  const before = { ...city.indicators };
+  let indicators = { ...city.indicators };
+  const districts: Record<string, DistrictState> = Object.fromEntries(
+    Object.entries(city.districts).map(([id, s]) => [id, { resilience: s.resilience, features: [...s.features] }]),
+  );
+  const outcomes: Outcome[] = [];
+  const carried: Proposal[] = [];
+  const refunds: Record<number, number> = {};
+  const accepted = new Set(board.compromises.filter((c) => c.accepted).map((c) => c.id));
+  const compromiseFor = (proposalId: string, kind: CompromiseKind) => board.compromises.find((c) => c.proposalId === proposalId && c.kind === kind);
+  const bySeat = (a: { seat: number }, b: { seat: number }) => a.seat - b.seat;
+
+  for (const p of [...board.proposals].sort(proposalOrder)) {
+    const project = PROJECTS[p.kind];
+    const d = districtById(p.district);
+    const rules: string[] = [];
+    let support = 1;
+    let opposition = 0;
+    let ignore = 0;
+    let fastTracked = false;
+    let covered = false;
+    let blocked = false;
+    const mods: Delta = {};
+    const conditions: string[] = [];
+    const features: MapFeature[] = [];
+    rules.push(log({ rule: 'P1', text: `${PERSONA_INFO[p.persona].name} proposes a ${project.name.toLowerCase()} in ${d.name}${p.carried ? ' (delayed from an earlier round)' : ''}: 1 support.`, seat: p.seat, proposalId: p.id, district: p.district }));
+
+    for (const a of board.attachments.filter((x) => x.proposalId === p.id).sort(bySeat)) {
+      const who = PERSONA_INFO[a.persona].name;
+      switch (a.card) {
+        case 'emergency-funding':
+          support += 1;
+          covered = true;
+          rules.push(log({ rule: 'F1', text: `${who}'s Emergency Funding: +1 support, the public cost is covered by an emergency grant.`, seat: a.seat, proposalId: p.id }));
+          if (p.kind === 'shoreline') {
+            addDelta(mods, { environment: 2 });
+            rules.push(log({ rule: 'C3', text: 'Nature-based grant match: the living shoreline gives +2 environment.', seat: a.seat, proposalId: p.id, delta: { environment: 2 } }));
+          }
+          break;
+        case 'fast-track':
+          support += 1;
+          ignore += 1;
+          fastTracked = true;
+          rules.push(log({ rule: 'F2', text: `${who}'s Fast-Track Review: +1 support, 1 opposition ignored, a tie is decided now.`, seat: a.seat, proposalId: p.id }));
+          break;
+        case 'public-campaign':
+          support += 2;
+          rules.push(log({ rule: 'S1', text: `${who}'s Public Campaign: +2 support.`, seat: a.seat, proposalId: p.id }));
+          break;
+        case 'private-investment':
+          support += 1;
+          if (project.budgetCost > 0) covered = true;
+          if (p.kind === 'hotel') addDelta(mods, { economy: 2 });
+          rules.push(log({ rule: 'F3', text: `${who}'s Private Investment: +1 support${project.budgetCost > 0 ? ', the public cost is covered privately' : ', +2 economy if built'}.`, seat: a.seat, proposalId: p.id }));
+          break;
+        case 'tourism-campaign':
+          support += 1;
+          addDelta(mods, { economy: 3 });
+          rules.push(log({ rule: 'S2', text: `${who}'s Tourism Campaign: +1 support, +3 economy if the hotel is built.`, seat: a.seat, proposalId: p.id }));
+          break;
+        case 'environmental-challenge': {
+          const setback = compromiseFor(p.id, 'setback');
+          if (setback && accepted.has(setback.id)) {
+            addDelta(mods, { economy: -3, environment: 3 });
+            conditions.push(setback.title);
+            features.push({ kind: 'dune-setback', round: board.round, proposalId: p.id, label: 'Dune setback' });
+            rules.push(log({ rule: 'C2', text: `Compromise accepted: dune setback and elevated design. ${who}'s challenge is withdrawn; the hotel gives 3 less economy and 3 more environment.`, seat: a.seat, proposalId: p.id, delta: { economy: -3, environment: 3 } }));
+          } else if (coastalHighHazard(d)) {
+            blocked = true;
+            rules.push(log({ rule: 'R1', text: `${who}'s Environmental Challenge: ${d.name} borders a FEMA VE coastal high hazard zone (${Math.round(d.veBandShare * 100)}% of the 100 m band). The hotel is blocked.`, seat: a.seat, proposalId: p.id, district: p.district }));
+          } else {
+            opposition += 2;
+            rules.push(log({ rule: 'O1', text: `${who}'s Environmental Challenge: +2 opposition (${d.name} is not in a coastal high hazard area, so it cannot block outright).`, seat: a.seat, proposalId: p.id }));
+          }
+          break;
+        }
+        case 'neighborhood-petition':
+          opposition += 2;
+          rules.push(log({ rule: 'O2', text: `${who}'s Neighborhood Petition: +2 opposition.`, seat: a.seat, proposalId: p.id }));
+          break;
+        case 'public-access-guarantee': {
+          const deal = compromiseFor(p.id, 'access');
+          if (deal && accepted.has(deal.id)) {
+            support += 1;
+            const delta: Delta = p.kind === 'hotel' ? { access: 4, economy: -2 } : { access: 4 };
+            addDelta(mods, delta);
+            conditions.push(deal.title);
+            features.push({ kind: 'access-corridor', round: board.round, proposalId: p.id, label: 'Public access corridor' });
+            rules.push(log({ rule: 'C1', text: `Compromise accepted: public beach access corridor. +1 support, ${deltaText(delta)}.`, seat: a.seat, proposalId: p.id, delta }));
+          } else {
+            opposition += 1;
+            rules.push(log({ rule: 'O3', text: `${who}'s Public Access Guarantee was not accepted: +1 opposition.`, seat: a.seat, proposalId: p.id }));
+          }
+          break;
+        }
+        default:
+          break;
+      }
+    }
+
+    for (const n of actions.filter((x) => x.proposalId === p.id).sort(bySeat)) {
+      const who = PERSONA_INFO[n.persona].name;
+      if (n.move === 'back') {
+        support += 1;
+        rules.push(log({ rule: 'N1', text: `${who} backs it in negotiation: +1 support.`, seat: n.seat, proposalId: p.id }));
+      } else if (n.move === 'oppose') {
+        opposition += 1;
+        rules.push(log({ rule: 'N2', text: `${who} opposes it in negotiation: +1 opposition.`, seat: n.seat, proposalId: p.id }));
+      } else if (n.move === 'fund') {
+        covered = true;
+        rules.push(log({ rule: 'N3', text: `${who} offers funding: the public cost is covered.`, seat: n.seat, proposalId: p.id }));
+      }
+    }
+
+    const counted = Math.max(0, opposition - ignore);
+    const ignored = opposition - counted;
+    const net = support - counted;
+    let status: OutcomeStatus;
+    if (blocked) status = 'blocked';
+    else if (net > 0) status = 'approved';
+    else if (net < 0) status = 'rejected';
+    else if (fastTracked) status = 'approved';
+    else if (p.carried || board.round >= TOTAL_ROUNDS) status = 'rejected';
+    else status = 'delayed';
+
+    if (!blocked) {
+      const why =
+        status === 'delayed' ? 'a tie: delayed to the next round'
+          : status === 'rejected' && net === 0 ? 'a tie again with no time left: it stalls'
+            : net === 0 ? 'a tie, decided by Fast-Track' : status;
+      rules.push(log({ rule: 'V1', text: `Vote: ${support} support vs ${counted} opposition${ignored ? ` (${ignored} ignored)` : ''}: ${why}.`, proposalId: p.id }));
+    }
+
+    let funding: Outcome['funding'] = null;
+    let delta: Delta = {};
+    if (status === 'approved') {
+      if (project.budgetCost === 0) funding = 'free';
+      else if (covered) funding = 'covered';
+      else if (indicators.budget >= project.budgetCost) {
+        funding = 'budget';
+        indicators = applyDelta(indicators, { budget: -project.budgetCost });
+        rules.push(log({ rule: 'B2', text: `Paid from the public budget: −$${project.budgetCost}M (hypothetical).`, proposalId: p.id, delta: { budget: -project.budgetCost } }));
+      } else {
+        status = 'unfunded';
+        rules.push(log({ rule: 'B1', text: `Not enough public budget ($${indicators.budget}M left, needs $${project.budgetCost}M) and nobody covered it: unfunded.`, proposalId: p.id }));
+      }
+    }
+
+    if (status === 'approved') {
+      delta = { ...project.delta };
+      addDelta(delta, mods);
+      if (board.crisis.spotlight.includes(p.district)) {
+        addDelta(delta, board.crisis.bonus);
+        rules.push(log({ rule: 'K1', text: `Crisis bonus (${board.crisis.title}): ${deltaText(board.crisis.bonus)}.`, proposalId: p.id, delta: board.crisis.bonus }));
+      }
+      indicators = applyDelta(indicators, delta);
+      const ds = districts[p.district]!;
+      ds.resilience = clamp(ds.resilience + project.resilience, 0, 100);
+      ds.features.push({ kind: p.kind, round: board.round, proposalId: p.id, label: project.name }, ...features);
+      rules.push(log({ rule: 'E1', text: `Built: ${deltaText(delta)}; ${d.name} resilience ${project.resilience >= 0 ? '+' : ''}${project.resilience}.`, proposalId: p.id, district: p.district, delta }));
+    } else if (status === 'delayed') {
+      carried.push({ ...p, carried: true });
+    }
+
+    outcomes.push({
+      proposalId: p.id, kind: p.kind, district: p.district, seat: p.seat, persona: p.persona, status, support, opposition, ignored,
+      funding, delta, conditions: status === 'approved' ? conditions : [], rules,
+    });
+  }
+
+  // Cards with nothing to act on fall back to their own small effect (or hand influence back).
+  for (const a of board.attachments.filter((x) => x.proposalId === null).sort(bySeat)) {
+    const card = CARDS[a.card];
+    const fb = card.fallback;
+    if (!fb) continue;
+    if (Object.keys(fb.delta).length) {
+      indicators = applyDelta(indicators, fb.delta);
+      log({ rule: 'X1', text: `${PERSONA_INFO[a.persona].name}'s ${card.name} in ${districtById(a.district).name}: ${fb.text}`, seat: a.seat, district: a.district, delta: fb.delta });
+    } else {
+      refunds[a.seat] = (refunds[a.seat] ?? 0) + 1;
+      log({ rule: 'X2', text: `${PERSONA_INFO[a.persona].name}'s ${card.name} in ${districtById(a.district).name}: ${fb.text}`, seat: a.seat, district: a.district });
+    }
+  }
+
+  // The storm tests the city after the last round.
+  if (board.round >= TOTAL_ROUNDS) {
+    const gap = STORM_TEST.threshold - indicators.flood;
+    if (gap > 0) {
+      const loss = Math.max(1, Math.round(gap * STORM_TEST.economyLossPerPoint));
+      indicators = applyDelta(indicators, { economy: -loss });
+      log({ rule: 'S9', text: `The storm hits. Flood resilience ${indicators.flood} is below ${STORM_TEST.threshold}: −${loss} economy from flood damage.`, delta: { economy: -loss } });
+    } else {
+      log({ rule: 'S9', text: `The storm hits. Flood resilience ${indicators.flood} holds (${STORM_TEST.threshold} needed): no flood damage.` });
+    }
+  }
+
+  return { round: board.round, before, after: indicators, outcomes, events, refunds, carried, city: { indicators, districts } };
+}
+
+export interface ScorePart {
+  label: string;
+  points: number;
+}
+export interface PersonaScore {
+  persona: PersonaId;
+  total: number;
+  parts: ScorePart[];
+}
+export interface FinalResult {
+  indicators: Indicators;
+  viable: boolean;
+  /** Indicators below the floor. */
+  failing: Indicator[];
+  scores: PersonaScore[];
+  winners: PersonaId[];
+}
+
+/** Final scores from the start and end of the city and every round's outcomes. */
+export function finalResult(start: Indicators, end: Indicators, rounds: Resolution[], personas: PersonaId[]): FinalResult {
+  const all = rounds.flatMap((r) => r.outcomes);
+  const failing = (['flood', 'economy', 'environment', 'access'] as Indicator[]).filter((k) => end[k] < VIABILITY_FLOOR);
+  const viable = failing.length === 0;
+  const scores = personas.map((persona) => {
+    const info = PERSONA_INFO[persona];
+    const parts: ScorePart[] = [];
+    for (const k of INDICATORS) {
+      const w = info.weights[k];
+      if (!w) continue;
+      const change = end[k] - start[k];
+      parts.push({ label: `${w}× ${k} change (${change >= 0 ? '+' : ''}${change})`, points: w * change });
+    }
+    if (persona === 'mayor') {
+      parts.push({ label: `$${end.budget}M budget left`, points: Math.floor(end.budget / 2) });
+      if (end.budget === 0) parts.push({ label: 'Budget ran dry', points: -10 });
+    }
+    if (persona === 'activist') {
+      const n = all.filter((o) => o.kind === 'hotel' && o.status === 'blocked').length;
+      if (n) parts.push({ label: `${n} development${n > 1 ? 's' : ''} stopped in a coastal high hazard area`, points: 4 * n });
+    }
+    if (persona === 'resort') {
+      const n = all.filter((o) => o.kind === 'hotel' && o.status === 'approved').length;
+      if (n) parts.push({ label: `${n} hotel${n > 1 ? 's' : ''} approved`, points: 4 * n });
+    }
+    if (persona === 'resident') {
+      const n = all.filter((o) => o.kind === 'elevate' && o.status === 'approved').length;
+      if (n) parts.push({ label: `${n} home-elevation program${n > 1 ? 's' : ''} approved`, points: 3 * n });
+    }
+    let total = parts.reduce((s, p) => s + p.points, 0);
+    if (!viable && total > 0) {
+      const halved = Math.floor(total / 2);
+      parts.push({ label: 'City not viable: score halved', points: halved - total });
+      total = halved;
+    }
+    return { persona, total, parts };
+  });
+  const best = Math.max(...scores.map((s) => s.total));
+  return { indicators: end, viable, failing, scores, winners: scores.filter((s) => s.total === best).map((s) => s.persona) };
+}
+
+/** A simple, deterministic stand-in player for empty seats (demo and tests). */
+export function botPlay(persona: PersonaId, influence: number, round: number): { card: CardId; district: string } | null {
+  const crisis = crisisFor(round);
+  const order = [...crisis.spotlight, ...DISTRICT_IDS.filter((d) => !crisis.spotlight.includes(d))];
+  for (const card of BOT_PREFS[persona][Math.min(round, 3) - 1]!) {
+    for (const district of order) if (!checkPlay(persona, influence, card, district)) return { card, district };
+  }
+  return null;
+}
+
+const BOT_PREFS: Record<PersonaId, CardId[][]> = {
+  mayor: [
+    ['drainage-upgrade', 'emergency-funding', 'fast-track'],
+    ['fast-track', 'emergency-funding', 'drainage-upgrade'],
+    ['emergency-funding', 'drainage-upgrade', 'fast-track'],
+  ],
+  activist: [
+    ['living-shoreline', 'public-campaign', 'environmental-challenge'],
+    ['environmental-challenge', 'public-campaign', 'living-shoreline'],
+    ['living-shoreline', 'environmental-challenge', 'public-campaign'],
+  ],
+  resort: [
+    ['tourism-campaign', 'private-investment', 'hotel-development'],
+    ['hotel-development', 'tourism-campaign', 'private-investment'],
+    ['private-investment', 'tourism-campaign', 'hotel-development'],
+  ],
+  resident: [
+    ['elevate-buildings', 'public-access-guarantee', 'neighborhood-petition'],
+    ['public-access-guarantee', 'neighborhood-petition', 'elevate-buildings'],
+    ['public-access-guarantee', 'elevate-buildings', 'neighborhood-petition'],
+  ],
+};
+
+export { handOf };

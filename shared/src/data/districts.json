@@ -1,0 +1,256 @@
+{
+  "city": "Miami Beach, Florida",
+  "builtAt": "2026-10-11T01:51:31.922Z",
+  "method": "Area = union of the zoning polygons whose centroid lies in a focus box. Shares are the fraction of a 20 m point grid over the area. VE band = share of a 100 m band outside the area that lies in FEMA VE.",
+  "sources": [
+    {
+      "id": "zoning",
+      "name": "City of Miami Beach Zoning",
+      "layer": "https://gis.miamibeachfl.gov/public/rest/services/gc/gc_Zoning/MapServer/0",
+      "query": "https://gis.miamibeachfl.gov/public/rest/services/gc/gc_Zoning/MapServer/0/query?where=1%3D1&outFields=ZONING_CODE%2COBJECTID_12&outSR=4326&geometryPrecision=6&f=geojson",
+      "fetchedAt": "2026-10-11T01:51:28.435Z"
+    },
+    {
+      "id": "planningDistricts",
+      "name": "City of Miami Beach Planning Districts",
+      "layer": "https://gis.miamibeachfl.gov/public/rest/services/gc/gc_Cadastral/MapServer/10",
+      "query": "https://gis.miamibeachfl.gov/public/rest/services/gc/gc_Cadastral/MapServer/10/query?where=1%3D1&outFields=DISTRICT%2COBJECTID&outSR=4326&geometryPrecision=6&f=geojson",
+      "fetchedAt": "2026-10-11T01:51:28.932Z"
+    },
+    {
+      "id": "floodZones",
+      "name": "Miami-Dade County FEMA Flood Zones",
+      "layer": "https://gisweb.miamidade.gov/ArcGIS/rest/services/EnerGov/MD_LandMgtViewer/MapServer/63",
+      "query": "https://gisweb.miamidade.gov/ArcGIS/rest/services/EnerGov/MD_LandMgtViewer/MapServer/63/query?where=1%3D1&outFields=FZONE%2CELEV%2CZONESUBTY%2COBJECTID&outSR=4326&geometryPrecision=6&f=geojson&geometry=-80.17%2C25.76%2C-80.112%2C25.874&geometryType=esriGeometryEnvelope&inSR=4326&spatialRel=esriSpatialRelIntersects",
+      "fetchedAt": "2026-10-11T01:51:31.430Z"
+    }
+  ],
+  "districts": [
+    {
+      "id": "south-pointe",
+      "name": "South Pointe",
+      "blurb": "The southern tip of South Beach: South Pointe Park, the Government Cut jetty, oceanfront towers and hotels.",
+      "shore": "ocean",
+      "planningDistrict": "South Beach",
+      "center": [
+        -80.13527,
+        25.766456
+      ],
+      "bbox": [
+        -80.139172,
+        25.76163,
+        -80.130896,
+        25.77075
+      ],
+      "areaKm2": 0.37,
+      "samplePoints": 867,
+      "zoning": {
+        "GU": 0.285,
+        "RPS-4": 0.242,
+        "CPS-1": 0.189,
+        "RM-PRD": 0.148,
+        "CPS-4": 0.084,
+        "CPS-3": 0.032,
+        "MR": 0.02
+      },
+      "flood": {
+        "AE": 0.905,
+        "VE": 0.058,
+        "X": 0.037
+      },
+      "sfhaShare": 0.963,
+      "veBandShare": 0.429,
+      "medianBaseFloodElevFt": 8,
+      "hotelZoningShare": 0.306,
+      "residentialZoningShare": 0.39,
+      "publicZoningShare": 0.285,
+      "sources": {
+        "zoningIds": [
+          22,
+          229,
+          234,
+          235,
+          236,
+          240,
+          244,
+          246,
+          247,
+          248
+        ],
+        "floodZoneIds": [
+          455,
+          995,
+          1412,
+          1976,
+          2978,
+          3535
+        ],
+        "veZoneIdsNearby": [
+          1412,
+          1976
+        ]
+      }
+    },
+    {
+      "id": "west-avenue",
+      "name": "West Avenue Bayfront",
+      "blurb": "Low-lying blocks on Biscayne Bay, west of Alton Road, where king tides reach the street.",
+      "shore": "bay",
+      "planningDistrict": "South Beach",
+      "center": [
+        -80.141496,
+        25.781452
+      ],
+      "bbox": [
+        -80.1457,
+        25.771894,
+        -80.138551,
+        25.788001
+      ],
+      "areaKm2": 0.48,
+      "samplePoints": 898,
+      "zoning": {
+        "RM-3": 0.332,
+        "CD-2": 0.303,
+        "RM-2": 0.11,
+        "RS-4": 0.099,
+        "CD-1": 0.063,
+        "CPS-4": 0.048,
+        "RO": 0.045
+      },
+      "flood": {
+        "AE": 1
+      },
+      "sfhaShare": 1,
+      "veBandShare": 0,
+      "medianBaseFloodElevFt": 8,
+      "hotelZoningShare": 0.901,
+      "residentialZoningShare": 0.586,
+      "publicZoningShare": 0,
+      "sources": {
+        "zoningIds": [
+          193,
+          198,
+          199,
+          201,
+          202,
+          209,
+          227,
+          271,
+          278,
+          279
+        ],
+        "floodZoneIds": [
+          2978
+        ],
+        "veZoneIdsNearby": []
+      }
+    },
+    {
+      "id": "collins-mid-beach",
+      "name": "Collins Avenue, Mid-Beach",
+      "blurb": "The oceanfront hotel row along Collins Avenue, between Indian Creek and the beach.",
+      "shore": "ocean",
+      "planningDistrict": "Mid Beach",
+      "center": [
+        -80.12326,
+        25.818701
+      ],
+      "bbox": [
+        -80.12589,
+        25.809494,
+        -80.120755,
+        25.826385
+      ],
+      "areaKm2": 0.33,
+      "samplePoints": 563,
+      "zoning": {
+        "RM-3": 0.671,
+        "RS-1": 0.169,
+        "GU": 0.16
+      },
+      "flood": {
+        "AE": 0.913,
+        "X": 0.087
+      },
+      "sfhaShare": 0.913,
+      "veBandShare": 0.105,
+      "medianBaseFloodElevFt": 7,
+      "hotelZoningShare": 0.671,
+      "residentialZoningShare": 0.84,
+      "publicZoningShare": 0.16,
+      "sources": {
+        "zoningIds": [
+          96,
+          97,
+          145
+        ],
+        "floodZoneIds": [
+          10,
+          1786,
+          3163
+        ],
+        "veZoneIdsNearby": [
+          3257
+        ]
+      }
+    },
+    {
+      "id": "north-beach-oceanside",
+      "name": "North Beach Oceanside",
+      "blurb": "North Beach Oceanside Park, the dune walk and the Town Center blocks around 72nd Street.",
+      "shore": "ocean",
+      "planningDistrict": "North Beach",
+      "center": [
+        -80.121165,
+        25.865324
+      ],
+      "bbox": [
+        -80.123172,
+        25.858392,
+        -80.119502,
+        25.871972
+      ],
+      "areaKm2": 0.29,
+      "samplePoints": 597,
+      "zoning": {
+        "GU": 0.61,
+        "CD-2": 0.184,
+        "RS-3": 0.092,
+        "RS-4": 0.06,
+        "MXE": 0.054
+      },
+      "flood": {
+        "AE": 0.58,
+        "X": 0.42
+      },
+      "sfhaShare": 0.58,
+      "veBandShare": 0.157,
+      "medianBaseFloodElevFt": 8,
+      "hotelZoningShare": 0.238,
+      "residentialZoningShare": 0.152,
+      "publicZoningShare": 0.61,
+      "sources": {
+        "zoningIds": [
+          62,
+          63,
+          65,
+          66,
+          249,
+          250,
+          264
+        ],
+        "floodZoneIds": [
+          729,
+          1786,
+          3163
+        ],
+        "veZoneIdsNearby": [
+          1511,
+          2033,
+          3257
+        ]
+      }
+    }
+  ]
+}

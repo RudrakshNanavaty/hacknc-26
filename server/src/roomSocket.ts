@@ -1,15 +1,16 @@
 // /ws/rooms/:code: the room protocol (shared/src/room.ts) over raw `ws`, on Fastify's server.
-// Every locked design is evaluated with buildExperiment (the same checks as POST /api/experiments)
-// and saved through the experiment store, so room rounds land in Tiger Data like solo tests.
+// After every change it drains the room's effects: save the match record (Tiger Data or memory)
+// and ask the narrator for a broadcast line, which replaces the template line only if it is still
+// the current moment when it arrives.
 import type { IncomingMessage } from 'node:http';
 import type { Duplex } from 'node:stream';
 import { WebSocketServer, type WebSocket } from 'ws';
-import type { ClientMsg, RoomState, ServerMsg } from '@shared';
-import type { ExperimentStore } from './db/store';
-import { BadExperiment, buildExperiment } from './experiments';
+import { narrationFacts, type ClientMsg, type RoomState, type ServerMsg } from '@shared';
+import type { MatchStore } from './db/store';
+import type { Narrator } from './ai/narrator';
 import {
-  RoomError, again, findPlayer, getOrCreateRoom, getRoom, join, lock, pick, presence, publicState, setReef,
-  start, sweep, tick, type Evaluator, type Player, type Room,
+  RoomError, accept, again, choosePersona, done, findPlayer, getOrCreateRoom, getRoom, join, move, presence, publicState, respond,
+  select, setBot, setPace, setSession, skip, start, sweep, tick, type Room,
 } from './rooms';
 
 const ROOM_PATH = /^\/ws\/rooms\/([A-Za-z]{4})$/;
@@ -21,16 +22,18 @@ interface Conn {
 }
 
 export interface RoomServerOptions {
-  store: ExperimentStore;
-  log: { warn: (obj: unknown, msg: string) => void };
+  store: MatchStore;
+  narrator: Narrator | null;
+  log: { warn: (obj: unknown, msg: string) => void; info?: (msg: string) => void };
 }
 
-export function roomServer({ store, log }: RoomServerOptions) {
+export function roomServer({ store, narrator, log }: RoomServerOptions) {
   const wss = new WebSocketServer({ noServer: true });
   const conns = new Map<string, Set<Conn>>();
 
   const send = (ws: WebSocket, msg: ServerMsg) => ws.readyState === ws.OPEN && ws.send(JSON.stringify(msg));
   const broadcast = (room: Room) => {
+    drain(room);
     const now = Date.now();
     for (const c of conns.get(room.code) ?? []) {
       const viewer = c.playerId ? room.players.find((p) => p.id === c.playerId) ?? null : null;
@@ -38,6 +41,41 @@ export function roomServer({ store, log }: RoomServerOptions) {
       send(c.ws, { t: 'state', state });
     }
   };
+
+  function narrate(room: Room, key: string, facts: unknown) {
+    if (!narrator) return;
+    narrator.line(facts).then(
+      (text) => {
+        if (room.headline?.key !== key) return; // the moment has passed
+        room.headline = { text, source: 'gemini', key };
+        broadcast(room);
+      },
+      (err) => log.warn({ err: (err as Error).message, room: room.code }, 'narrator: template line kept'),
+    );
+  }
+
+  function drain(room: Room) {
+    const effects = room.effects.splice(0);
+    let save = false;
+    for (const e of effects) {
+      if (e.t === 'record') save = true;
+      else if (e.t === 'reveal' && room.board) narrate(room, e.key, narrationFacts('reveal', room.board));
+      else if (e.t === 'resolved') {
+        const h = room.history.find((x) => x.round === e.round);
+        if (h) narrate(room, e.key, narrationFacts('resolution', h.board, h.resolution));
+      } else if (e.t === 'final' && room.final) {
+        narrate(room, e.key, {
+          city: 'Miami Beach, Florida', event: 'end of the planning session', cityStillViable: room.final.viable,
+          winners: room.final.winners, finalScores: Object.fromEntries(room.final.scores.map((s) => [s.persona, s.total])),
+          approvedProjects: room.history.flatMap((h) => h.resolution.outcomes.filter((o) => o.status === 'approved').map((o) => `${o.kind} in ${o.district}`)),
+        });
+      }
+    }
+    if (save && room.record) {
+      const snapshot = structuredClone(room.record);
+      store.save(snapshot).catch((err) => log.warn({ err, room: room.code }, 'match record not saved'));
+    }
+  }
 
   const timer = setInterval(() => {
     const now = Date.now();
@@ -51,25 +89,12 @@ export function roomServer({ store, log }: RoomServerOptions) {
   }, 250);
   timer.unref();
 
-  /** Evaluate with the server's engine under the room's reef and seed, and save the experiment. */
-  const evaluator = (room: Room, player: Player): Evaluator => (design) => {
-    let record;
-    try {
-      record = buildExperiment({ reef: room.reef, design, seed: room.seed, playerId: player.id, playerName: player.name, roomCode: room.code });
-    } catch (err) {
-      if (err instanceof BadExperiment) throw new RoomError(`That design is not valid: ${err.problems[0]}`);
-      throw err;
-    }
-    store.save(record).catch((e) => log.warn({ err: e, room: room.code }, 'room experiment not saved'));
-    return { result: record.result, design: record.design, experimentId: record.id };
-  };
-
   function handle(conn: Conn, msg: ClientMsg) {
     const now = Date.now();
     const room = msg.t === 'join' && msg.create ? getOrCreateRoom(conn.code, now) : getRoom(conn.code);
     if (msg.t === 'look') return send(conn.ws, { t: 'state', state: publicState(room, null, now) });
     if (msg.t === 'join') {
-      const player = join(room, msg.name, msg.avatar);
+      const player = join(room, msg.name, msg.persona);
       conn.playerId = player.id;
       send(conn.ws, { t: 'joined', playerId: player.id, seat: player.seat });
       return broadcast(room);
@@ -79,17 +104,26 @@ export function roomServer({ store, log }: RoomServerOptions) {
       // Newest tab wins: an older socket for the same player stops counting.
       for (const c of conns.get(room.code) ?? []) if (c !== conn && c.playerId === player.id) c.playerId = null;
       conn.playerId = player.id;
-      presence(room, player, true);
+      presence(room, player, true, now);
       send(conn.ws, { t: 'joined', playerId: player.id, seat: player.seat });
       return broadcast(room);
     }
     const player = findPlayer(room, conn.playerId);
-    if (msg.t === 'start') start(room, player, now);
-    else if (msg.t === 'again') again(room, player);
-    else if (msg.t === 'reef') setReef(room, player, msg.reef);
-    else if (msg.t === 'pick') pick(room, player, msg.avatar);
-    else if (msg.t === 'lock') lock(room, player, msg.design, evaluator(room, player), now);
-    else throw new RoomError('Unknown message.');
+    switch (msg.t) {
+      case 'persona': choosePersona(room, player, msg.persona); break;
+      case 'bot': setBot(room, player, msg.persona, !!msg.on); break;
+      case 'pace': setPace(room, player, msg.pace); break;
+      case 'session': setSession(room, player, msg.kind); break;
+      case 'start': start(room, player, now); break;
+      case 'skip': skip(room, player, now); break;
+      case 'select': select(room, player, msg.card, msg.district, now); break;
+      case 'move': move(room, player, msg.move, msg.proposalId, now); break;
+      case 'accept': accept(room, player, msg.compromiseId, now); break;
+      case 'done': done(room, player, now); break;
+      case 'respond': respond(room, player, msg.choice, now); break;
+      case 'again': again(room, player); break;
+      default: throw new RoomError('Unknown message.');
+    }
     broadcast(room);
   }
 

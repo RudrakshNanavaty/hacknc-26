@@ -1,10 +1,10 @@
-// Tiger Data store: experiments in a TimescaleDB hypertable, per-reef activity from a real-time
-// continuous aggregate. prepareTiger() applies schema.sql (idempotent) on every start.
+// Tiger Data store: each match record as one jsonb row (cc_matches), and every decision in it as a
+// row of a TimescaleDB hypertable (cc_decisions) with its district and coordinates, which feeds a
+// real-time continuous aggregate. prepareTiger() applies schema.sql (idempotent) on every start.
 import { readFileSync } from 'node:fs';
 import pg from 'pg';
-import type { ReefId } from '@shared';
-import type { ExperimentRecord } from '../experiments';
-import type { ExperimentStore } from './store';
+import { CARDS, districtById, isDistrictId, type MatchRecord } from '@shared';
+import type { MatchStore } from './store';
 
 /**
  * Pool options from a connection URL. sslmode is turned into an explicit `ssl` option: node-postgres
@@ -23,55 +23,101 @@ export function poolConfig(url: string): pg.PoolConfig {
   };
 }
 
-interface Row {
+export interface DecisionRow {
   id: string;
-  created_at: Date;
-  reef: ReefId;
-  room_code: string | null;
-  player_id: string;
-  player_name: string;
-  design: ExperimentRecord['design'];
-  flow: ExperimentRecord['flow'];
-  result: ExperimentRecord['result'];
+  at: string;
+  match_id: string;
+  round: number | null;
+  kind: 'play' | 'move' | 'outcome' | 'preference';
+  seat: number | null;
+  persona: string | null;
+  participant: string | null;
+  session_kind: string;
+  card: string | null;
+  project: string | null;
+  proposal_id: string | null;
+  district: string | null;
+  lon: number | null;
+  lat: number | null;
+  status: string | null;
+  detail: unknown;
 }
 
-const fromRow = (r: Row): ExperimentRecord => ({
-  id: r.id,
-  createdAt: r.created_at,
-  reef: r.reef,
-  roomCode: r.room_code,
-  playerId: r.player_id,
-  playerName: r.player_name,
-  design: r.design,
-  flow: r.flow,
-  result: r.result,
-});
+/** Every decision in a match, flat, with coordinates. */
+export function decisionRows(m: MatchRecord): DecisionRow[] {
+  const who = (seat: number) => m.players.find((p) => p.seat === seat);
+  const place = (district: string | null) => (district && isDistrictId(district) ? districtById(district) : null);
+  const row = (r: Omit<DecisionRow, 'match_id' | 'session_kind' | 'persona' | 'participant' | 'lon' | 'lat'>): DecisionRow => {
+    const p = r.seat !== null ? who(r.seat) : undefined;
+    const d = place(r.district);
+    return { ...r, match_id: m.id, session_kind: m.sessionKind, persona: p?.persona ?? null, participant: p?.participant ?? null, lon: d?.center[0] ?? null, lat: d?.center[1] ?? null };
+  };
+  const out: DecisionRow[] = [];
+  for (const r of m.rounds) {
+    const at = r.resolvedAt;
+    for (const p of r.proposals.filter((x) => !x.carried)) {
+      const card = Object.values(CARDS).find((c) => c.project === p.kind)!.id;
+      out.push(row({ id: `${m.id}:play:${p.id}`, at, round: r.round, kind: 'play', seat: p.seat, card, project: p.kind, proposal_id: p.id, district: p.district, status: null, detail: null }));
+    }
+    for (const a of r.attachments) {
+      out.push(row({ id: `${m.id}:play:r${r.round}:${a.seat}`, at, round: r.round, kind: 'play', seat: a.seat, card: a.card, project: null, proposal_id: a.proposalId, district: a.district, status: null, detail: null }));
+    }
+    for (const n of r.actions) {
+      const p = r.proposals.find((x) => x.id === n.proposalId);
+      out.push(row({ id: `${m.id}:move:r${r.round}:${n.seat}`, at, round: r.round, kind: 'move', seat: n.seat, card: null, project: p?.kind ?? null, proposal_id: n.proposalId, district: p?.district ?? null, status: n.move, detail: null }));
+    }
+    for (const o of r.outcomes) {
+      out.push(row({
+        id: `${m.id}:outcome:${o.proposalId}:r${r.round}`, at, round: r.round, kind: 'outcome', seat: o.seat, card: null, project: o.kind, proposal_id: o.proposalId,
+        district: o.district, status: o.status, detail: { support: o.support, opposition: o.opposition, conditions: o.conditions, delta: o.delta, rules: o.rules.map((id) => r.events.find((e) => e.id === id)) },
+      }));
+    }
+  }
+  for (const resp of m.responses) {
+    out.push(row({ id: `${m.id}:preference:${resp.seat}`, at: resp.at, round: null, kind: 'preference', seat: resp.seat, card: null, project: resp.kind, proposal_id: resp.choice, district: resp.district, status: null, detail: null }));
+  }
+  return out;
+}
 
-const COLUMNS = 'id, created_at, reef, room_code, player_id, player_name, design, flow, result';
+const COLS = ['id', 'at', 'match_id', 'round', 'kind', 'seat', 'persona', 'participant', 'session_kind', 'card', 'project', 'proposal_id', 'district', 'lon', 'lat', 'status', 'detail'] as const;
 
-export class TigerStore implements ExperimentStore {
+export class TigerStore implements MatchStore {
   readonly kind = 'tiger';
   constructor(readonly pool: pg.Pool) {}
 
-  async save(e: ExperimentRecord) {
-    await this.pool.query(
-      `INSERT INTO experiments (id, created_at, reef, room_code, player_id, player_name, material,
-         settlement_rate, model, seed, design, flow, result)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
-      [e.id, e.createdAt, e.reef, e.roomCode, e.playerId, e.playerName, e.result.material,
-        e.result.settlementRate, e.result.model, e.result.seed, e.design, e.flow, e.result],
-    );
+  async save(m: MatchRecord) {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query(
+        `INSERT INTO cc_matches (id, started_at, ended_at, updated_at, room_code, session_kind, rules_version, data_version, record)
+         VALUES ($1, $2, $3, now(), $4, $5, $6, $7, $8)
+         ON CONFLICT (id) DO UPDATE SET ended_at = EXCLUDED.ended_at, updated_at = now(), record = EXCLUDED.record`,
+        [m.id, m.startedAt, m.endedAt, m.roomCode, m.sessionKind, m.rulesVersion, m.dataVersion, m],
+      );
+      await client.query('DELETE FROM cc_decisions WHERE match_id = $1', [m.id]);
+      const rows = decisionRows(m);
+      if (rows.length) {
+        const values = rows.map((_, i) => `(${COLS.map((_c, j) => `$${i * COLS.length + j + 1}`).join(', ')})`).join(', ');
+        await client.query(`INSERT INTO cc_decisions (${COLS.join(', ')}) VALUES ${values}`, rows.flatMap((r) => COLS.map((c) => (c === 'detail' ? (r.detail === null ? null : JSON.stringify(r.detail)) : r[c]))));
+      }
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK').catch(() => {});
+      throw err;
+    } finally {
+      client.release();
+    }
   }
 
   async get(id: string) {
-    const { rows } = await this.pool.query<Row>(`SELECT ${COLUMNS} FROM experiments WHERE id = $1`, [id]);
-    return rows[0] ? fromRow(rows[0]) : null;
+    const { rows } = await this.pool.query<{ record: MatchRecord }>('SELECT record FROM cc_matches WHERE id = $1', [id]);
+    return rows[0]?.record ?? null;
   }
 
-  async recent(reef: ReefId, limit: number) {
-    const { rows } = await this.pool.query<Row>(
-      `SELECT ${COLUMNS} FROM experiments WHERE reef = $1 ORDER BY created_at DESC LIMIT $2`, [reef, limit]);
-    return rows.map(fromRow);
+  async list(limit: number) {
+    const { rows } = await this.pool.query<{ record: MatchRecord }>('SELECT record FROM cc_matches ORDER BY started_at DESC LIMIT $1', [limit]);
+    return rows.map((r) => r.record);
   }
 
   async close() {

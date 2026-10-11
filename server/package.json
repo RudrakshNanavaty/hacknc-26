@@ -1,5 +1,5 @@
 {
-  "name": "@reef/server",
+  "name": "@clash/server",
   "private": true,
   "type": "module",
   "scripts": {

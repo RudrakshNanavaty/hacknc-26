@@ -5,3 +5,4 @@ server/.cache/
 .DS_Store
 pipeline/.venv/
 __pycache__/
+pipeline/cache/

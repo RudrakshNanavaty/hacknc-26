@@ -1,75 +1,93 @@
-// Rooms (Reef Rivals): every player builds a tile for the same reef under the same conditions. No
-// central screen: the player who opens the room is the host (starts each round) and builds too.
+// Coastal Clash rooms: four stakeholders, one real city, three rounds. The player who opens the
+// room hosts it (starts the match, can skip a phase, can fill empty seats with bots).
 // Wire protocol for /ws/rooms/:code. JSON messages, one per WebSocket frame.
-import type { Design, ExperimentResult } from './design';
-import type { ReefId } from './reefs';
-
-/** Diver portraits in app/public/avatars/<id>.svg (Open Peeps, CC0). Picker order. */
-export const AVATARS = [
-  'peep-17', 'peep-52', 'peep-34', 'peep-92', 'peep-6', 'peep-96', 'peep-4', 'peep-8',
-  'peep-18', 'peep-23', 'peep-38', 'peep-46', 'peep-49', 'peep-76', 'peep-83', 'peep-98',
-] as const;
-export type AvatarId = (typeof AVATARS)[number];
+import type { PaceId } from './config';
+import type { CardId, Crisis, NegotiationMove, PersonaId } from './game/content';
+import type { Board, CityState, FinalResult, NegotiationAction, Resolution } from './game/engine';
+import type { SessionKind } from './game/record';
 
 export const MAX_PLAYERS = 4;
-/** After the build clock runs out, clients get this long to send their design. */
-export const LOCK_GRACE_MS = 5_000;
+/** After a clock runs out, clients get this long to send what they picked. */
+export const LOCK_GRACE_MS = 1_500;
 
-export type RoomPhase = 'lobby' | 'briefing' | 'building' | 'results';
+export type RoomPhase = 'lobby' | 'crisis' | 'select' | 'reveal' | 'negotiate' | 'resolve' | 'final';
 
 export interface RoomPlayer {
   seat: number;
   name: string;
-  avatar: AvatarId;
+  persona: PersonaId;
   connected: boolean;
-  /** Building: the player has sent their design. */
-  locked: boolean;
+  bot: boolean;
+  influence: number;
+  /** Done with the current phase (card locked, negotiation done, preference answered). */
+  ready: boolean;
 }
 
-/** One player's design after the round, evaluated by the server's engine. */
-export interface RoomResult {
-  seat: number;
-  name: string;
-  avatar: AvatarId;
-  rank: number;
-  result: ExperimentResult | null;
-  design: Design | null;
-  /** false: no design arrived before the clock ran out. */
-  submitted: boolean;
+export interface Headline {
+  text: string;
+  source: 'gemini' | 'template';
+  /** Which moment it describes, so a late Gemini line never overwrites a newer one. */
+  key: string;
+}
+
+export interface RoundSummary {
+  round: number;
+  headline: string;
+  resolution: Resolution;
+  board: Board;
+  actions: NegotiationAction[];
 }
 
 export interface RoomState {
   code: string;
   phase: RoomPhase;
-  /** The reef of this round; the host picks it in the lobby. */
-  reef: ReefId;
   round: number;
-  /** Briefing or building ends (ms since epoch, server clock). */
+  totalRounds: number;
+  /** The current phase ends (ms since epoch, server clock). */
   endsAt: number | null;
-  /** Server clock at send time, so clients can correct their own. */
   serverNow: number;
-  /** Every design this round is evaluated with this seed, so conditions are identical. */
-  seed: number;
-  /** Your seat; null for a visitor who has not joined. */
   you: number | null;
   hostSeat: number;
+  pace: PaceId;
+  sessionKind: SessionKind;
+  matchId: string | null;
   players: RoomPlayer[];
-  /** Ranked, best first. Only in the results phase. */
-  results: RoomResult[] | null;
-  /** Your stored experiment this round; null until it is evaluated. */
-  experimentId: string | null;
+  city: CityState;
+  crisis: Crisis | null;
+  /** The revealed board (reveal and negotiation; null while cards are hidden). */
+  board: Board | null;
+  /** Negotiation moves so far (public: it is a negotiating table). */
+  actions: NegotiationAction[];
+  /** Every resolved round, oldest first. */
+  history: RoundSummary[];
+  headline: Headline | null;
+  final: FinalResult | null;
+  /** Your own hidden choices. */
+  mine: {
+    selection: { card: CardId; district: string } | null;
+    moved: boolean;
+    responded: string | null;
+  } | null;
 }
 
 export type ClientMsg =
-  | { t: 'look' } // before joining: the room's state, or an error if there is no such room
-  /** `create`: open the room if it does not exist yet (the host's first message). */
-  | { t: 'join'; name: string; avatar: AvatarId; create?: boolean }
+  | { t: 'look' }
+  | { t: 'join'; name: string; persona: PersonaId; create?: boolean }
   | { t: 'resume'; playerId: string }
-  | { t: 'pick'; avatar: AvatarId }
+  | { t: 'persona'; persona: PersonaId }
+  /** Host: fill an empty persona with a bot, or remove one. */
+  | { t: 'bot'; persona: PersonaId; on: boolean }
+  | { t: 'pace'; pace: PaceId }
+  | { t: 'session'; kind: SessionKind }
   | { t: 'start' }
-  /** Host, in the lobby: the reef of the next round. */
-  | { t: 'reef'; reef: ReefId }
-  | { t: 'lock'; design: Design }
+  /** Host: end the current phase now. */
+  | { t: 'skip' }
+  | { t: 'select'; card: CardId; district: string }
+  | { t: 'move'; move: NegotiationMove; proposalId: string }
+  | { t: 'accept'; compromiseId: string }
+  /** Negotiation: done (with or without a move). */
+  | { t: 'done' }
+  | { t: 'respond'; choice: string }
   | { t: 'again' };
 
 export type ServerMsg =

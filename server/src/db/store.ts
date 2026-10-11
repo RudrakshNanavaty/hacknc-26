@@ -1,31 +1,31 @@
-// Where experiments go: Tiger Data when DATABASE_URL is set (db/tiger.ts), memory otherwise.
+// Where match records go: Tiger Data when DATABASE_URL is set (db/tiger.ts), memory otherwise.
 // Both stores have the same interface; failSoft() wraps Tiger so a database outage never breaks a game.
-import type { ReefId } from '@shared';
-import type { ExperimentRecord } from '../experiments';
+import type { MatchRecord } from '@shared';
 
-export interface ExperimentStore {
+export interface MatchStore {
   readonly kind: 'tiger' | 'memory';
-  save(experiment: ExperimentRecord): Promise<void>;
-  get(id: string): Promise<ExperimentRecord | null>;
+  /** Insert or replace the whole record (called after each round, at the end and on each response). */
+  save(match: MatchRecord): Promise<void>;
+  get(id: string): Promise<MatchRecord | null>;
   /** Newest first. */
-  recent(reef: ReefId, limit: number): Promise<ExperimentRecord[]>;
+  list(limit: number): Promise<MatchRecord[]>;
   close(): Promise<void>;
 }
 
-export class MemoryStore implements ExperimentStore {
+export class MemoryStore implements MatchStore {
   readonly kind = 'memory';
-  private readonly rows: ExperimentRecord[] = [];
+  private readonly rows = new Map<string, MatchRecord>();
 
-  async save(experiment: ExperimentRecord) {
-    this.rows.push(experiment);
+  async save(match: MatchRecord) {
+    this.rows.set(match.id, structuredClone(match));
   }
 
   async get(id: string) {
-    return this.rows.find((r) => r.id === id) ?? null;
+    return this.rows.get(id) ?? null;
   }
 
-  async recent(reef: ReefId, limit: number) {
-    return this.rows.filter((r) => r.reef === reef).slice(-limit).reverse();
+  async list(limit: number) {
+    return [...this.rows.values()].sort((a, b) => b.startedAt.localeCompare(a.startedAt)).slice(0, limit);
   }
 
   async close() {}
@@ -34,16 +34,16 @@ export class MemoryStore implements ExperimentStore {
 type Log = { warn: (obj: unknown, msg: string) => void };
 
 /** Writes that fail land in memory; reads merge memory in, or answer from it alone. */
-export function failSoft(primary: ExperimentStore, log: Log): ExperimentStore {
+export function failSoft(primary: MatchStore, log: Log): MatchStore {
   const backup = new MemoryStore();
   return {
     kind: primary.kind,
-    async save(experiment) {
+    async save(match) {
       try {
-        await primary.save(experiment);
+        await primary.save(match);
       } catch (err) {
-        log.warn({ err }, 'save failed; keeping the experiment in memory');
-        await backup.save(experiment);
+        log.warn({ err }, 'save failed; keeping the match in memory');
+        await backup.save(match);
       }
     },
     async get(id) {
@@ -52,17 +52,18 @@ export function failSoft(primary: ExperimentStore, log: Log): ExperimentStore {
       try {
         return await primary.get(id);
       } catch (err) {
-        log.warn({ err }, 'experiment read failed');
+        log.warn({ err }, 'match read failed');
         return null;
       }
     },
-    async recent(reef, limit) {
-      const local = await backup.recent(reef, limit);
+    async list(limit) {
+      const local = await backup.list(limit);
       try {
-        const remote = await primary.recent(reef, limit);
-        return [...local, ...remote].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()).slice(0, limit);
+        const remote = await primary.list(limit);
+        const ids = new Set(local.map((m) => m.id));
+        return [...local, ...remote.filter((m) => !ids.has(m.id))].sort((a, b) => b.startedAt.localeCompare(a.startedAt)).slice(0, limit);
       } catch (err) {
-        log.warn({ err }, 'recent read failed; answering from memory');
+        log.warn({ err }, 'match list failed; answering from memory');
         return local;
       }
     },

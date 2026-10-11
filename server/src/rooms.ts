@@ -1,15 +1,21 @@
-// Room state machine (ported from Mayday Mayor, pattern from pocket-rivals, MIT): synchronous
-// actions validate and record input, tick(room, now) moves time. No sockets in here, so it is
-// easy to test; roomSocket.ts wires it to /ws/rooms/:code.
+// The Coastal Clash room state machine (pattern from Mayday Mayor / pocket-rivals, MIT): synchronous
+// actions validate and record input, tick(room, now) moves time. No sockets and no I/O in here, so
+// it is easy to test; roomSocket.ts wires it to /ws/rooms/:code and drains room.effects (save the
+// record, ask the narrator) after every change.
 //
-// lobby -> briefing -> building -> results -> lobby (next round)
-import { randomInt, randomUUID } from 'node:crypto';
+// lobby -> [crisis -> select -> reveal -> negotiate -> resolve] x3 -> final -> lobby
+import { randomUUID } from 'node:crypto';
 import {
-  AVATARS, BRIEFING_SECONDS, BUILD_SECONDS, LOCK_GRACE_MS, MAX_PLAYERS, compareResults, isReefId, reefById,
-  type AvatarId, type Design, type ExperimentResult, type ReefId, type RoomResult, type RoomState,
+  CARDS, LOCK_GRACE_MS, MAX_PLAYERS, NEGOTIATION_COST, PACES, PERSONA_INFO, START_INDICATORS, START_INFLUENCE, TOTAL_ROUNDS,
+  buildBoard, checkAccept, checkMove, checkPlay, crisisFor, crisisHeadline, finalHeadline, finalResult, isPersonaId, newMatchRecord,
+  nextInfluence, resolutionHeadline, resolveRound, revealHeadline, startCity, botPlay, districtById,
+  type Board, type CardId, type CityState, type Crisis, type FinalResult, type Headline, type MatchRecord, type NegotiationAction,
+  type PaceId, type PersonaId, type Proposal, type RoomPhase, type RoomState, type RoundSummary, type SessionKind,
 } from '@shared';
 
 const ROOM_TTL_MS = 3 * 60 * 60 * 1000;
+/** A player who drops (a reloading tab) still counts this long before a phase stops waiting for them. */
+export const RECONNECT_GRACE_MS = 8_000;
 /** No I or O, so codes read cleanly off a projector. */
 export const CODE_RE = /^[A-HJ-NP-Z]{4}$/;
 
@@ -19,40 +25,66 @@ export interface Player {
   id: string; // secret, lets a reloaded page resume
   seat: number;
   name: string;
-  avatar: AvatarId;
+  persona: PersonaId;
   connected: boolean;
-  lockedAt: number | null;
-  design: Design | null;
-  result: ExperimentResult | null;
-  /** This round's stored experiment, set by the evaluator. */
-  experimentId: string | null;
+  /** When they dropped (null while connected). */
+  leftAt: number | null;
+  bot: boolean;
+  influence: number;
+  selection: { card: CardId; district: string } | null;
+  moved: boolean;
+  done: boolean;
+  responded: string | null;
 }
+
+/** Side effects for the socket layer, drained after every change. */
+export type Effect =
+  | { t: 'reveal'; key: string }
+  | { t: 'resolved'; key: string; round: number }
+  | { t: 'final'; key: string }
+  | { t: 'record' };
 
 export interface Room {
   code: string;
-  phase: RoomState['phase'];
-  reef: ReefId;
+  phase: RoomPhase;
   round: number;
-  /** Shared by every design this round. */
-  seed: number;
   endsAt: number | null;
   players: Player[];
-  results: RoomResult[] | null;
-  hostSeat: number;
+  hostId: string | null;
+  pace: PaceId;
+  sessionKind: SessionKind;
   touchedAt: number;
+  matchId: string | null;
+  record: MatchRecord | null;
+  city: CityState;
+  crisis: Crisis | null;
+  carried: Proposal[];
+  board: Board | null;
+  actions: NegotiationAction[];
+  history: RoundSummary[];
+  /** The last round resolved: a round can never resolve twice. */
+  resolvedRound: number;
+  headline: Headline | null;
+  final: FinalResult | null;
+  effects: Effect[];
 }
 
-/** Evaluates a design with the server's engine and stores it; throws RoomError on an invalid design. */
-export type Evaluator = (design: unknown) => { result: ExperimentResult; design: Design; experimentId: string };
-
 export const rooms = new Map<string, Room>();
+
+export function newRoom(code: string, now = Date.now()): Room {
+  return {
+    code, phase: 'lobby', round: 0, endsAt: null, players: [], hostId: null, pace: 'standard', sessionKind: 'demo', touchedAt: now,
+    matchId: null, record: null, city: startCity(), crisis: null, carried: [], board: null, actions: [], history: [], resolvedRound: 0,
+    headline: null, final: null, effects: [],
+  };
+}
 
 export function getOrCreateRoom(code: string, now = Date.now()): Room {
   const c = code.toUpperCase();
   if (!CODE_RE.test(c)) throw new RoomError('Room codes are 4 letters.');
   let room = rooms.get(c);
   if (!room) {
-    room = { code: c, phase: 'lobby', reef: 'kaneohe', round: 0, seed: 0, endsAt: null, players: [], results: null, hostSeat: 0, touchedAt: now };
+    room = newRoom(c, now);
     rooms.set(c, room);
   }
   return room;
@@ -65,6 +97,10 @@ export function getRoom(code: string): Room {
 }
 
 const touch = (room: Room, now = Date.now()) => void (room.touchedAt = now);
+const humans = (room: Room) => room.players.filter((p) => !p.bot);
+const present = (room: Room, now: number) => room.players.filter((p) => p.bot || p.connected || (p.leftAt !== null && now - p.leftAt < RECONNECT_GRACE_MS));
+const hostSeat = (room: Room) => room.players.find((p) => p.id === room.hostId)?.seat ?? 0;
+const renumber = (room: Room) => room.players.forEach((p, i) => (p.seat = i));
 
 function cleanName(name: unknown): string {
   const n = String(name ?? '').trim().replace(/\s+/g, ' ').slice(0, 20);
@@ -72,174 +108,384 @@ function cleanName(name: unknown): string {
   return n;
 }
 
-function checkAvatar(room: Room, avatar: unknown, self?: Player): AvatarId {
-  if (!AVATARS.includes(avatar as AvatarId)) throw new RoomError('Pick a diver.');
-  if (room.players.some((p) => p !== self && p.avatar === avatar)) throw new RoomError('That diver is taken.');
-  return avatar as AvatarId;
+function checkPersona(room: Room, persona: unknown, self?: Player): PersonaId {
+  if (!isPersonaId(persona)) throw new RoomError('Pick a stakeholder.');
+  if (room.players.some((p) => p !== self && p.persona === persona)) throw new RoomError(`The ${PERSONA_INFO[persona].name} is taken.`);
+  return persona;
 }
 
-/** Join the room. Lobby only, so every player builds the same round. */
-export function join(room: Room, name: unknown, avatar: unknown): Player {
-  if (room.phase !== 'lobby') throw new RoomError('This round is under way. Join when the next one opens.');
-  if (room.players.length >= MAX_PLAYERS) throw new RoomError(`The room is full (${MAX_PLAYERS} players).`);
+const newPlayer = (seat: number, name: string, persona: PersonaId, bot: boolean): Player => ({
+  id: randomUUID(), seat, name, persona, connected: !bot, leftAt: null, bot, influence: START_INFLUENCE, selection: null, moved: false, done: false, responded: null,
+});
+
+/** A bot holding this persona gives it up to a person. */
+function freeFromBot(room: Room, persona: unknown): void {
+  const bot = room.players.find((p) => p.bot && p.persona === persona);
+  if (bot) room.players.splice(room.players.indexOf(bot), 1);
+  renumber(room);
+}
+
+/** Join as a stakeholder. Lobby only, so everyone plays the whole match. */
+export function join(room: Room, name: unknown, persona: unknown): Player {
+  if (room.phase !== 'lobby') throw new RoomError('This match is under way. Join when the next one opens.');
   const n = cleanName(name);
-  if (room.players.some((p) => p.name.toLowerCase() === n.toLowerCase())) throw new RoomError('Someone here already has that name.');
-  const player: Player = {
-    id: randomUUID(),
-    seat: room.players.length,
-    name: n,
-    avatar: checkAvatar(room, avatar),
-    connected: true,
-    lockedAt: null,
-    design: null,
-    result: null,
-    experimentId: null,
-  };
+  if (room.players.some((p) => !p.bot && p.name.toLowerCase() === n.toLowerCase())) throw new RoomError('Someone here already has that name.');
+  if (!isPersonaId(persona)) throw new RoomError('Pick a stakeholder.');
+  if (room.players.some((p) => !p.bot && p.persona === persona)) throw new RoomError(`The ${PERSONA_INFO[persona].name} is taken.`);
+  const bots = room.players.filter((p) => p.bot).length;
+  if (room.players.length >= MAX_PLAYERS && !room.players.some((p) => p.bot && p.persona === persona)) {
+    throw new RoomError(bots ? 'The room is full: pick a stakeholder a bot is playing.' : `The room is full (${MAX_PLAYERS} stakeholders).`);
+  }
+  freeFromBot(room, persona);
+  const player = newPlayer(room.players.length, n, persona, false);
   room.players.push(player);
+  renumber(room);
+  if (!room.hostId || !room.players.some((p) => p.id === room.hostId)) room.hostId = player.id;
   touch(room);
   return player;
 }
 
 export function findPlayer(room: Room, playerId: unknown): Player {
-  const p = room.players.find((x) => x.id === playerId);
+  const p = room.players.find((x) => x.id === playerId && !x.bot);
   if (!p) throw new RoomError('You are not in this room.');
   return p;
 }
 
-export function pick(room: Room, player: Player, avatar: unknown): void {
-  if (room.phase !== 'lobby') throw new RoomError('Divers are set until the next round.');
-  player.avatar = checkAvatar(room, avatar, player);
+export function choosePersona(room: Room, player: Player, persona: unknown): void {
+  if (room.phase !== 'lobby') throw new RoomError('Stakeholders are set until the next match.');
+  // Take over a bot's persona: the bot leaves.
+  if (room.players.some((p) => p.bot && p.persona === persona)) freeFromBot(room, persona);
+  player.persona = checkPersona(room, persona, player);
   touch(room);
 }
 
 const requireHost = (room: Room, player: Player) => {
-  if (player.seat !== room.hostSeat) throw new RoomError('Only the host can do that.');
+  if (player.id !== room.hostId) throw new RoomError('Only the host can do that.');
 };
 
-/** The host picks the reef of the next round (lobby only). */
-export function setReef(room: Room, player: Player, reef: unknown): void {
+/** Host, lobby: fill an empty stakeholder with a bot (or remove it). */
+export function setBot(room: Room, player: Player, persona: unknown, on: boolean): void {
   requireHost(room, player);
-  if (room.phase !== 'lobby') throw new RoomError('Pick the reef before the round starts.');
-  if (!isReefId(reef)) throw new RoomError('That reef is not on the map.');
-  if (!reefById(reef).ready) throw new RoomError('That reef is coming next.');
-  room.reef = reef;
+  if (room.phase !== 'lobby') throw new RoomError('Bots join between matches.');
+  if (!isPersonaId(persona)) throw new RoomError('Pick a stakeholder.');
+  const existing = room.players.find((p) => p.persona === persona);
+  if (on) {
+    if (existing) throw new RoomError(`The ${PERSONA_INFO[persona].name} is taken.`);
+    if (room.players.length >= MAX_PLAYERS) throw new RoomError('The room is full.');
+    room.players.push(newPlayer(room.players.length, `${PERSONA_INFO[persona].title.split(/[ ,]/)[0]} (bot)`, persona, true));
+  } else {
+    if (!existing?.bot) throw new RoomError('That stakeholder is not a bot.');
+    room.players.splice(room.players.indexOf(existing), 1);
+  }
+  renumber(room);
   touch(room);
 }
 
-/** The host starts the round: the briefing plays for everyone, then the build clock starts. */
+export function setPace(room: Room, player: Player, pace: unknown): void {
+  requireHost(room, player);
+  if (pace !== 'standard' && pace !== 'demo') throw new RoomError('Unknown pace.');
+  room.pace = pace;
+  touch(room);
+}
+
+export function setSession(room: Room, player: Player, kind: unknown): void {
+  requireHost(room, player);
+  if (room.phase !== 'lobby') throw new RoomError('Set the session type before the match.');
+  if (kind !== 'demo' && kind !== 'community') throw new RoomError('Unknown session type.');
+  room.sessionKind = kind;
+  touch(room);
+}
+
+const seconds = (room: Room, phase: keyof (typeof PACES)['standard']) => PACES[room.pace][phase] * 1000;
+
+/** The host starts the match. */
 export function start(room: Room, player: Player, now: number): void {
   requireHost(room, player);
-  // During the briefing, the host's start skips the rest of it.
-  if (room.phase === 'briefing') return beginBuilding(room, now);
-  if (room.phase !== 'lobby') throw new RoomError('The round already started.');
-  if (!room.players.some((p) => p.connected)) throw new RoomError('Waiting for players to join.');
-  room.phase = 'briefing';
-  room.round += 1;
-  room.seed = randomInt(2 ** 31);
-  room.endsAt = now + BRIEFING_SECONDS * 1000;
-  room.results = null;
+  if (room.phase !== 'lobby') throw new RoomError('The match already started.');
+  if (!humans(room).some((p) => p.connected)) throw new RoomError('Waiting for players to join.');
+  room.matchId = randomUUID();
+  room.record = newMatchRecord(room.matchId, room.code, room.sessionKind, room.players.map((p) => ({ seat: p.seat, name: p.name, persona: p.persona, participant: p.bot ? 'bot' : 'human' })), new Date(now));
+  room.city = startCity();
+  room.carried = [];
+  room.history = [];
+  room.resolvedRound = 0;
+  room.final = null;
+  room.round = 1;
   for (const p of room.players) {
-    p.lockedAt = null;
-    p.design = null;
-    p.result = null;
-    p.experimentId = null;
+    p.influence = START_INFLUENCE;
+    p.responded = null;
   }
+  room.effects.push({ t: 'record' });
+  enterCrisis(room, now);
+}
+
+function enterCrisis(room: Room, now: number): void {
+  room.phase = 'crisis';
+  room.crisis = crisisFor(room.round);
+  room.board = null;
+  room.actions = [];
+  if (room.round > 1) for (const p of room.players) p.influence = nextInfluence(p.influence);
+  for (const p of room.players) {
+    p.selection = null;
+    p.moved = false;
+    p.done = false;
+  }
+  room.headline = { text: crisisHeadline(room.crisis, room.round), source: 'template', key: `crisis-${room.round}` };
+  room.endsAt = now + seconds(room, 'crisis');
   touch(room, now);
 }
 
-function beginBuilding(room: Room, now: number): void {
-  room.phase = 'building';
-  room.endsAt = now + BUILD_SECONDS * 1000;
+function enterSelect(room: Room, now: number): void {
+  room.phase = 'select';
+  room.endsAt = now + seconds(room, 'select');
+  for (const p of room.players.filter((x) => x.bot)) p.selection = botPlay(p.persona, p.influence, room.round);
   touch(room, now);
+  maybeReveal(room, now);
 }
 
-/** A player submits their design. The server evaluates it; invalid designs are refused. */
-export function lock(room: Room, player: Player, design: unknown, evaluate: Evaluator, now: number): ExperimentResult {
-  if (room.phase !== 'building') throw new RoomError('Building is over.');
-  if (player.lockedAt !== null) throw new RoomError('Your design is already in.');
-  const done = evaluate(design);
-  player.design = done.design;
-  player.result = done.result;
-  player.experimentId = done.experimentId;
-  player.lockedAt = now;
+/** A stakeholder locks a card and a target. Final: one card per round. */
+export function select(room: Room, player: Player, card: unknown, district: unknown, now: number): void {
+  if (room.phase !== 'select') throw new RoomError('Cards are played in the selection phase.');
+  if (player.selection) throw new RoomError('Your card is already locked in.');
+  const problem = checkPlay(player.persona, player.influence, card, district);
+  if (problem) throw new RoomError(problem);
+  player.selection = { card: card as CardId, district: String(district) };
   touch(room, now);
-  if (room.players.filter((p) => p.connected).every((p) => p.lockedAt !== null)) finish(room);
-  return done.result;
+  maybeReveal(room, now);
 }
 
-/** Everyone in (or out of time): rank the designs. Ties go to the earlier lock. */
-function finish(room: Room): void {
-  const ranked = [...room.players].sort((a, b) => {
-    if (a.result && b.result) return compareResults(a.result, b.result) || (a.lockedAt ?? 0) - (b.lockedAt ?? 0);
-    return (a.result ? 0 : 1) - (b.result ? 0 : 1) || a.seat - b.seat;
+function maybeReveal(room: Room, now: number): void {
+  const here = present(room, now);
+  if (room.phase === 'select' && here.length && here.every((p) => p.selection || (p.bot && botPlay(p.persona, p.influence, room.round) === null))) enterReveal(room, now);
+}
+
+function enterReveal(room: Room, now: number): void {
+  const plays = room.players.flatMap((p) => {
+    if (!p.selection) return [];
+    // Re-checked at reveal: influence cannot have changed, but the rule is the rule.
+    if (checkPlay(p.persona, p.influence, p.selection.card, p.selection.district)) return [];
+    p.influence -= CARDS[p.selection.card].cost;
+    return [{ seat: p.seat, persona: p.persona, card: p.selection.card, district: p.selection.district }];
   });
-  room.results = ranked.map((p, i) => ({
-    seat: p.seat,
-    name: p.name,
-    avatar: p.avatar,
-    rank: i + 1,
-    result: p.result,
-    design: p.design,
-    submitted: p.result !== null,
-  }));
-  room.phase = 'results';
-  room.endsAt = null;
+  room.board = buildBoard(room.round, plays, room.carried);
+  room.phase = 'reveal';
+  room.endsAt = now + seconds(room, 'reveal');
+  const key = `reveal-${room.round}`;
+  room.headline = { text: revealHeadline(room.board), source: 'template', key };
+  room.effects.push({ t: 'reveal', key });
+  touch(room, now);
 }
 
-/** The host: back to the lobby for another round with the same players. */
+function enterNegotiate(room: Room, now: number): void {
+  // Nothing to negotiate over: go straight to the resolution.
+  if (!room.board?.proposals.length) return enterResolve(room, now);
+  room.phase = 'negotiate';
+  room.endsAt = now + seconds(room, 'negotiate');
+  for (const p of room.players) {
+    p.moved = false;
+    p.done = p.bot;
+  }
+  // Bots take the compromise offered to them: a deal beats a fight.
+  for (const c of room.board.compromises) if (room.players[c.owner]?.bot) c.accepted = true;
+  touch(room, now);
+  maybeResolve(room, now);
+}
+
+/** Negotiation: back, oppose or fund one proposal (one move per round). */
+export function move(room: Room, player: Player, mv: unknown, proposalId: unknown, now: number): void {
+  if (room.phase !== 'negotiate' || !room.board) throw new RoomError('Moves are made during negotiation.');
+  if (player.moved) throw new RoomError('You already made your move this round.');
+  const problem = checkMove(room.board, player.seat, player.influence, mv, proposalId);
+  if (problem) throw new RoomError(problem);
+  const m = mv as keyof typeof NEGOTIATION_COST;
+  player.influence -= NEGOTIATION_COST[m];
+  player.moved = true;
+  room.actions.push({ seat: player.seat, persona: player.persona, move: m, proposalId: String(proposalId) });
+  touch(room, now);
+}
+
+/** Negotiation: the proposal's owner accepts a compromise offered to them. */
+export function accept(room: Room, player: Player, compromiseId: unknown, now: number): void {
+  if (room.phase !== 'negotiate' || !room.board) throw new RoomError('Compromises are accepted during negotiation.');
+  const problem = checkAccept(room.board, player.seat, compromiseId);
+  if (problem) throw new RoomError(problem);
+  room.board.compromises.find((c) => c.id === compromiseId)!.accepted = true;
+  touch(room, now);
+}
+
+export function done(room: Room, player: Player, now: number): void {
+  if (room.phase !== 'negotiate') throw new RoomError('Nothing to finish right now.');
+  player.done = true;
+  touch(room, now);
+  maybeResolve(room, now);
+}
+
+function maybeResolve(room: Room, now: number): void {
+  const here = present(room, now);
+  if (room.phase === 'negotiate' && here.length && here.every((p) => p.done)) enterResolve(room, now);
+}
+
+function enterResolve(room: Room, now: number): void {
+  if (!room.board || room.resolvedRound >= room.round) return;
+  room.resolvedRound = room.round;
+  const resolution = resolveRound(room.board, room.actions, room.city);
+  for (const [seat, n] of Object.entries(resolution.refunds)) {
+    const p = room.players[Number(seat)];
+    if (p) p.influence += n;
+  }
+  room.city = resolution.city;
+  room.carried = resolution.carried;
+  const headline = resolutionHeadline(resolution);
+  room.history.push({ round: room.round, headline, resolution, board: room.board, actions: room.actions });
+  room.record?.rounds.push({
+    round: room.round, crisis: room.board.crisis.id, proposals: room.board.proposals, attachments: room.board.attachments,
+    compromises: room.board.compromises, actions: room.actions, outcomes: resolution.outcomes, events: resolution.events,
+    before: resolution.before, after: resolution.after, headline, resolvedAt: new Date(now).toISOString(),
+  });
+  room.phase = 'resolve';
+  room.endsAt = now + seconds(room, 'resolve');
+  const key = `resolve-${room.round}`;
+  room.headline = { text: headline, source: 'template', key };
+  room.effects.push({ t: 'resolved', key, round: room.round }, { t: 'record' });
+  touch(room, now);
+}
+
+function enterFinal(room: Room, now: number): void {
+  room.final = finalResult(START_INDICATORS, room.city.indicators, room.history.map((h) => h.resolution), room.players.map((p) => p.persona));
+  room.phase = 'final';
+  room.endsAt = null;
+  room.board = null;
+  if (room.record) {
+    room.record.final = room.final;
+    room.record.endedAt = new Date(now).toISOString();
+  }
+  const key = 'final';
+  room.headline = { text: finalHeadline(room.final), source: 'template', key };
+  room.effects.push({ t: 'final', key }, { t: 'record' });
+  touch(room, now);
+}
+
+/** Host: end the current phase now (the demo button). */
+export function skip(room: Room, player: Player, now: number): void {
+  requireHost(room, player);
+  if (!advance(room, now)) throw new RoomError('Nothing to skip right now.');
+}
+
+/** Move to the next phase. Returns false when there is no timed phase to leave. */
+function advance(room: Room, now: number): boolean {
+  switch (room.phase) {
+    case 'crisis':
+      enterSelect(room, now);
+      return true;
+    case 'select':
+      enterReveal(room, now);
+      return true;
+    case 'reveal':
+      enterNegotiate(room, now);
+      return true;
+    case 'negotiate':
+      enterResolve(room, now);
+      return true;
+    case 'resolve':
+      if (room.round < TOTAL_ROUNDS) {
+        room.round += 1;
+        enterCrisis(room, now);
+      } else enterFinal(room, now);
+      return true;
+    default:
+      return false;
+  }
+}
+
+/** "Outside your assigned character, which proposal would you personally support?" */
+export function respond(room: Room, player: Player, choice: unknown, now: number): void {
+  if (room.phase !== 'final' || !room.record) throw new RoomError('The question comes at the end of the match.');
+  const id = String(choice ?? '');
+  const proposal = room.history.flatMap((h) => h.board.proposals).find((p) => p.id === id);
+  if (id !== 'none' && !proposal) throw new RoomError('Pick one of this match\'s proposals, or none.');
+  if (proposal) districtById(proposal.district); // known place
+  player.responded = id;
+  room.record.responses = room.record.responses.filter((r) => r.seat !== player.seat);
+  room.record.responses.push({
+    seat: player.seat, persona: player.persona, participant: 'human', choice: id, kind: proposal?.kind ?? null,
+    district: proposal?.district ?? null, at: new Date(now).toISOString(),
+  });
+  room.effects.push({ t: 'record' });
+  touch(room, now);
+}
+
+/** Host: back to the lobby for another match with the same stakeholders. */
 export function again(room: Room, player: Player): void {
   requireHost(room, player);
-  if (room.phase !== 'results') throw new RoomError('Finish this round first.');
+  if (room.phase !== 'final') throw new RoomError('Finish this match first.');
   room.phase = 'lobby';
-  room.results = null;
+  room.round = 0;
+  room.final = null;
+  room.headline = null;
+  room.crisis = null;
+  room.history = [];
+  room.city = startCity();
+  room.matchId = null;
+  room.record = null;
   touch(room);
 }
 
-/** A client came or went. A round never waits on someone who left. */
-export function presence(room: Room, player: Player, connected: boolean): void {
+/** A client came or went. A phase never waits on someone who left. */
+export function presence(room: Room, player: Player, connected: boolean, now = Date.now()): void {
   player.connected = connected;
-  // Host hand-off: the next connected player runs the room.
-  if (!room.players[room.hostSeat]?.connected) {
-    const next = room.players.find((p) => p.connected);
-    if (next) room.hostSeat = next.seat;
+  player.leftAt = connected ? null : now;
+  if (!room.players.find((p) => p.id === room.hostId)?.connected) {
+    const next = humans(room).find((p) => p.connected);
+    if (next) room.hostId = next.id;
   }
-  if (room.phase === 'building') {
-    const here = room.players.filter((p) => p.connected);
-    if (here.length && here.every((p) => p.lockedAt !== null)) finish(room);
-  }
-  touch(room);
+  maybeReveal(room, now);
+  maybeResolve(room, now);
+  touch(room, now);
 }
 
-/** Time: building closes LOCK_GRACE_MS after the clock (clients send their design at 0:00). */
+/** Time: a phase ends at its clock (selection and negotiation get a short grace for in-flight messages). */
 export function tick(room: Room, now: number): boolean {
-  if (room.phase === 'briefing' && room.endsAt !== null && now >= room.endsAt) {
-    beginBuilding(room, now);
-    return true;
-  }
-  if (room.phase === 'building' && room.endsAt !== null && now >= room.endsAt + LOCK_GRACE_MS) {
-    finish(room);
-    return true;
-  }
-  return false;
+  if (room.endsAt === null) return false;
+  // Someone's reconnect grace ran out and everyone left in the phase is done.
+  const before = room.phase;
+  maybeReveal(room, now);
+  maybeResolve(room, now);
+  if (room.phase !== before) return true;
+  const grace = room.phase === 'select' || room.phase === 'negotiate' ? LOCK_GRACE_MS : 0;
+  if (now < room.endsAt + grace) return false;
+  return advance(room, now);
 }
 
 export function publicState(room: Room, viewer: Player | null, now: number): RoomState {
+  const showBoard = room.phase === 'reveal' || room.phase === 'negotiate';
   return {
     code: room.code,
     phase: room.phase,
-    reef: room.reef,
     round: room.round,
+    totalRounds: TOTAL_ROUNDS,
     endsAt: room.endsAt,
     serverNow: now,
-    seed: room.seed,
     you: viewer?.seat ?? null,
-    hostSeat: room.hostSeat,
-    players: room.players.map((p) => ({ seat: p.seat, name: p.name, avatar: p.avatar, connected: p.connected, locked: p.lockedAt !== null })),
-    results: room.phase === 'results' ? room.results : null,
-    experimentId: viewer?.experimentId ?? null,
+    hostSeat: hostSeat(room),
+    pace: room.pace,
+    sessionKind: room.sessionKind,
+    matchId: room.matchId,
+    players: room.players.map((p) => ({
+      seat: p.seat, name: p.name, persona: p.persona, connected: p.bot || p.connected, bot: p.bot, influence: p.influence,
+      ready: room.phase === 'select' ? !!p.selection : room.phase === 'negotiate' ? p.done : room.phase === 'final' ? p.responded !== null : false,
+    })),
+    city: room.city,
+    crisis: room.crisis,
+    board: showBoard ? room.board : null,
+    actions: showBoard ? room.actions : [],
+    history: room.history,
+    headline: room.headline,
+    final: room.final,
+    mine: viewer ? { selection: viewer.selection, moved: viewer.moved, responded: viewer.responded } : null,
   };
 }
 
 export function sweep(now = Date.now()): void {
   for (const [code, room] of rooms) if (now - room.touchedAt > ROOM_TTL_MS) rooms.delete(code);
 }
+
