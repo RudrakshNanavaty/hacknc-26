@@ -28,7 +28,7 @@ import { DistrictPopover } from '../game/DistrictPopover';
 import { NewsTV } from '../game/NewsTV';
 import { ResultOverlay } from '../game/ResultOverlay';
 import { RoundDots } from '../game/ui';
-import { Seascape } from '../ui/FloatingBubbles';
+import { CoastalShell } from '../ui/CoastalShell';
 import { CrisisProvider } from '../game/story';
 import { RoundSteps, instructionFor } from '../game/Steps';
 import { StormFinale, stormOf, useResolveShow } from '../game/Climax';
@@ -152,12 +152,7 @@ function LegacyPlay({ code, room }: { code: string; room: Room }) {
 
   if (!state || state.phase === 'lobby' || me === null) {
     return (
-      <main className="lagoon seascape relative flex min-h-full flex-col items-center gap-4 p-4 sm:p-6">
-        <Seascape />
-        <header className={`flex w-full items-center justify-between ${state && me !== null && state.phase === 'lobby' ? 'max-w-5xl' : 'seascape-head'}`}>
-          <Link to="/" className="vr seascape-title text-24">🌊 Coastal Clash</Link>
-          <span className="lchip">Room {code}</span>
-        </header>
+      <CoastalShell roomCode={code}>
         {room.error && !missing && <p role="alert" className="wet max-w-2xl p-3 text-15 text-[#c0392b]">{room.error}</p>}
         <div className="flex w-full justify-center">
           {!state && !missing && <p className="wet p-6 text-18">Connecting to room {code}…</p>}
@@ -165,7 +160,7 @@ function LegacyPlay({ code, room }: { code: string; room: Room }) {
           {state && me === null && state.phase !== 'lobby' && <p className="wet max-w-xl p-6 text-18">This match is under way. Join the next one from this page, or watch the results in the <Link to="/atlas" className="font-bold underline">Civic Atlas</Link>.</p>}
           {state && me !== null && state.phase === 'lobby' && <Lobby state={state} room={room} />}
         </div>
-      </main>
+      </CoastalShell>
     );
   }
 

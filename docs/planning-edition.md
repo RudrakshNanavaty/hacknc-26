@@ -57,9 +57,11 @@ Kept. The Coastal Clash anchor, the crawl and the map speech bubbles run in the 
 
 ## Onboarding and lobby look
 
-The join, loading and lobby screens sit on an underwater scene (`Seascape`, `app/src/ui/FloatingBubbles.tsx`): the still
-`background_seascape.png`, softened, with small floating bubble sprites cut from `bubbles.png` (see `docs/assets.md`). The join panel
-is a wide two-column liquid-glass panel on desktop. Visual only: no rules or records changed (branch `pratham/seascape-bubbles`).
+The landing, join, loading and lobby screens share `CoastalShell` and an underwater scene (`Seascape`, `app/src/ui/FloatingBubbles.tsx`):
+the still `background_seascape.png`, softened, with small floating bubble sprites cut from `bubbles.png` (see `docs/assets.md`). Shared
+glass tokens and responsive layouts live in `app/src/ui/coastal.css`; desktop content is 78% wide, capped at 1440px. Branding and
+stakeholder identities are reusable components. The interactive landing map, room flow and game rules remain intact.
+See [UI verification](progress/ui-polish.md) for desktop/tablet/mobile screenshots and lobby interaction checks.
 
 ## Verified and not verified
 

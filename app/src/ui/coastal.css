@@ -1,0 +1,119 @@
+/* Shared pre-game design system. Scoped so the map game's HUD keeps its own scale. */
+.coastal-shell {
+  --glass-primary: linear-gradient(155deg, rgba(255,255,255,.84), rgba(235,250,255,.73) 55%, rgba(211,242,255,.78));
+  --glass-secondary: linear-gradient(160deg, rgba(255,255,255,.78), rgba(230,247,255,.64));
+  --glass-input: linear-gradient(180deg, #fff, #edfaff);
+  --glass-border: 1px solid rgba(255,255,255,.92);
+  --glass-blur: blur(26px) saturate(1.35);
+  --glass-shadow: 0 18px 48px rgba(0,55,100,.18), 0 3px 8px rgba(0,55,100,.08), inset 0 2px 0 rgba(255,255,255,.95), inset 0 -16px 32px rgba(120,210,255,.12);
+  --card-shadow: inset 0 1px 0 #fff, 0 3px 10px rgba(0,55,100,.08);
+  --button-white: linear-gradient(180deg, #fff 0%, #effbff 46%, #d2effa 52%, #e8f9ff 100%);
+  --button-lime: linear-gradient(180deg, #e2ffc4 0%, #b1ee72 46%, #75ce32 52%, #a2e55d 100%);
+  --button-ocean: linear-gradient(180deg, #d0f5ff 0%, #68d0f0 46%, #25a8dc 52%, #64c9ee 100%);
+  --radius-panel: 28px;
+  --radius-card: 18px;
+  --radius-control: 999px;
+  --space-panel: clamp(20px, 2.2vw, 32px);
+  --space-gap: 24px;
+  position: relative;
+  isolation: isolate;
+  min-height: 100%;
+  padding: 24px 0 48px;
+  font-size: 15px;
+  line-height: 1.5;
+}
+.coastal-shell .coastal-width { width: min(78%, 1440px); margin-inline: auto; }
+.coastal-header { position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px; min-height: 44px; }
+.coastal-content { position: relative; z-index: 1; display: flex; flex-direction: column; gap: var(--space-gap); }
+.coastal-home { text-decoration: none; border-radius: 12px; }
+.coastal-brand { display: inline-flex; align-items: center; gap: 10px; font-size: 28px; line-height: 1.15; white-space: nowrap; }
+.coastal-brand-icon { display: grid; place-items: center; width: 40px; height: 40px; flex: none; border-radius: 50%; font-size: 25px; background: var(--button-white); border: var(--glass-border); box-shadow: var(--card-shadow); }
+.coastal-brand-large { font-size: clamp(38px, 4vw, 64px); flex-wrap: wrap; gap: 14px; }
+.coastal-brand-large .coastal-brand-icon { width: 54px; height: 54px; font-size: 34px; }
+.coastal-badge { display: inline-flex; gap: 6px; padding: 8px 14px; background: var(--glass-secondary); border: var(--glass-border); border-radius: var(--radius-control); font-size: 13px; white-space: nowrap; box-shadow: var(--card-shadow); }
+.coastal-shell .wet { min-width: 0; border: var(--glass-border); border-radius: var(--radius-panel); background: var(--glass-primary); box-shadow: var(--glass-shadow); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur); }
+.coastal-shell .wet::before { display: none; }
+.coastal-shell .screen-title { font-family: var(--font-display); font-size: clamp(27px, 2.65vw, 38px); font-weight: 800; line-height: 1.16; letter-spacing: -.025em; }
+.coastal-shell .section-title { font-family: var(--font-display); font-size: 21px; font-weight: 800; line-height: 1.25; }
+.coastal-shell .eyebrow, .coastal-shell .join-label { font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: #326079; margin-bottom: 8px; }
+.coastal-shell .aero-btn { min-height: 46px; padding: 10px 20px; border-radius: var(--radius-control); background: var(--button-white); font-family: var(--font-body); font-size: 15px; font-weight: 800; box-shadow: var(--card-shadow); }
+.coastal-shell .aero-btn-go { background: var(--button-lime); }
+.coastal-shell .aero-btn-aqua { background: var(--button-ocean); color: #073b58; text-shadow: 0 1px 0 #bdecff; }
+.coastal-shell .aero-btn-lg { min-height: 50px; padding: 12px 24px; font-size: 17px; }
+.coastal-shell .aero-btn-sm { min-height: 44px; padding: 8px 14px; font-size: 13px; }
+.coastal-shell .aero-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: var(--card-shadow), 0 5px 14px rgba(0,55,100,.16); }
+.coastal-shell .aero-btn:active:not(:disabled) { transform: translateY(1px); }
+.coastal-shell .aero-input { min-width: 0; min-height: 46px; padding: 10px 16px; border-radius: var(--radius-card); background: var(--glass-input); font-family: var(--font-body); font-size: 16px; font-weight: 600; }
+.coastal-shell :is(button, a, input):focus-visible { outline: 3px solid #087bb0; outline-offset: 4px; }
+.coastal-shell .stakeholder-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.coastal-shell .persona-pick, .coastal-shell .persona-slot { min-width: 0; padding: 16px; border: var(--glass-border); border-radius: var(--radius-card); background: var(--glass-secondary); box-shadow: var(--card-shadow); gap: 12px; }
+.coastal-shell .persona-pick.is-on, .coastal-shell .persona-slot.is-on { background: #f6fdff; border-color: var(--tint); box-shadow: inset 0 0 0 1px var(--tint), var(--card-shadow); }
+.stakeholder-identity { display: flex; align-items: center; gap: 12px; min-width: 0; width: 100%; }
+.stakeholder-copy { display: flex; flex-direction: column; gap: 4px; min-width: 0; text-align: left; overflow-wrap: anywhere; }
+.stakeholder-name { font-family: var(--font-display); font-size: 17px; font-weight: 800; line-height: 1.2; }
+.stakeholder-detail { font-size: 13px; line-height: 1.45; color: #345970; }
+.stakeholder-selected { display: block; margin-top: 6px; font-size: 12px; font-weight: 800; color: #126242; }
+.coastal-shell .join-panel { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 24px 32px; width: 100%; padding: var(--space-panel); }
+.coastal-shell .join-title { grid-column: 1 / -1; }
+.join-main, .join-side { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+.join-side { padding-left: 28px; border-left: 1px solid rgba(255,255,255,.9); justify-content: space-between; }
+.coastal-shell .goal-preview { gap: 10px; max-width: none; }
+.coastal-shell .goal-preview li { gap: 4px; padding: 12px; background: var(--glass-secondary); border-radius: 12px; border-left-width: 4px; font-size: 13px; line-height: 1.45; }
+.coastal-shell .lobby-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, .48fr); gap: var(--space-gap); width: 100%; align-items: start; }
+.lobby-players, .lobby-invite, .lobby-guide { display: flex; flex-direction: column; gap: 20px; padding: var(--space-panel); }
+.coastal-shell .persona-slot { min-height: 106px; }
+.coastal-shell .persona-slot .stakeholder-identity { flex: 1; }
+.coastal-shell .persona-slot .aero-btn { flex: none; padding-inline: 10px; }
+.lobby-invite { text-align: center; }
+.lobby-guide { grid-column: 1 / -1; }
+.room-invite { display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center; }
+.room-qr { width: 184px; aspect-ratio: 1; flex: none; overflow: hidden; border-radius: 16px; background: #fff; box-shadow: var(--card-shadow); }
+.room-qr svg { display: block; width: 100%; height: 100%; }
+.room-code { font-family: var(--font-display); font-size: 44px; line-height: 1.2; font-weight: 800; letter-spacing: .12em; color: #086e9f; margin-top: 4px; }
+.coastal-shell .how-to { padding: 0; gap: 12px; background: none; box-shadow: none; }
+.coastal-shell .how-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; font: inherit; font-size: 14px; }
+.coastal-shell .how-steps li { padding: 16px; background: var(--glass-secondary); border: var(--glass-border); border-radius: var(--radius-card); }
+.coastal-shell .how-steps b { display: block; margin-bottom: 6px; }
+.landing-hero { display: grid; grid-template-columns: minmax(0, .95fr) minmax(0, 1fr); gap: 28px; padding: var(--space-panel); }
+.landing-intro { display: flex; flex-direction: column; justify-content: center; align-items: start; gap: 16px; }
+.landing-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 8px; }
+.landing-join { display: flex; align-items: center; gap: 8px; }
+.landing-map-panel { min-width: 0; overflow: hidden; border: var(--glass-border); border-radius: var(--radius-card); background: var(--glass-secondary); }
+.landing-map { position: relative; height: 340px; overflow: hidden; }
+.landing-map-details { display: flex; flex-direction: column; gap: 12px; padding: 16px; }
+.coastal-shell .landing-map-details .layer-pop { padding: 0; border: 0; border-radius: 0; overflow: visible; background: none; box-shadow: none; backdrop-filter: none; }
+.landing-more { display: flex; flex-direction: column; gap: 24px; }
+@media (max-width: 1100px) {
+  .coastal-shell .stakeholder-grid { grid-template-columns: 1fr; }
+  .coastal-shell .lobby-layout { grid-template-columns: minmax(0, 1fr) 280px; }
+  .coastal-shell .lobby-players .stakeholder-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 900px) {
+  .coastal-shell .coastal-width { width: calc(100% - 40px); }
+  .landing-hero, .coastal-shell .join-panel { grid-template-columns: 1fr; }
+  .coastal-shell .stakeholder-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .join-side { padding: 20px 0 0; border-left: 0; border-top: var(--glass-border); }
+  .coastal-shell .lobby-layout { grid-template-columns: minmax(0, 1fr) 260px; }
+  .coastal-shell .lobby-players .stakeholder-grid { grid-template-columns: 1fr; }
+  .coastal-brand-large { font-size: 52px; }
+}
+@media (max-width: 600px) {
+  .coastal-shell { padding-top: 16px; --space-gap: 16px; --radius-panel: 24px; }
+  .coastal-shell .coastal-width { width: calc(100% - 28px); }
+  .coastal-header { gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+  .coastal-brand { font-size: 23px; gap: 8px; }
+  .coastal-brand-icon { width: 32px; height: 32px; font-size: 21px; }
+  .coastal-badge { padding: 6px 10px; font-size: 12px; }
+  .coastal-brand-large { font-size: 36px; gap: 10px; }
+  .coastal-brand-large .coastal-brand-icon { width: 42px; height: 42px; font-size: 26px; }
+  .coastal-shell .stakeholder-grid, .coastal-shell .lobby-layout, .coastal-shell .how-steps { grid-template-columns: 1fr; }
+  .coastal-shell .join-panel { gap: 20px; }
+  .landing-map { height: 310px; }
+  .landing-actions { width: 100%; }
+  .landing-actions > *, .landing-actions > .aero-btn { width: 100%; }
+  .landing-join input { flex: 1; }
+  .coastal-shell .lobby-players > div > .aero-btn { width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .coastal-shell .aero-btn, .coastal-shell .persona-pick { transition: none; }
+}

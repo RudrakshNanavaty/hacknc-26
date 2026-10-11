@@ -123,7 +123,7 @@ export function FloatingBubbles({ seed = 11, className = '' }: { seed?: number; 
   );
 }
 
-/** The underwater scene behind the onboarding, loading and lobby screens: the still seascape, then the bubbles. */
+/** The shared pre-game scene: landing, onboarding, loading, and lobby use the same still seascape and bubbles. */
 export function Seascape({ seed }: { seed?: number }) {
   return (
     <>

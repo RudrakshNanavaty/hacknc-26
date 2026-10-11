@@ -4,12 +4,12 @@ import { useState, type FormEvent } from 'react';
 import { PERSONAS, PERSONA_INFO, PLAN_SCENARIOS, districtById, type PersonaId, type RoomState } from '@shared';
 import { Invite } from '../room/Invite';
 import type { Room } from '../room/useRoom';
-import { PersonaOrb } from './Players';
+import { Stakeholder } from '../ui/Stakeholder';
 import { unlockAudio } from '../ui/sound';
 
 function PersonaPicker({ taken, value, onPick }: { taken: Map<PersonaId, { bot: boolean }>; value: PersonaId | null; onPick: (p: PersonaId) => void }) {
   return (
-    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+    <div className="stakeholder-grid">
       {PERSONAS.map((id) => {
         const p = PERSONA_INFO[id];
         const t = taken.get(id);
@@ -19,12 +19,11 @@ function PersonaPicker({ taken, value, onPick }: { taken: Map<PersonaId, { bot: 
             key={id} type="button" disabled={blocked} onClick={() => onPick(id)} aria-pressed={value === id}
             className={`persona-pick ${value === id ? 'is-on' : ''}`} style={{ ['--tint' as string]: p.color }}
           >
-            <PersonaOrb persona={id} size={46} />
-            <span className="min-w-0 text-left">
-              <span className="block font-display text-18 leading-tight font-black">{p.name}</span>
-              <span className="block text-13 leading-snug opacity-80">{p.goal}</span>
+            <Stakeholder persona={id}>
+              <span className="block">{p.goal}</span>
               {t && <span className="mt-1 block text-[12px] font-bold text-aqua-deep">{t.bot ? 'A bot is playing: take its seat' : 'Taken'}</span>}
-            </span>
+              {value === id && <span className="stakeholder-selected">✓ Selected</span>}
+            </Stakeholder>
           </button>
         );
       })}
@@ -42,9 +41,9 @@ export function JoinForm({ room, create }: { room: Room; create: boolean }) {
     if (persona) room.join(name, persona, create);
   };
   return (
-    // Wide screens: who you are on the left, what you will be playing for on the right (join-panel in styles.css).
+    // Shared pre-game layout: identity on the left, stakeholder goals on the right.
     <form onSubmit={submit} className="wet join-panel">
-      <h2 className="join-title font-display font-black">{create ? 'Open the council chamber' : 'Take a seat at the table'}</h2>
+      <h1 className="screen-title join-title">{create ? 'Open the council chamber' : 'Take a seat at the table'}</h1>
       <div className="join-main">
         <label className="flex flex-col gap-1 font-bold">
           Your name
@@ -87,7 +86,7 @@ function GoalPreview({ persona }: { persona: PersonaId }) {
 export function HowToPlay() {
   return (
     <div className="how-to">
-      <p className="vr text-18">How to play</p>
+      <h3 className="section-title">How to play</h3>
       <p className="text-13 font-semibold">Four stakeholders, three real Miami Beach fights, one plan. Each round is a true story from one area:</p>
       <ol className="how-steps">
         <li><b>1 · Play a Card.</b> Pick one of three projects. The Mayor puts one forward.</li>
@@ -104,27 +103,25 @@ export function Lobby({ state, room }: { state: RoomState; room: Room }) {
   const host = me !== null && me === state.hostSeat;
   const taken = new Map(state.players.map((p) => [p.persona, p]));
   return (
-    <div className="flex w-full max-w-5xl flex-col gap-4 lg:flex-row">
-      <section className="wet flex flex-1 flex-col gap-4 p-5">
-        <h2 className="font-display text-32 font-black">The council is assembling</h2>
-        <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+    <div className="lobby-layout">
+      <section className="wet lobby-players">
+        <div><p className="eyebrow">Your multiplayer room</p><h1 className="screen-title">The council is assembling</h1></div>
+        <ul className="stakeholder-grid">
           {PERSONAS.map((id) => {
             const p = taken.get(id);
             const info = PERSONA_INFO[id];
             return (
-              <li key={id} className="persona-slot" style={{ ['--tint' as string]: info.color }}>
-                <PersonaOrb persona={id} size={44} dim={!p} />
-                <div className="min-w-0 flex-1">
-                  <p className="font-display text-18 leading-tight font-black">{info.name}</p>
-                  <p className="truncate text-13">{p ? `${p.name}${p.seat === me ? ' (you)' : ''}${p.bot ? '' : !p.connected ? ' · offline' : ''}` : 'Open seat'}</p>
-                </div>
+              <li key={id} className={`persona-slot${p && p.seat === me ? ' is-on' : ''}`} style={{ ['--tint' as string]: info.color }}>
+                <Stakeholder persona={id} dim={!p}>
+                  {p ? `${p.name}${p.seat === me ? ' (you)' : ''}${p.bot ? '' : !p.connected ? ' · offline' : ''}` : 'Open seat'}
+                </Stakeholder>
                 {host && (!p || p.bot) && (
-                  <button type="button" className="aero-btn !px-3 !py-1 text-13" onClick={() => room.bot(id, !p)}>
+                  <button type="button" className="aero-btn aero-btn-sm" aria-label={`${p ? 'Remove bot from' : 'Add bot to'} ${info.name}`} onClick={() => room.bot(id, !p)}>
                     {p ? 'Remove bot' : '+ Bot'}
                   </button>
                 )}
                 {!host && me !== null && !p && (
-                  <button type="button" className="aero-btn !px-3 !py-1 text-13" onClick={() => room.persona(id)}>Switch</button>
+                  <button type="button" className="aero-btn aero-btn-sm" aria-label={`Switch to ${info.name}`} onClick={() => room.persona(id)}>Switch</button>
                 )}
               </li>
             );
@@ -132,19 +129,22 @@ export function Lobby({ state, room }: { state: RoomState; room: Room }) {
         </ul>
         {host ? (
           <div className="flex flex-col gap-3">
-            <button type="button" className="aero-btn aero-btn-go aero-btn-lg self-start pulse" onClick={() => { unlockAudio(); room.start(); }}>
+            <button type="button" className="aero-btn aero-btn-go aero-btn-lg self-start" onClick={() => { unlockAudio(); room.start(); }}>
               Start the session ▶
             </button>
           </div>
         ) : (
           <p className="text-15">Waiting for the host to start. Empty seats are filled by bots.</p>
         )}
-        <HowToPlay />
       </section>
-      <aside className="wet flex flex-col gap-3 p-5 lg:w-[22rem]">
+      <aside className="wet lobby-invite">
+        <h2 className="section-title">Bring your council together</h2>
         <Invite code={state.code} />
-        <p className="text-13 opacity-80">Four stakeholders, three rounds, one real city. Your choices are recorded as geographically linked planning feedback, kept apart from what you say you would personally prefer. Empty seats are filled by bots.</p>
       </aside>
+      <section className="wet lobby-guide">
+        <HowToPlay />
+        <p className="text-13 opacity-80">Four stakeholders, three rounds, one real city. Your choices are recorded as geographically linked planning feedback, kept apart from what you say you would personally prefer. Empty seats are filled by bots.</p>
+      </section>
     </div>
   );
 }

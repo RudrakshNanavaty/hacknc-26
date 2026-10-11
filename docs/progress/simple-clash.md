@@ -33,7 +33,23 @@ pratham/map-board-onboarding   d6b311f   three round steps, plain cards, Sprint 
 - The Gemini key returns HTTP 402 (credits depleted): narration uses templates and card pictures are placeholders.
 - Planning Edition's own verification notes are in `planning-edition.md` ("Verified and not verified").
 
-## What `pratham/seascape-bubbles` adds (visual only)
+## UI consistency pass (2026-10-11, working tree)
+
+- Landing, onboarding, loading, and lobby now share `ui/CoastalShell.tsx`: the same header, glossy wordmark, seascape,
+  and 78% desktop content width (maximum 1440px), with tablet/mobile gutters.
+- `ui/coastal.css` owns the shared glass, typography, controls, spacing, and responsive layouts. It replaces the previous
+  onboarding-specific glass overrides. `ui/Stakeholder.tsx` gives landing, onboarding, and lobby the same 48px portraits and identity text.
+- The landing map remains interactive inside a glass panel. All navigation, district details, layer toggles, sample cards,
+  and data sources remain. The lobby has compact player/QR panels and a full-width three-step guide; the QR has a four-module quiet zone.
+- No game/server/protocol changes, new dependencies, or original image edits. Existing root image files remain untracked.
+- Verified in Chromium at 1440×900, 1280×720, 768×1024, and 390×844. Shared header/content alignment, glass and background values
+  match on all three screens; no horizontal overflow or page errors. Host/join, second-client updates and role switching,
+  bot add/remove, QR rendering, map picking/layers, bubble motion and reduced motion passed. Game start checked at both desktop sizes.
+- `bun run typecheck`: clean. `bun run test`: 215 passing tests / 20 files. `bun run build`: passes (existing large-chunk advisory).
+- Local QA screenshots and side-by-side review: `server/.cache/ui-polish/comparison.html` (git-ignored), with PNGs and `report.json`.
+  See [UI polish verification](ui-polish.md). Actual phone hardware and a camera scan were not part of this browser verification.
+
+## Original seascape pass (visual only; layout superseded above)
 
 On the onboarding (join form), loading ("Connecting to room…") and lobby screens, i.e. the `.lagoon` shell in `app/src/routes/Play.tsx`:
 
@@ -53,20 +69,18 @@ On the onboarding (join form), loading ("Connecting to room…") and lobby scree
 
 ## Known loose ends
 
-- The landing page (`/`, the live map) and `/verify` still use the old CSS-circle bubbles (`ui/Bubbles.tsx`, `LagoonBubbles`); the
-  seascape was kept to the onboarding, loading and lobby screens on purpose.
+- `/verify` still uses the older bubble treatment; it is outside this three-screen polish pass.
 - `app/public/bubbles.png` (1.6 MB) ships with the app though only the extraction script needs it; it could move out of `public/`.
-- The lobby screen ("The council is assembling") keeps its old size; only the join panel was widened.
 - From the earlier work: `app/src/api.ts` and Atlas exports still call `/api/studio*`; `render.yaml` lacks `SNOWFLAKE_*` / `SOLANA_*`.
 
 ## Open questions for humans
 
 - Merge `pratham/seascape-bubbles` into `aum/simple-clash` (Aum's branch), or keep it separate?
 - Delete the duplicate images at the folder root? Move `bubbles.png` out of `app/public/`?
-- Should the seascape also go behind the landing page or the Atlas?
+- Should the seascape also go behind the Atlas?
 
 ## Next steps
 
 1. Open the PR for `pratham/seascape-bubbles` and ask Aum to review the join-panel layout.
-2. Run the Planning Edition at 1280×720 and on a phone (not yet verified per `planning-edition.md`), now with the new screens.
+2. Verify the full Planning Edition match at 1280×720 and on physical devices; this pass covers the pre-game screens and starting a match.
 3. Top up the Gemini key and replay one match with narration and card art.
