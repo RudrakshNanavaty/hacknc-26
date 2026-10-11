@@ -19,7 +19,7 @@ import { HandDeck } from '../game/HandDeck';
 import { LivingLayer } from '../map/LivingLayer';
 import { PingLayer } from '../map/PingLayer';
 import { Meters, PlayerBubbles } from '../game/Hud';
-import { ReadyBar, TurnOrb } from '../game/Turn';
+import { ReadyBar } from '../game/Turn';
 import { JoinForm, Lobby } from '../game/Lobby';
 import { CaseFile } from '../game/CaseFile';
 import { DistrictPopover, playableCount } from '../game/DistrictPopover';
@@ -185,23 +185,24 @@ export function Play({ code }: { code: string }) {
       <div className="hud">
         <div className="hud-row hud-block">
           <Meters state={state} />
-          <div className="hud-clock">
-            <span className="lchip">Round {state.round} of {state.totalRounds} <RoundDots round={state.round} total={state.totalRounds} /></span>
-            <TurnOrb state={state} />
-          </div>
         </div>
         <div className="hud-center">
-          <CrisisBriefing state={state} />
           {picking && !open && <p className="hud-pill hud-block lchip lchip-sun">{armed ? `👆 Click a lit area to play ${cardName(armed, state.crisis)} there` : '👆 Pick a card from your hand, then a lit area (or click an area first)'}</p>}
           {phase === 'select' && locked && (
             <p className="hud-pill hud-block lchip lchip-lime">🂠 Locked in: {cardName(locked.card, state.crisis)} on {districtById(locked.district).name} · {waiting ? `waiting for ${waiting} stakeholder${waiting > 1 ? 's' : ''}` : 'revealing…'}</p>
           )}
-          {(phase === 'crisis' && crisis || phase === 'reveal') && (
-            <div className="hud-pill hud-block"><ReadyBar state={state} room={room} label={phase === 'crisis' ? 'Got it, to the cards ▶' : 'On to negotiation ▶'} /></div>
+          {phase === 'reveal' && (
+            <div className="hud-pill hud-block"><ReadyBar state={state} room={room} label="On to negotiation ▶" /></div>
           )}
           {room.error && <p role="alert" className="hud-pill hud-block lchip lchip-coral">{room.error}</p>}
         </div>
       </div>
+      {phase === 'crisis' && (
+        <div className="crisis-dock">
+          <CrisisBriefing state={state} />
+          {state.crisis && <div className="hud-pill hud-block"><ReadyBar state={state} room={room} label="Got it, to the cards ▶" /></div>}
+        </div>
+      )}
       <NewsTV state={state} open={newsOpen} setOpen={setNewsOpen} />
       <PlayerBubbles state={state} />
       <div className="map-tools">

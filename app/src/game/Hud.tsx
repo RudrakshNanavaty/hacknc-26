@@ -1,7 +1,7 @@
 // Over the map: the five city meters as gel tubes, the stakeholders as
 // soap bubbles with their influence pips.
 import { INDICATORS, INDICATOR_INFO, PERSONA_INFO, VIABILITY_FLOOR, type Indicator, type RoomState } from '@shared';
-import { Pips, Tube, type Tone } from './ui';
+import { Pips, RoundDots, Tube, type Tone } from './ui';
 import { Bill, useTween } from './insights';
 import { FaceOrb } from './Players';
 
@@ -40,6 +40,7 @@ export function PlayerBubbles({ state }: { state: RoomState }) {
   const waiting = state.phase === 'select' || state.phase === 'negotiate' || state.phase === 'final';
   return (
     <div className="player-bubbles">
+      <span className="lchip round-pill w-fit">Round {state.round} of {state.totalRounds} <RoundDots round={state.round} total={state.totalRounds} /></span>
       {state.players.map((p) => {
         const info = PERSONA_INFO[p.persona];
         return (

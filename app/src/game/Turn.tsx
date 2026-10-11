@@ -5,25 +5,6 @@ import type { Room } from '../room/useRoom';
 
 
 
-/** Top-right of the HUD: how many players are ready for the next step. */
-export function TurnOrb({ state }: { state: RoomState }) {
-  const total = state.players.filter((p) => p.connected).length || 1;
-  const ready = state.players.filter((p) => p.connected && p.ready).length;
-  const frac = state.phase === 'lobby' || state.phase === 'final' ? 0 : ready / total;
-  return (
-    <div
-      className="timer-orb" title="Players ready for the next step. The round moves on when everyone is."
-      aria-label={`${ready} of ${total} players ready`}
-    >
-      <svg viewBox="0 0 40 40" aria-hidden>
-        <circle cx="20" cy="20" r="18" fill="none" stroke="rgba(255,255,255,.35)" strokeWidth="3" />
-        <circle cx="20" cy="20" r="18" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeDasharray={`${113 * frac} 113`} style={{ transition: 'stroke-dasharray .25s linear' }} />
-      </svg>
-      <span className="text-[18px] leading-none">{ready}/{total}</span>
-    </div>
-  );
-}
-
 /** "Ready" for the step, then who the table is waiting for. The host may move on without them. */
 export function ReadyBar({ state, room, label }: { state: RoomState; room: Room; label: string }) {
   const me = state.players.find((p) => p.seat === state.you);
