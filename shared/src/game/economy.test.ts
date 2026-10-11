@@ -3,6 +3,7 @@ import { CARDS, CARD_IDS, TOTAL_ROUNDS, type PersonaId } from './content';
 import { DISTRICT_IDS, cardEligibility } from './districts';
 import { buildBoard, resolveRound, startCity } from './engine';
 import { ifApproved, projectPreview, upcomingCosts } from './economy';
+import { millions } from './money';
 import { makeCrisis } from './scenario';
 
 const seat: Record<PersonaId, number> = { mayor: 0, activist: 1, resort: 2, resident: 3 };
@@ -38,6 +39,7 @@ describe('previews agree with the engine', () => {
 
   it('warns when the budget cannot pay, and about upkeep and the spotlight', () => {
     const city = startCity();
+    city.treasury.balances.city = millions(5);
     city.indicators.budget = 5;
     const p = projectPreview('drainage-upgrade', 'west-avenue', 1, city)!;
     expect(p.warnings.join(' ')).toMatch(/will have \$5M and this needs \$8M/);
@@ -52,6 +54,7 @@ describe('previews agree with the engine', () => {
     // Round 1 builds drainage (upkeep $1M from round 2) backed by a Resilience Bond-free budget path.
     const r1 = resolveRound(buildBoard(1, [{ seat: 0, persona: 'mayor', card: 'drainage-upgrade', district: 'west-avenue' }]), [], startCity());
     const city = structuredClone(r1.city);
+    city.treasury.balances.city = millions(5);
     city.indicators.budget = 5;
     const p = projectPreview('workforce-housing', 'south-pointe', 2, city)!;
     const r2 = resolveRound(buildBoard(2, [{ seat: 3, persona: 'resident', card: 'workforce-housing', district: 'south-pointe' }]), [], city);
@@ -86,6 +89,6 @@ describe('previews agree with the engine', () => {
     const up = upcomingCosts(r1.city);
     expect(up.upkeep).toBe(1);
     expect(up.pending.map((p) => p.card)).toEqual(['lobbying-blitz']);
-    expect(upcomingCosts(startCity())).toEqual({ upkeep: 0, pending: [] });
+    expect(upcomingCosts(startCity())).toEqual({ upkeep: 0, pending: [], obligations: [], debt: 0 });
   });
 });

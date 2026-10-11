@@ -5,14 +5,15 @@
 import type { IncomingMessage } from 'node:http';
 import type { Duplex } from 'node:stream';
 import { WebSocketServer, type WebSocket } from 'ws';
-import { EVENT_RULES, TOTAL_ROUNDS, authoredScenario, combosInReach, crisisFor, narrationFacts, type ClientMsg, type LiveConditions, type RoomState, type ServerMsg } from '@shared';
+import { EVENT_RULES, TOTAL_ROUNDS, authoredScenario, combosInReach, crisisFor, narrationFacts, type BankSync, type ClientMsg, type LiveConditions, type RoomState, type ServerMsg } from '@shared';
+import type { BankMirror } from './bank/mirror';
 import type { MatchStore } from './db/store';
 import type { Narrator } from './ai/narrator';
 import type { ScenarioWriter } from './ai/scenario';
 import { directorFacts, type Director } from './ai/director';
 import {
-  RoomError, accept, again, applyDialogue, applyHints, applyScenario, choosePersona, done, findPlayer, getOrCreateRoom, getRoom, join, mapRoles, move,
-  presence, proposeEarlyEvent, proposeEvent, publicState, respond, select, setBot, setPace, setSession, skip, start, sweep, tick, type Room,
+  RoomError, accept, again, applyBankSync, applyDialogue, applyHints, applyScenario, choosePersona, decline, done, findPlayer, getOrCreateRoom, getRoom, join, mapRoles, move,
+  presence, proposeEarlyEvent, proposeEvent, publicState, respond, rooms, select, setBot, setPace, setSession, skip, start, sweep, tick, type Room,
 } from './rooms';
 
 const ROOM_PATH = /^\/ws\/rooms\/([A-Za-z]{4})$/;
@@ -30,10 +31,12 @@ export interface RoomServerOptions {
   scenario: { live: () => Promise<LiveConditions | null>; write: ScenarioWriter };
   /** The Gemini Game Director (null: templates only). */
   director?: Director | null;
+  /** The external bank mirror (null: off). It copies resolved ledgers; nothing waits on it. */
+  bank?: BankMirror | null;
   log: { warn: (obj: unknown, msg: string) => void; info?: (msg: string) => void };
 }
 
-export function roomServer({ store, narrator, scenario, director = null, log }: RoomServerOptions) {
+export function roomServer({ store, narrator, scenario, director = null, bank = null, log }: RoomServerOptions) {
   const wss = new WebSocketServer({ noServer: true });
   const conns = new Map<string, Set<Conn>>();
 
@@ -120,7 +123,11 @@ export function roomServer({ store, narrator, scenario, director = null, log }: 
         if (hints.length) direct(room, `hints ${e.key}`, () => director.hints(facts, hints, reach), (raw) => applyHints(room, e.key, raw as { suggestions?: unknown[]; combos?: unknown[] }, facts, Date.now()));
       }
       if (e.t === 'record') save = true;
-      else if (e.t === 'scenario') writeScenario(room);
+      else if (e.t === 'ledger' && bank && room.record && room.matchId) {
+        // The round's money is final: hand its ledger to the mirror (fire and forget; it reports back through bankUpdate).
+        const r = room.record.rounds.find((x) => x.round === e.round);
+        if (r?.ledger?.length) bank.enqueue(room.matchId, e.round, r.ledger, room.city.treasury);
+      } else if (e.t === 'scenario') writeScenario(room);
       else if (e.t === 'reveal' && room.board) narrate(room, e.key, narrationFacts('reveal', room.board));
       else if (e.t === 'resolved') {
         const h = room.history.find((x) => x.round === e.round);
@@ -154,6 +161,7 @@ export function roomServer({ store, narrator, scenario, director = null, log }: 
   function handle(conn: Conn, msg: ClientMsg) {
     const now = Date.now();
     const room = msg.t === 'join' && msg.create ? getOrCreateRoom(conn.code, now) : getRoom(conn.code);
+    room.bankMirror = bank ? 'nessie' : 'off';
     if (msg.t === 'look') return send(conn.ws, { t: 'state', state: publicState(room, null, now) });
     if (msg.t === 'join') {
       const player = join(room, msg.name, msg.persona);
@@ -181,6 +189,7 @@ export function roomServer({ store, narrator, scenario, director = null, log }: 
       case 'select': select(room, player, msg.card, msg.district, now); break;
       case 'move': move(room, player, msg.move, msg.proposalId, now); break;
       case 'accept': accept(room, player, msg.compromiseId, now); break;
+      case 'decline': decline(room, player, msg.compromiseId, now); break;
       case 'done': done(room, player, now); break;
       case 'respond': respond(room, player, msg.choice, now); break;
       case 'again': again(room, player); break;
@@ -231,11 +240,28 @@ export function roomServer({ store, narrator, scenario, director = null, log }: 
     });
   }
 
+  /** The mirror's progress for a match: into the live room's record (and the players' ledger), or the stored record. */
+  function bankUpdate(matchId: string, items: BankSync[]) {
+    const room = [...rooms.values()].find((r) => r.record?.id === matchId);
+    if (room && applyBankSync(room, matchId, items)) return broadcast(room);
+    // The room is gone (a restart): update the stored record so Planning Studio still shows the sync state.
+    store.get(matchId).then((m) => {
+      if (!m) return;
+      const bank = (m.bank ??= { mirror: 'nessie', items: [] });
+      for (const it of items) {
+        const i = bank.items.findIndex((x) => x.key === it.key);
+        if (i >= 0) bank.items[i] = it;
+        else bank.items.push(it);
+      }
+      return store.save(m);
+    }).catch((err) => log.warn({ err: (err as Error).message }, 'bank sync not saved to the record'));
+  }
+
   async function close() {
     clearInterval(timer);
     for (const c of wss.clients) c.terminate();
     await new Promise<void>((resolve) => wss.close(() => resolve()));
   }
 
-  return { onUpgrade, close };
+  return { onUpgrade, close, bankUpdate };
 }

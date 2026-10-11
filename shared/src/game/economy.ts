@@ -3,7 +3,8 @@
 // previews can never disagree with a resolution (cards.test.ts and economy.test.ts pin that).
 import { CARDS, INDICATORS, PROJECTS, type CardId, type Delta, type Indicators, type PersonaId } from './content';
 import { districtById } from './districts';
-import { crisisFor, resolveRound, type Board, type CityState, type NegotiationAction, type OutcomeStatus, type PendingEffect } from './engine';
+import { crisisFor, resolveRound, treasuryOf, type Board, type CityState, type NegotiationAction, type OutcomeStatus, type PendingEffect } from './engine';
+import { Books, chargeUpkeep, cloneTreasury, debtOutstanding, inMillions, millions, settleObligations, usd, walletOf, WALLET_INFO, type Cents, type LedgerEntry, type Obligation, type WalletId } from './money';
 import type { Crisis } from './scenario';
 
 export interface ProjectPreview {
@@ -11,21 +12,40 @@ export interface ProjectPreview {
   delta: Delta;
   /** Public cost now and upkeep per later round ($M, hypothetical). */
   cost: number;
+  /** Private cost paid by the proposer's own capital ($M, hypothetical). */
+  privateCost: number;
   upkeep: number;
+  /** The wallet that pays if nobody else does. */
+  payer: WalletId;
   /** The crisis spotlight is on this area: rule K1 adds its bonus. */
   spotlight: boolean;
-  /** Whether the budget can pay for it after this round's bill (upkeep, delayed consequences). */
+  /** Whether the payer can pay after this round's bill (upkeep, installments, delayed consequences). */
   fundable: boolean;
   before: Indicators;
   after: Indicators;
   warnings: string[];
 }
 
-/** What the next resolution charges before any project: upkeep (U1) and consequences due (L1). */
+/** What the next resolution charges before any project, run on a copy of the books exactly as the engine will. */
+export function billFor(city: CityState, round: number): { indicators: Indicators; entries: LedgerEntry[]; balances: Record<WalletId, Cents> } {
+  const indicators = { ...city.indicators };
+  const t = cloneTreasury(treasuryOf(city));
+  const books = new Books(t, round, indicators);
+  for (const p of (city.pending ?? []).filter((x) => x.dueRound <= round)) {
+    for (const k of INDICATORS) if (p.delta[k] && k !== 'budget') indicators[k] = Math.max(0, Math.min(100, indicators[k] + p.delta[k]!));
+    if (p.delta.budget && p.delta.budget < 0) books.charge('builders', millions(-p.delta.budget), { rule: 'L1', kind: 'repair', text: p.text });
+  }
+  settleObligations(books, round);
+  const built = Object.values(city.districts).flatMap((d) => d.features).filter((f) => f.kind in PROJECTS).map((f) => ({ kind: f.kind as keyof typeof PROJECTS, proposalId: f.proposalId }));
+  chargeUpkeep(books, built);
+  return { indicators, entries: books.entries, balances: t.balances };
+}
+
+/** The bill as a change to the meters (budget included), for the HUD. */
 export function billDelta(city: CityState, round: number): Delta {
-  const up = upcomingCosts(city);
-  const d: Delta = up.upkeep ? { budget: -up.upkeep } : {};
-  for (const p of up.pending.filter((x) => x.dueRound <= round)) for (const k of INDICATORS) if (p.delta[k]) d[k] = (d[k] ?? 0) + p.delta[k]!;
+  const after = billFor(city, round).indicators;
+  const d: Delta = {};
+  for (const k of INDICATORS) if (after[k] !== city.indicators[k]) d[k] = after[k] - city.indicators[k];
   return d;
 }
 
@@ -56,34 +76,64 @@ export function projectPreview(card: CardId, district: string, round: number, ci
   const delta = spotlight ? add(p.delta, crisis.bonus) : { ...p.delta };
   const before = city.indicators;
   // The engine charges this round's bill first, then pays for projects: so does the preview.
-  const bill = billDelta(city, round);
-  const base = applied(before, bill);
-  const fundable = p.budgetCost <= base.budget;
-  const after = fundable ? applied(applied(base, { budget: -p.budgetCost }), delta) : base;
+  const bill = billFor(city, round);
+  const base = bill.indicators;
+  const payer: WalletId = p.privateCost > 0 ? walletOf(CARDS[card].persona) : 'city';
+  const cost = p.privateCost > 0 ? p.privateCost : p.budgetCost;
+  const has = inMillions(bill.balances[payer]);
+  const fundable = cost <= has;
+  const after = fundable ? applied(applied(base, payer === 'city' ? { budget: -cost } : {}), delta) : base;
   const warnings: string[] = [];
-  const billed = base.budget !== before.budget ? ` after this round's bill` : '';
-  if (!fundable) warnings.push(`The budget will have $${base.budget}M${billed} and this needs $${p.budgetCost}M: someone must cover it, or it stays unfunded.`);
-  else if (p.budgetCost > 0 && base.budget - p.budgetCost < 8) warnings.push(`Paying for this leaves $${base.budget - p.budgetCost}M${billed} for everything else.`);
+  const billed = base.budget !== before.budget && payer === 'city' ? ` after this round's bill` : '';
+  if (!fundable) {
+    warnings.push(payer === 'city'
+      ? `The budget will have $${has}M${billed} and this needs $${cost}M: a grant, a bond, a partner or a player must pay, or it stays unfunded.`
+      : `${WALLET_INFO[payer].name} has $${has}M and this needs $${cost}M of its own capital: it would stay unfunded.`);
+  } else if (payer === 'city' && cost > 0 && has - cost < 4) warnings.push(`Paying for this leaves $${has - cost}M${billed} for everything else.`);
+  else if (payer !== 'city') warnings.push(`Paid from ${WALLET_INFO[payer].name}: $${cost}M of private capital, no public money.`);
   if (p.upkeep) warnings.push(`Upkeep: $${p.upkeep}M every later round.`);
   for (const [k, v] of Object.entries(delta)) {
     const key = k as keyof Indicators;
     if (v! < 0 && key !== 'budget' && after[key] < 30) warnings.push(`${key} would drop to ${after[key]}, under the viability floor of 30.`);
   }
   if (spotlight) warnings.push(`${districtById(district).name} is in this round's spotlight: the crisis bonus applies.`);
-  return { delta, cost: p.budgetCost, upkeep: p.upkeep, spotlight, fundable, before, after, warnings };
+  return { delta, cost: p.budgetCost, privateCost: p.privateCost, upkeep: p.upkeep, payer, spotlight, fundable, before, after, warnings };
 }
 
 export interface Upcoming {
-  /** Upkeep the next resolution charges for what is already built. */
+  /** Upkeep the next resolution charges for what is already built (before reserves). */
   upkeep: number;
   /** Delayed consequences already scheduled. */
   pending: PendingEffect[];
+  /** Scheduled payments (bond installments, partnership availability payments). */
+  obligations: Obligation[];
+  /** Still owed to the lender ($M). */
+  debt: number;
 }
 
 /** What the city already owes at the next resolution. */
 export function upcomingCosts(city: CityState): Upcoming {
   const upkeep = Object.values(city.districts).flatMap((d) => d.features).reduce((s, f) => s + (f.kind in PROJECTS ? PROJECTS[f.kind as keyof typeof PROJECTS].upkeep : 0), 0);
-  return { upkeep, pending: [...(city.pending ?? [])] };
+  const t = treasuryOf(city);
+  return { upkeep, pending: [...(city.pending ?? [])], obligations: [...t.obligations], debt: inMillions(debtOutstanding(t)) };
+}
+
+/** "Can the city afford this?" in words, from the books (the Director may only reword it). */
+export function affordability(city: CityState, round: number, kind: keyof typeof PROJECTS, persona: PersonaId): { answer: string; facts: string[] } {
+  const p = PROJECTS[kind];
+  const bill = billFor(city, round);
+  const facts: string[] = [];
+  if (p.privateCost > 0) {
+    const w = walletOf(persona);
+    const has = inMillions(bill.balances[w]);
+    facts.push(`${p.name} costs $${p.privateCost}M of private capital`, `${WALLET_INFO[w].name} holds $${has}M`);
+    return { answer: has >= p.privateCost ? `Yes: ${WALLET_INFO[w].name} can pay the $${p.privateCost}M itself; no public money is used.` : `No: ${WALLET_INFO[w].name} holds $${has}M and the ${p.name.toLowerCase()} needs $${p.privateCost}M.`, facts };
+  }
+  const budget = bill.indicators.budget;
+  facts.push(`${p.name} costs $${p.budgetCost}M of public money`, `the budget will hold $${budget}M after this round's bill`);
+  if (p.upkeep) facts.push(`upkeep is $${p.upkeep}M every later round`);
+  if (budget >= p.budgetCost) return { answer: `Yes: the budget can pay the $${p.budgetCost}M, leaving $${budget - p.budgetCost}M.${p.upkeep ? ` Upkeep adds $${p.upkeep}M every later round.` : ''}`, facts };
+  return { answer: `Not from the budget: it will hold $${budget}M and this needs $${p.budgetCost}M. An emergency grant, a resilience bond, a partnership or a player's own funds would have to pay.`, facts };
 }
 
 /**
@@ -106,3 +156,4 @@ export function ifApproved(board: Board, actions: NegotiationAction[], city: Cit
   const t = r.outcomes.find((x) => x.proposalId === proposalId)!;
   return { status: t.status, delta: withCombos(r, t.delta) };
 }
+

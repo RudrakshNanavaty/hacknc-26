@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { CARDS, CARD_IDS, COMBOS, COMBO_IDS, HANDS, PERSONAS, PROJECTS, START_INDICATORS, TOTAL_ROUNDS, handOf, type CardId, type PersonaId } from './content';
 import { cardEligibility, cardTargets } from './districts';
 import { buildBoard, resolveRound, startCity, type Play } from './engine';
+import { inMillions } from './money';
 
 const seat: Record<PersonaId, number> = { mayor: 0, activist: 1, resort: 2, resident: 3 };
 const play = (persona: PersonaId, card: CardId, district: string): Play => ({ seat: seat[persona], persona, card, district });
@@ -93,9 +94,20 @@ describe('counters', () => {
 
 describe('authored combos', () => {
   it('M1 Public-Private Flood Partnership: private money behind drainage', () => {
-    const r = resolveRound(buildBoard(1, [play('mayor', 'drainage-upgrade', 'west-avenue'), play('resort', 'private-investment', 'west-avenue')]), [], startCity());
+    const board = buildBoard(1, [play('mayor', 'drainage-upgrade', 'west-avenue'), play('resort', 'private-investment', 'west-avenue')]);
+    // Not accepted: no money moves and no partnership, the budget pays.
+    const refused = resolveRound(board, [], startCity());
+    expect(refused.outcomes[0]!.funding).toBe('budget');
+    expect(refused.combos).toEqual([]);
+    board.compromises.find((c) => c.kind === 'ppp')!.accepted = true;
+    const r = resolveRound(board, [], startCity());
     expect(r.combos.map((c) => c.combo)).toEqual(['public-private-flood']);
-    expect(r.outcomes[0]!.funding).toBe('covered');
+    expect(r.outcomes[0]!.funding).toBe('partner');
+    expect(r.outcomes[0]!.paidBy).toBe('resort');
+    expect(r.after.budget).toBe(START_INDICATORS.budget);
+    expect(inMillions(r.city.treasury.balances.resort)).toBe(20 - PROJECTS.drainage.budgetCost);
+    // The strings: $2M availability payments to the investor in rounds 2 and 3.
+    expect(r.city.treasury.obligations.map((o) => [o.dueRound, inMillions(o.amount), o.to])).toEqual([[2, 2, 'resort'], [3, 2, 'resort']]);
     // +6 drainage, +2 king tide (K1), +2 combo.
     expect(r.after.flood).toBe(START_INDICATORS.flood + 10);
     expect(r.outcomes[0]!.rules.map((id) => r.events.find((e) => e.id === id)!.rule)).toContain('M1');
@@ -140,15 +152,17 @@ describe('authored combos', () => {
 });
 
 describe('delayed consequences and upkeep', () => {
-  it('a Resilience Bond covers the cost now and charges the budget next round (L1)', () => {
+  it('a Resilience Bond pays the cost now; the city repays it with interest in installments (U2)', () => {
     const r1 = resolveRound(buildBoard(1, [play('mayor', 'resilience-bond', 'west-avenue'), play('resident', 'elevate-buildings', 'west-avenue')]), [], startCity());
-    expect(r1.outcomes[0]!.funding).toBe('covered');
+    expect(r1.outcomes[0]!.funding).toBe('bond');
     expect(r1.after.budget).toBe(START_INDICATORS.budget);
-    expect(r1.city.pending).toHaveLength(1);
+    // $4M borrowed, $5M owed (25% interest, rounded up to whole $M), in rounds 2 and 3.
+    expect(r1.city.treasury.debts.map((d) => [d.kind, inMillions(d.principal), inMillions(d.outstanding)])).toEqual([['bond', 4, 5]]);
+    expect(r1.city.treasury.obligations.map((o) => [o.dueRound, inMillions(o.amount)])).toEqual([[2, 3], [3, 2]]);
     const r2 = resolveRound(buildBoard(2, []), [], r1.city);
     expect(r2.after.budget).toBe(START_INDICATORS.budget - 3);
-    expect(r2.events.map((e) => e.rule)).toContain('L1');
-    expect(r2.city.pending).toHaveLength(0);
+    expect(r2.events.map((e) => e.rule)).toContain('U2');
+    expect(inMillions(r2.city.treasury.debts[0]!.outstanding)).toBe(2);
   });
 
   it('Lobbying Blitz backs a seawall now; in the last round its backlash is settled before the storm', () => {

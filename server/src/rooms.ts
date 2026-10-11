@@ -15,6 +15,7 @@ import {
   type AcceptedEvent, type CharacterDialogue, type DirectorLogEntry, type EventType, type RoleId, type RuleEvent, type TableHint,
   type Board, type CardId, type CityState, type Crisis, type FinalResult, type Headline, type MatchRecord, type NegotiationAction,
   type Bubble, type PaceId, type PersonaId, type Proposal, type Scenario, type RoomPhase, type RoomState, type RoundSummary, type SessionKind,
+  type BankRecord, type BankSync,
 } from '@shared';
 
 const ROOM_TTL_MS = 3 * 60 * 60 * 1000;
@@ -49,7 +50,9 @@ export type Effect =
   | { t: 'reveal'; key: string }
   | { t: 'resolved'; key: string; round: number }
   | { t: 'final'; key: string }
-  | { t: 'record' };
+  | { t: 'record' }
+  /** A round's money is final: mirror its ledger (the bank layer copies it; it never decides anything). */
+  | { t: 'ledger'; round: number };
 
 export interface Room {
   code: string;
@@ -89,6 +92,8 @@ export interface Room {
   earlyEvent: { round: number; raw: unknown } | null;
   /** Director proposals this round and what validation did (flushed into the round record). */
   directorLog: DirectorLogEntry[];
+  /** Whether this server mirrors match money to the external bank (set by the socket layer from NESSIE_ENABLED). */
+  bankMirror: BankRecord['mirror'];
 }
 
 export const rooms = new Map<string, Room>();
@@ -98,7 +103,7 @@ export function newRoom(code: string, now = Date.now()): Room {
     code, phase: 'lobby', round: 0, endsAt: null, players: [], hostId: null, pace: 'standard', sessionKind: 'demo', touchedAt: now,
     matchId: null, record: null, city: startCity(), crisis: null, scenario: null, carried: [], board: null, actions: [], history: [], resolvedRound: 0,
     headline: null, bubbles: null, final: null, effects: [],
-    event: null, eventApplied: null, firedEvents: [], hints: null, hintLog: new Map(), earlyEvent: null, directorLog: [],
+    event: null, eventApplied: null, firedEvents: [], hints: null, hintLog: new Map(), earlyEvent: null, directorLog: [], bankMirror: 'off',
   };
 }
 
@@ -231,6 +236,7 @@ export function start(room: Room, player: Player, now: number): void {
   if (!humans(room).some((p) => p.connected)) throw new RoomError('Waiting for players to join.');
   room.matchId = randomUUID();
   room.record = newMatchRecord(room.matchId, room.code, room.sessionKind, room.players.map((p) => ({ seat: p.seat, name: p.name, persona: p.persona, participant: p.bot ? 'bot' : 'human' })), new Date(now));
+  room.record.bank = { mirror: room.bankMirror, items: [] };
   room.city = startCity();
   room.carried = [];
   room.history = [];
@@ -457,8 +463,10 @@ function enterNegotiate(room: Room, now: number): void {
     p.moved = false;
     p.done = p.bot;
   }
-  // Bots take the compromise offered to them: a deal beats a fight.
-  for (const c of room.board.compromises) if (room.players[c.owner]?.bot) c.accepted = true;
+  // Bots take the compromise offered to them (a deal beats a fight), if its payer can still pay for it.
+  for (const c of room.board.compromises) {
+    if (room.players[c.owner]?.bot && !checkAccept(room.board, c.owner, c.id, { treasury: room.city.treasury, actions: room.actions })) c.accepted = true;
+  }
   const key = `negotiate-${room.round}`;
   room.hints = { key, list: [] };
   refreshHints(room);
@@ -471,7 +479,8 @@ function enterNegotiate(room: Room, now: number): void {
 export function move(room: Room, player: Player, mv: unknown, proposalId: unknown, now: number): void {
   if (room.phase !== 'negotiate' || !room.board) throw new RoomError('Moves are made during negotiation.');
   if (player.moved) throw new RoomError('You already made your move this round.');
-  const problem = checkMove(room.board, player.seat, player.influence, mv, proposalId);
+  // A fund move pays from the player's own wallet (checked against what they have not promised elsewhere).
+  const problem = checkMove(room.board, player.seat, player.influence, mv, proposalId, { persona: player.persona, treasury: room.city.treasury, actions: room.actions });
   if (problem) throw new RoomError(problem);
   const m = mv as keyof typeof NEGOTIATION_COST;
   player.influence -= NEGOTIATION_COST[m];
@@ -484,9 +493,25 @@ export function move(room: Room, player: Player, mv: unknown, proposalId: unknow
 /** Negotiation: the proposal's owner accepts a compromise offered to them. */
 export function accept(room: Room, player: Player, compromiseId: unknown, now: number): void {
   if (room.phase !== 'negotiate' || !room.board) throw new RoomError('Compromises are accepted during negotiation.');
-  const problem = checkAccept(room.board, player.seat, compromiseId);
+  // The payer must still have the money (no promising it twice); accepting twice is refused, not repeated.
+  const problem = checkAccept(room.board, player.seat, compromiseId, { treasury: room.city.treasury, actions: room.actions });
   if (problem) throw new RoomError(problem);
-  room.board.compromises.find((c) => c.id === compromiseId)!.accepted = true;
+  const c = room.board.compromises.find((x) => x.id === compromiseId)!;
+  c.accepted = true;
+  c.declined = false;
+  refreshHints(room);
+  touch(room, now);
+}
+
+/** Negotiation: the proposal's owner refuses an offer out loud (until the resolution they may still change their mind). */
+export function decline(room: Room, player: Player, compromiseId: unknown, now: number): void {
+  if (room.phase !== 'negotiate' || !room.board) throw new RoomError('Offers are answered during negotiation.');
+  const c = room.board.compromises.find((x) => x.id === compromiseId);
+  if (!c) throw new RoomError('That offer is not on the table.');
+  if (c.owner !== player.seat) throw new RoomError('Only the one it is offered to can refuse it.');
+  if (c.offeredBy === player.seat) throw new RoomError('You cannot refuse your own offer.');
+  c.accepted = false;
+  c.declined = true;
   refreshHints(room);
   touch(room, now);
 }
@@ -516,11 +541,15 @@ function enterResolve(room: Room, now: number): void {
   room.carried = resolution.carried;
   const headline = resolutionHeadline(resolution);
   room.history.push({ round: room.round, event: room.eventApplied ? room.event : null, headline, resolution, board: room.board, actions: room.actions });
+  // This round's money: a twist's entries (applied as play started) and the resolution's, in order.
+  const ledger = resolution.city.treasury.ledger.filter((e) => e.round === room.round);
   room.record?.rounds.push({
     round: room.round, crisis: room.board.crisis, proposals: room.board.proposals, attachments: room.board.attachments,
     compromises: room.board.compromises, actions: room.actions, outcomes: resolution.outcomes, events: resolution.events,
     before: resolution.before, after: resolution.after, headline, resolvedAt: new Date(now).toISOString(),
     combos: resolution.combos.map((c) => ({ combo: c.combo, district: c.district, proposalIds: c.proposalIds })),
+    ledger, agreements: resolution.agreements,
+    money: { balances: { ...resolution.city.treasury.balances }, debt: resolution.city.treasury.debts.reduce((s, d) => s + d.outstanding, 0) },
     director: {
       event: room.eventApplied ? room.event : null,
       eventRule: room.eventApplied,
@@ -535,7 +564,7 @@ function enterResolve(room: Room, now: number): void {
   const key = `resolve-${room.round}`;
   room.headline = { text: headline, source: 'template', key };
   room.bubbles = { key, list: resolutionBubbles(resolution) };
-  room.effects.push({ t: 'resolved', key, round: room.round }, { t: 'record' });
+  room.effects.push({ t: 'resolved', key, round: room.round }, { t: 'ledger', round: room.round }, { t: 'record' });
   touch(room, now);
 }
 
@@ -547,7 +576,7 @@ function followed(h: TableHint, room: Room): boolean {
 }
 
 function enterFinal(room: Room, now: number): void {
-  room.final = finalResult(START_INDICATORS, room.city.indicators, room.history.map((h) => h.resolution), room.players.map((p) => p.persona));
+  room.final = finalResult(START_INDICATORS, room.city.indicators, room.history.map((h) => h.resolution), room.players.map((p) => p.persona), room.city.treasury);
   room.phase = 'final';
   room.endsAt = null;
   room.board = null;
@@ -691,8 +720,22 @@ export function publicState(room: Room, viewer: Player | null, now: number): Roo
     event: room.event,
     hints: room.phase === 'negotiate' ? room.hints : null,
     final: room.final,
+    bank: room.record?.bank ?? { mirror: room.bankMirror, items: [] },
     mine: viewer ? { selection: viewer.selection, moved: viewer.moved, responded: viewer.responded } : null,
   };
+}
+
+/** The bank mirror reports progress: copy each item's status into the record (the game itself never changes). */
+export function applyBankSync(room: Room, matchId: string, items: BankSync[]): boolean {
+  if (!room.record || room.record.id !== matchId) return false;
+  const bank = (room.record.bank ??= { mirror: room.bankMirror, items: [] });
+  for (const it of items) {
+    const i = bank.items.findIndex((x) => x.key === it.key);
+    if (i >= 0) bank.items[i] = it;
+    else bank.items.push(it);
+  }
+  room.effects.push({ t: 'record' });
+  return true;
 }
 
 export function sweep(now = Date.now()): void {

@@ -7,7 +7,7 @@ import type { Crisis, LiveConditions } from './game/scenario';
 import type { Board, CityState, FinalResult, NegotiationAction, Resolution } from './game/engine';
 import type { AcceptedEvent, TableHint } from './game/director';
 import type { Bubble } from './game/living';
-import type { SessionKind } from './game/record';
+import type { BankRecord, SessionKind } from './game/record';
 
 export const MAX_PLAYERS = 4;
 /** After a clock runs out, clients get this long to send what they picked. */
@@ -79,6 +79,11 @@ export interface RoomState {
   /** Negotiation hints, the same for everyone at the table. */
   hints: { key: string; list: TableHint[] } | null;
   final: FinalResult | null;
+  /**
+   * The external bank mirror of this match's ledger (simulated accounts): off, or each entry's sync status.
+   * Separate from the game: a project's approval never waits on it.
+   */
+  bank: BankRecord;
   /** Your own hidden choices. */
   mine: {
     selection: { card: CardId; district: string } | null;
@@ -102,6 +107,8 @@ export type ClientMsg =
   | { t: 'select'; card: CardId; district: string }
   | { t: 'move'; move: NegotiationMove; proposalId: string }
   | { t: 'accept'; compromiseId: string }
+  /** Negotiation: the owner says no to an offer (or an agreement) out loud. */
+  | { t: 'decline'; compromiseId: string }
   /** Negotiation: done (with or without a move). */
   | { t: 'done' }
   | { t: 'respond'; choice: string }

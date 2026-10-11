@@ -55,3 +55,22 @@ WITH NO DATA;
 SELECT add_continuous_aggregate_policy('cc_district_hourly',
   start_offset => INTERVAL '30 days', end_offset => INTERVAL '1 hour',
   schedule_interval => INTERVAL '5 minutes', if_not_exists => TRUE);
+
+-- The Nessie bank mirror (simulated accounts only). Which fictional account mirrors which wallet, per API host.
+CREATE TABLE IF NOT EXISTS cc_bank_accounts (
+  host         text NOT NULL,
+  wallet       text NOT NULL,
+  customer_id  text NOT NULL,
+  account_id   text NOT NULL,
+  PRIMARY KEY (host, wallet)
+);
+
+-- The mirror's outbox: one row per ledger entry (or bond) with its sync status, so pending syncs survive a restart.
+CREATE TABLE IF NOT EXISTS cc_bank_sync (
+  key         text        PRIMARY KEY,
+  match_id    uuid        NOT NULL,
+  status      text        NOT NULL,
+  updated_at  timestamptz NOT NULL,
+  item        jsonb       NOT NULL
+);
+CREATE INDEX IF NOT EXISTS cc_bank_sync_open ON cc_bank_sync (status, updated_at);

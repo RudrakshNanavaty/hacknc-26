@@ -11,6 +11,9 @@ import { registerStudio } from './studio';
 import { liveConditions, registerLive } from './live';
 import { type ScenarioWriter, geminiScenarioWriter } from './ai/scenario';
 import { registerVoice, voiceReady } from './voice';
+import { BankMirror } from './bank/mirror';
+import type { NessieClient } from './bank/nessie';
+import type { BankStore } from './bank/store';
 
 export interface ServerOptions {
   /** Where match records go. Defaults to memory. */
@@ -22,13 +25,24 @@ export interface ServerOptions {
   scenario?: { live: () => Promise<import('@shared').LiveConditions | null>; write: ScenarioWriter };
   /** Overrides the Gemini Game Director (tests); null means templates only. */
   director?: Director | null;
+  /**
+   * The external bank mirror (Nessie, simulated accounts): off unless given. index.ts builds it from NESSIE_ENABLED;
+   * tests pass a fake client, so no test reaches the real API.
+   */
+  bank?: { client: NessieClient; store: BankStore; retryMs?: number } | null;
 }
 
 /** Builds the server without listening, so tests can inject requests. */
-export function buildServer({ store = new MemoryStore(), gemini = defaultGemini, narrator, scenario, director }: ServerOptions = {}) {
+export function buildServer({ store = new MemoryStore(), gemini = defaultGemini, narrator, scenario, director, bank = null }: ServerOptions = {}) {
   const app = Fastify({ logger: { level: process.env.LOG_LEVEL ?? 'info' } });
 
-  app.get('/api/health', async () => ({ ok: true, voice: voiceReady(), ai: gemini.ready(), director: director === undefined ? gemini.ready() : director !== null, store: store.kind }));
+  // The mirror reports to the rooms (bound below); it never decides anything and nothing waits on it.
+  let onBank: (matchId: string, items: import('@shared').BankSync[]) => void = () => {};
+  const mirror = bank ? new BankMirror({ client: bank.client, store: bank.store, log: app.log, onUpdate: (m, items) => onBank(m, items), ...(bank.retryMs !== undefined ? { retryMs: bank.retryMs } : {}) }) : null;
+
+  app.get('/api/health', async () => ({ ok: true, voice: voiceReady(), ai: gemini.ready(), director: director === undefined ? gemini.ready() : director !== null, store: store.kind, bank: mirror ? mirror.status().state : 'off' }));
+  // The bank mirror's state (never the key): off, or its host, accounts and open items.
+  app.get('/api/bank', async () => (mirror ? mirror.status() : { enabled: false }));
   registerVoice(app);
 
   // Where phones join a room: PUBLIC_URL (our domain or a tunnel) when set, else this machine's LAN
@@ -78,13 +92,18 @@ export function buildServer({ store = new MemoryStore(), gemini = defaultGemini,
     narrator: narrator === undefined ? geminiNarrator(gemini) : narrator,
     scenario: scenario ?? { live: () => liveConditions(), write: geminiScenarioWriter(gemini) },
     director: theDirector,
+    bank: mirror,
     log: app.log,
   });
+  onBank = rooms.bankUpdate;
   app.server.on('upgrade', rooms.onUpgrade);
+  // Pending and uncertain syncs from before a restart (stored when Tiger Data is configured) resume now.
+  if (mirror) void mirror.resume();
   app.addHook('onClose', async () => {
+    mirror?.close();
     await rooms.close();
     await store.close();
   });
 
-  return app;
+  return Object.assign(app, { mirror });
 }

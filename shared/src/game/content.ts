@@ -2,7 +2,7 @@
 // game design. Numbers are ILLUSTRATIVE SCENARIO VALUES (labelled so in the UI and the exports),
 // never predictions of what a real project would do. Real-world facts live in districts.json.
 
-export const RULES_VERSION = 'coastal-clash-rules/2.0.0';
+export const RULES_VERSION = 'coastal-clash-rules/3.0.0';
 
 export type PersonaId = 'mayor' | 'activist' | 'resort' | 'resident';
 export const PERSONAS: readonly PersonaId[] = ['mayor', 'activist', 'resort', 'resident'];
@@ -18,11 +18,11 @@ export const INDICATOR_INFO: Record<Indicator, { label: string; short: string; u
   economy: { label: 'Economic activity', short: 'Economy', unit: '', icon: '💼' },
   environment: { label: 'Environmental health', short: 'Nature', unit: '', icon: '🌿' },
   access: { label: 'Public access', short: 'Access', unit: '', icon: '🏖️' },
-  budget: { label: 'Public budget (hypothetical $M)', short: 'Budget', unit: '$M', icon: '🏛️' },
+  budget: { label: 'Public budget (simulated $M)', short: 'Budget', unit: '$M', icon: '🏛️' },
 };
 
 /** Where the city starts. Flood resilience starts low: most of the playable area is in FEMA's 1% flood zone. */
-export const START_INDICATORS: Indicators = { flood: 35, economy: 55, environment: 40, access: 50, budget: 30 };
+export const START_INDICATORS: Indicators = { flood: 35, economy: 55, environment: 40, access: 50, budget: 16 };
 /** Below this on any of flood/economy/environment/access at the end, the city is not viable. */
 export const VIABILITY_FLOOR = 30;
 
@@ -53,9 +53,9 @@ export const PERSONA_INFO: Record<PersonaId, Persona> = {
     goal: 'Protect infrastructure, keep the books balanced, improve public welfare.',
     voice: 'Pragmatic and budget-wary, politically cautious, with a dry sense of humor.',
     emoji: '🎖️',
-    color: '#19b6e6',
+    color: '#2f8cff',
     weights: { flood: 2, economy: 1, access: 1 },
-    bonuses: ['+1 for every $2M of budget left', '−10 if the budget runs dry'],
+    bonuses: ['+1 for every $2M of budget left', '−10 if the budget runs dry', '−1 for every $2M the city still owes'],
   },
   activist: {
     id: 'activist',
@@ -64,7 +64,7 @@ export const PERSONA_INFO: Record<PersonaId, Persona> = {
     goal: 'Protect habitats, natural shorelines and public coastal access.',
     voice: 'Thinks in decades and habitats; passionate and quotable, but willing to deal.',
     emoji: '🌱',
-    color: '#5cc21b',
+    color: '#ff5fa2',
     weights: { environment: 3, access: 1, flood: 1 },
     bonuses: ['+4 for each development stopped in a coastal high hazard area'],
   },
@@ -75,9 +75,9 @@ export const PERSONA_INFO: Record<PersonaId, Persona> = {
     goal: 'Grow tourism, attract investment, protect commercial property.',
     voice: 'Ambitious and persuasive, a little opportunistic. Says "synergy" unironically.',
     emoji: '🏨',
-    color: '#ffb020',
+    color: '#f5b400',
     weights: { economy: 3, flood: 1 },
-    bonuses: ['+4 for each hotel or marina approved'],
+    bonuses: ['+4 for each hotel or marina approved', '+1 for every $4M of capital left'],
   },
   resident: {
     id: 'resident',
@@ -86,7 +86,7 @@ export const PERSONA_INFO: Record<PersonaId, Persona> = {
     goal: 'Reduce flood risk, keep the neighborhood affordable and the beach reachable.',
     voice: 'Practical: affordability, safety, a way to the beach. Tired of wading to the car.',
     emoji: '🏠',
-    color: '#ff7a6b',
+    color: '#3cc85a',
     weights: { flood: 2, access: 2 },
     bonuses: ['+3 for each home-elevation or workforce-housing program approved'],
   },
@@ -159,6 +159,8 @@ export interface Card {
   offer?: Offer;
   /** A consequence one round later, if the proposal the card backed is approved (rules L0/L1). */
   delayed?: { delta: Delta; text: string };
+  /** A money agreement the card puts on the table (AGREEMENTS; accepted by its payer or the proposal's owner). */
+  agreement?: AgreementType;
   /** If nothing in the district can be acted on, this happens instead. */
   fallback?: { delta: Delta; text: string };
   /** Cards that answer this one (for the player; the engine decides through the rules). */
@@ -172,8 +174,10 @@ export interface Card {
 export interface Project {
   kind: ProjectKind;
   name: string;
-  /** Hypothetical public cost in $M, paid from the budget unless someone covers it. */
+  /** Hypothetical public cost in $M, paid from the budget unless a grant, a bond, a partner or a player pays it. */
   budgetCost: number;
+  /** Hypothetical private cost in $M, paid by the proposing player's own capital (hotels, marinas). */
+  privateCost: number;
   /** Hypothetical yearly upkeep in $M, charged in every later round once it is built (rule U1). */
   upkeep: number;
   /** Effect on the city when it is built (illustrative). */
@@ -184,15 +188,80 @@ export interface Project {
 }
 
 export const PROJECTS: Record<ProjectKind, Project> = {
-  drainage: { kind: 'drainage', name: 'Drainage & pump station', budgetCost: 8, upkeep: 1, delta: { flood: 6 }, resilience: 18, marker: '⛲' },
-  shoreline: { kind: 'shoreline', name: 'Living shoreline', budgetCost: 6, upkeep: 0, delta: { environment: 6, flood: 3, access: 2 }, resilience: 12, marker: '🌾' },
-  hotel: { kind: 'hotel', name: 'Beachfront hotel', budgetCost: 0, upkeep: 0, delta: { economy: 8, environment: -4, access: -3 }, resilience: -4, marker: '🏨' },
-  elevate: { kind: 'elevate', name: 'Home elevation program', budgetCost: 4, upkeep: 0, delta: { flood: 4 }, resilience: 10, marker: '🏗️' },
-  seawall: { kind: 'seawall', name: 'Raised seawall', budgetCost: 7, upkeep: 1, delta: { flood: 5, environment: -3, access: -1 }, resilience: 14, marker: '🧱' },
-  dune: { kind: 'dune', name: 'Dune restoration', budgetCost: 3, upkeep: 0, delta: { environment: 4, flood: 2, access: 1 }, resilience: 8, marker: '🏝️' },
-  marina: { kind: 'marina', name: 'Marina expansion', budgetCost: 0, upkeep: 0, delta: { economy: 5, environment: -3, access: -1 }, resilience: -2, marker: '⛵' },
-  housing: { kind: 'housing', name: 'Workforce housing', budgetCost: 5, upkeep: 0, delta: { access: 3, economy: 2 }, resilience: 4, marker: '🏘️' },
+  drainage: { kind: 'drainage', name: 'Drainage & pump station', budgetCost: 8, privateCost: 0, upkeep: 1, delta: { flood: 6 }, resilience: 18, marker: '⛲' },
+  shoreline: { kind: 'shoreline', name: 'Living shoreline', budgetCost: 6, privateCost: 0, upkeep: 0, delta: { environment: 6, flood: 3, access: 2 }, resilience: 12, marker: '🌾' },
+  hotel: { kind: 'hotel', name: 'Beachfront hotel', budgetCost: 0, privateCost: 6, upkeep: 0, delta: { economy: 8, environment: -4, access: -3 }, resilience: -4, marker: '🏨' },
+  elevate: { kind: 'elevate', name: 'Home elevation program', budgetCost: 4, privateCost: 0, upkeep: 0, delta: { flood: 4 }, resilience: 10, marker: '🏗️' },
+  seawall: { kind: 'seawall', name: 'Raised seawall', budgetCost: 7, privateCost: 0, upkeep: 1, delta: { flood: 5, environment: -3, access: -1 }, resilience: 14, marker: '🧱' },
+  dune: { kind: 'dune', name: 'Dune restoration', budgetCost: 3, privateCost: 0, upkeep: 0, delta: { environment: 4, flood: 2, access: 1 }, resilience: 8, marker: '🏝️' },
+  marina: { kind: 'marina', name: 'Marina expansion', budgetCost: 0, privateCost: 4, upkeep: 0, delta: { economy: 5, environment: -3, access: -1 }, resilience: -2, marker: '⛵' },
+  housing: { kind: 'housing', name: 'Workforce housing', budgetCost: 5, privateCost: 0, upkeep: 0, delta: { access: 3, economy: 2 }, resilience: 4, marker: '🏘️' },
 };
+
+// ---------- Agreements: authored money deals a card puts on the table (no free-form deals) ----------
+
+export type AgreementType = 'ppp' | 'bond' | 'restoration' | 'conditional' | 'reserve';
+export const AGREEMENT_TYPES: readonly AgreementType[] = ['ppp', 'bond', 'restoration', 'conditional', 'reserve'];
+
+export interface AgreementSpec {
+  type: AgreementType;
+  name: string;
+  /** Rule id when its money moves. */
+  rule: string;
+  /** Who pays now: the card's player (their wallet) or the simulated lender. */
+  funder: 'player' | 'lender';
+  /** What is paid: the project's public cost, or a fixed amount in $M (hypothetical). */
+  amount: 'cost' | number;
+  /** Where it goes: contractors, the public budget, or a maintenance reserve. */
+  to: 'builders' | 'city' | 'reserves';
+  /** Strings attached, paid in later rounds (rules U2, U3). */
+  schedule: null | { kind: 'availability'; perRoundM: number } | { kind: 'debt-service'; interestPct: number; installments: number };
+  /** Accepted: support for the proposal, and effects only if it is built and the money moved. */
+  support: number;
+  ifBuilt: Delta;
+  /** Not accepted: opposition, and effects if it is built anyway. */
+  refused: { opposition: number; ifBuilt: Delta };
+  /** Who must accept: the proposal's owner, or the card's player alone (a bond is the Mayor's signature). */
+  acceptedBy: 'owner' | 'player';
+  /** Plain words: what happens, and the strings attached. */
+  text: string;
+  strings: string;
+}
+
+/** Illustrative scenario values. Money is hypothetical and simulated. */
+export const AGREEMENTS: Record<AgreementType, AgreementSpec> = {
+  ppp: {
+    type: 'ppp', name: 'Public-private partnership', rule: 'A1', funder: 'player', amount: 'cost', to: 'builders',
+    schedule: { kind: 'availability', perRoundM: 2 }, support: 1, ifBuilt: { economy: 1 }, refused: { opposition: 0, ifBuilt: {} }, acceptedBy: 'owner',
+    text: 'The investor pays the project\'s whole public cost now.',
+    strings: 'Strings attached: the city pays the investor $2M in every later round (availability payments), and the investor runs a site concession (+1 economy).',
+  },
+  bond: {
+    type: 'bond', name: 'Resilience bond', rule: 'A2', funder: 'lender', amount: 'cost', to: 'builders',
+    schedule: { kind: 'debt-service', interestPct: 25, installments: 2 }, support: 1, ifBuilt: {}, refused: { opposition: 0, ifBuilt: {} }, acceptedBy: 'player',
+    text: 'The bond market pays the public cost now; the city borrows it.',
+    strings: 'The city repays the cost plus 25% interest from the public budget, in up to two installments. What it cannot pay becomes arrears.',
+  },
+  restoration: {
+    type: 'restoration', name: 'Restoration partnership', rule: 'A3', funder: 'player', amount: 1, to: 'builders',
+    schedule: null, support: 1, ifBuilt: { environment: 3 }, refused: { opposition: 1, ifBuilt: { environment: 1 } }, acceptedBy: 'owner',
+    text: 'The Dunes fund pays $1M for habitat works on the site, and the survey becomes a habitat protection clause.',
+    strings: 'Habitat protection clause: native planting, a living edge and protected nesting areas (+3 environment if built). Refused: +1 opposition.',
+  },
+  conditional: {
+    type: 'conditional', name: 'Conditional investment', rule: 'A4', funder: 'player', amount: 2, to: 'city',
+    schedule: null, support: 1, ifBuilt: { access: 2, economy: -1 }, refused: { opposition: 0, ifBuilt: {} }, acceptedBy: 'owner',
+    text: 'Only if the project is approved, the investor pays $2M into the public budget for public amenities.',
+    strings: 'Condition: showers, a bike path and better beach access come with it (+2 access, −1 economy).',
+  },
+  reserve: {
+    type: 'reserve', name: 'Maintenance reserve', rule: 'A5', funder: 'player', amount: 1, to: 'reserves',
+    schedule: null, support: 0, ifBuilt: {}, refused: { opposition: 0, ifBuilt: {} }, acceptedBy: 'owner',
+    text: 'The neighborhood fund sets $1M aside for this project\'s upkeep.',
+    strings: 'The reserve pays upkeep before the public budget does, until it runs out.',
+  },
+};
+export const isAgreementType = (v: unknown): v is AgreementType => typeof v === 'string' && (AGREEMENT_TYPES as readonly string[]).includes(v);
 
 const MB_PROJECTS = 'https://www.miamibeachfl.gov/projects/';
 const MB_BUDGET = 'https://www.miamibeachfl.gov/city-hall/office-of-budget-peformance/budget/';
@@ -224,8 +293,8 @@ export const CARDS: Record<CardId, Card> = {
   'emergency-funding': {
     id: 'emergency-funding', name: 'Emergency Funding', persona: 'mayor', category: 'support', family: 'civic', cost: 2, art: '🚨', anim: 'invest',
     text: 'Back a public resilience proposal and pay for it from an emergency grant.',
-    rule: 'Adds 1 support to a public project here (drainage, seawall, shoreline, dune, elevation, housing) and covers its public cost. With a living shoreline it also matches the grant: +2 environment.',
-    tradeoff: 'Does nothing for private development.',
+    rule: 'Adds 1 support to a public project here (drainage, seawall, shoreline, dune, elevation, housing). If approved, a simulated emergency grant pays its whole public cost (the budget pays nothing). With a living shoreline it also matches the grant: +2 environment.',
+    tradeoff: 'Does nothing for private development. Spent on spot repairs if nothing is proposed.',
     acts: ['shoreline', 'drainage', 'seawall', 'dune', 'elevate', 'housing'],
     fallback: { delta: { flood: 2, budget: -3 }, text: 'No public proposal here: the money goes to spot repairs (+2 flood, −$3M).' },
     counters: [], combos: ['grant-match'],
@@ -244,11 +313,10 @@ export const CARDS: Record<CardId, Card> = {
   'resilience-bond': {
     id: 'resilience-bond', name: 'Resilience Bond', persona: 'mayor', category: 'support', family: 'civic', cost: 2, art: '📜', anim: 'invest',
     text: 'Borrow now to build a public project, pay it back later.',
-    rule: 'Adds 1 support to a public project here and covers its cost. If the project is approved, the bond payment is due next round: −$3M budget.',
-    tradeoff: 'Pays now, costs later.',
+    rule: 'Adds 1 support to a public project here. If approved, the bond market pays its public cost and the city owes it back plus 25% interest, from the public budget, in up to two installments (rule U2). Unpaid installments become arrears.',
+    tradeoff: 'Pays now, costs more later: debt counts against the Mayor at the end.',
     acts: ['drainage', 'seawall', 'elevate', 'shoreline', 'dune', 'housing'],
-    attach: { rule: 'F4', support: 1, cover: true },
-    delayed: { delta: { budget: -3 }, text: 'Resilience Bond payment due: −$3M budget.' },
+    agreement: 'bond',
     fallback: { delta: {}, text: 'No public project to finance here: 1 influence comes back.' },
     counters: ['neighborhood-petition'], combos: [],
     refs: [MB_BUDGET],
@@ -303,11 +371,11 @@ export const CARDS: Record<CardId, Card> = {
   },
   'habitat-survey': {
     id: 'habitat-survey', name: 'Habitat Survey', persona: 'activist', category: 'opposition', family: 'environmental', cost: 1, art: '🔬', anim: 'legal',
-    text: 'Document the wildlife a hard-edged project would displace.',
-    rule: 'Adds 1 opposition to a seawall, marina or hotel here. If it is built anyway, the survey shapes mitigation: +1 environment.',
-    tradeoff: 'Slows projects down; rarely stops them on its own.',
+    text: 'Document the wildlife a hard-edged project would displace, and offer to fund the fix.',
+    rule: 'Offers a restoration partnership to a seawall, marina or hotel here. Accepted: +1 support; if approved, the Dunes fund pays $1M for habitat works (+3 environment). Refused: +1 opposition, and +1 environment if built anyway.',
+    tradeoff: 'Costs the Activist real money if accepted; refused, it only slows the project.',
     acts: ['seawall', 'marina', 'hotel'],
-    attach: { rule: 'O5', opposition: 1, ifBuilt: { environment: 1 } },
+    agreement: 'restoration',
     fallback: { delta: { environment: 1 }, text: 'Nothing to survey against: the data goes to the city\'s habitat map (+1 environment).' },
     counters: ['fast-track'], combos: [],
     refs: [NOAA_SLR],
@@ -331,24 +399,25 @@ export const CARDS: Record<CardId, Card> = {
   'hotel-development': {
     id: 'hotel-development', name: 'Hotel Development', persona: 'resort', category: 'project', family: 'economic', cost: 4, art: '🏨', anim: 'construct', project: 'hotel',
     text: 'Propose a new beachfront hotel.',
-    rule: 'Project: +8 economy, −4 environment, −3 access. Privately funded. Needs at least a quarter of the district zoned for hotel or commercial use (RM-2, RM-3, CD, CPS, MXE, TC, RO).',
-    tradeoff: 'Every guest needs a beach; every beach needs a dune.',
+    rule: 'Project: +8 economy, −4 environment, −3 access. Costs $6M of the Resort Owner\'s own capital (no public money). Needs at least a quarter of the district zoned for hotel or commercial use (RM-2, RM-3, CD, CPS, MXE, TC, RO).',
+    tradeoff: 'Every guest needs a beach; every beach needs a dune. Ties up capital.',
     counters: ['environmental-challenge', 'building-moratorium', 'neighborhood-petition', 'rent-shield'], combos: ['eco-resort'],
     refs: [MB_ZONING],
   },
   'marina-expansion': {
     id: 'marina-expansion', name: 'Marina Expansion', persona: 'resort', category: 'project', family: 'economic', cost: 3, art: '⛵', anim: 'construct', project: 'marina',
     text: 'Propose new yacht slips and a waterfront promenade on the bay.',
-    rule: 'Project: +5 economy, −3 environment, −1 access. Privately funded. Needs a Biscayne Bay shore and at least a quarter of the district zoned hotel or commercial.',
+    rule: 'Project: +5 economy, −3 environment, −1 access. Costs $4M of the Resort Owner\'s own capital. Needs a Biscayne Bay shore and at least a quarter of the district zoned hotel or commercial.',
     tradeoff: 'Slips for yachts, less room for working boats.',
     counters: ['habitat-survey', 'building-moratorium', 'rent-shield'], combos: ['working-waterfront', 'eco-resort'],
     refs: [MB_ZONING],
   },
   'private-investment': {
     id: 'private-investment', name: 'Private Investment', persona: 'resort', category: 'support', family: 'economic', cost: 2, art: '💰', anim: 'invest',
-    text: 'Put private money behind a proposal.',
-    rule: 'Adds 1 support and covers the proposal\'s public cost. Behind a hotel: +2 economy.',
-    tradeoff: 'Investors expect a return.',
+    text: 'Put private money behind a proposal, with strings attached.',
+    rule: 'On a public project: offers a public-private partnership to its owner. Accepted: +1 support; if approved, the Resort Owner pays the whole public cost, and the city pays $2M back in every later round (+1 economy from the concession). On a hotel or marina: +1 support, and +2 economy behind a hotel.',
+    tradeoff: 'Investors expect a return: the city owes availability payments.',
+    agreement: 'ppp',
     acts: ['hotel', 'marina', 'drainage', 'seawall', 'shoreline', 'dune', 'elevate', 'housing'],
     fallback: { delta: { economy: 1 }, text: 'Nothing to invest in here: the money finds a café (+1 economy).' },
     counters: ['building-moratorium'], combos: ['public-private-flood'],
@@ -378,11 +447,11 @@ export const CARDS: Record<CardId, Card> = {
   },
   'community-benefits': {
     id: 'community-benefits', name: 'Community Benefits Pledge', persona: 'resort', category: 'support', family: 'negotiation', cost: 1, art: '🤝', anim: 'deal',
-    text: 'Promise public amenities to win over the neighborhood.',
-    rule: 'Adds 1 support to any proposal here. If it is built: +2 access, −1 economy.',
-    tradeoff: 'Goodwill costs money.',
+    text: 'Promise public amenities, paid only if the project goes ahead.',
+    rule: 'Offers a conditional investment on any proposal here (accepted at once on the Resort Owner\'s own). Accepted: +1 support; if approved, the Resort Owner pays $2M into the public budget and amenities come with it (+2 access, −1 economy). Refused: nothing.',
+    tradeoff: 'Goodwill costs money, and only pays off if the project is built.',
     acts: ['marina', 'hotel', 'housing', 'shoreline', 'dune', 'drainage', 'seawall', 'elevate'],
-    attach: { rule: 'S4', support: 1, ifBuilt: { access: 2, economy: -1 } },
+    agreement: 'conditional',
     fallback: { delta: { access: 1 }, text: 'No proposal here: the pledge funds a beach shower and a bike rack (+1 access).' },
     counters: [], combos: [],
     refs: [],
@@ -427,8 +496,9 @@ export const CARDS: Record<CardId, Card> = {
   'flood-watch': {
     id: 'flood-watch', name: 'Flood Watch Brigade', persona: 'resident', category: 'support', family: 'civic', cost: 1, art: '🔦', anim: 'campaign',
     text: 'Neighbors who clear drains and check on each other at high tide.',
-    rule: 'Adds 1 support to a drainage, seawall, elevation, shoreline or dune proposal here. If it is built: +1 flood.',
-    tradeoff: 'Volunteers burn out; it helps, it does not replace pumps.',
+    rule: 'Adds 1 support to a drainage, seawall, elevation, shoreline or dune proposal here. If it is built: +1 flood. On a drainage or seawall it also offers a maintenance reserve: accepted, the neighborhood fund sets $1M aside if it is approved, and the reserve pays upkeep before the budget.',
+    tradeoff: 'Volunteers burn out; a reserve costs the neighborhood real money.',
+    agreement: 'reserve',
     acts: ['drainage', 'seawall', 'elevate', 'shoreline', 'dune'],
     attach: { rule: 'S5', support: 1, ifBuilt: { flood: 1 } },
     fallback: { delta: { flood: 1 }, text: 'No project here: the brigade clears storm drains (+1 flood).' },
@@ -501,7 +571,7 @@ export interface Combo {
 export const COMBOS: Record<ComboId, Combo> = {
   'public-private-flood': {
     id: 'public-private-flood', name: 'Public-Private Flood Partnership', rule: 'M1',
-    recipe: 'Private Investment behind an approved drainage or seawall project.', cards: ['private-investment', 'drainage-upgrade', 'seawall-upgrade'],
+    recipe: 'A drainage or seawall approved and paid for by an accepted public-private partnership (Private Investment).', cards: ['private-investment', 'drainage-upgrade', 'seawall-upgrade'],
     bonus: { flood: 2 }, resilience: 4,
   },
   'eco-resort': {
@@ -533,8 +603,9 @@ export const COMBOS: Record<ComboId, Combo> = {
 export const COMBO_IDS = Object.keys(COMBOS) as ComboId[];
 export const isComboId = (v: unknown): v is ComboId => typeof v === 'string' && Object.hasOwn(COMBOS, v);
 
-/** Negotiation moves (one per player per round, plus accepting compromises offered to you). */
-export const NEGOTIATION_COST = { back: 1, oppose: 1, fund: 2 } as const;
+/** Negotiation moves (one per player per round, plus accepting compromises offered to you). Fund also pays the
+ *  project's public cost from the mover's own capital: influence never buys money. */
+export const NEGOTIATION_COST = { back: 1, oppose: 1, fund: 1 } as const;
 export type NegotiationMove = keyof typeof NEGOTIATION_COST;
 
 /** The storm at the end of round 3 (rule S1): weak flood resilience costs the economy. */

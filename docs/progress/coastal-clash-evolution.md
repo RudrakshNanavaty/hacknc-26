@@ -105,3 +105,54 @@ The fix was environmental: `fnm install 22` and a `.node-version` file. No code 
 - Balance numbers for the 18 new cards, the combo bonuses, upkeep and twist magnitudes are first guesses (illustrative values);
   they need playtesting.
 - Persona tone: the Mayor is now dry and pragmatic per the brief (was "overly dramatic"); the scenario desk prompt was aligned too.
+
+## Round 2: characters, cards, money and Nessie (M6-M10), branch `pratham/money`
+
+Brief: make characters, cards and money one system, and mirror the money to the Capital One Nessie API (simulated banking).
+Baseline (2026-10-11, Node 22.23.3): typecheck clean, 92/92 tests. No UI reference image was attached to the brief, so the
+visual work follows the existing Aero Lagoon style.
+
+### Decisions (one line each, with the reason)
+
+- **The engine's ledger is authoritative; Nessie is a mirror.** `shared/src/game/money.ts` holds wallets, debts, scheduled
+  payments, reserves and a ledger inside `CityState.treasury`; resolveRound moves money only through `Books`. Why: the
+  invariant "the engine decides" already holds for the meters; money joins it, so replays and previews stay exact.
+- **Integer cents, authored in whole $M.** `CENTS_PER_M = 1e8`. Why: minor units make money exact; whole-$M authoring keeps the
+  existing `budget` meter an exact integer, now always equal to the city wallet (tested over a whole bot match).
+- **Resources are separate.** Influence pays for cards and moves only; the public budget pays public projects, upkeep and
+  installments; private capital (Activist $4M, Resort Owner $20M, Resident $3M) pays their own projects and agreements; debt
+  is owed to a simulated lender; operating costs (U1 upkeep, U2 installments, U3 availability payments) come first each round.
+  Hotels ($6M) and marinas ($4M) now cost the Resort Owner's own capital. Why: before, "covered" made grants, bonds, private
+  money and influence (the 2-influence fund move) interchangeable.
+- **The start budget drops from $30M to $16M.** Why: with $30M the city could pay for almost everything and no deal mattered;
+  $16M pays one big project, so the second needs a grant, bond or partner (the target demo).
+- **No negative wallets without a rule.** A bill the budget cannot pay becomes arrears debt (B3, the lender pays); a player
+  wallet never overdraws (`Books.pay` refuses); only the simulated lender and grants can go below zero (they are outside money).
+- **Agreements are compromises with `terms`.** Five authored types on five existing cards (no new cards): Private Investment =
+  public-private partnership (A1), Resilience Bond = bond (A2), Habitat Survey = restoration partnership (A3), Community Benefits
+  = conditional investment (A4), Flood Watch = maintenance reserve (A5). Why: the compromise path (owner accepts, hints find it,
+  records and replays carry it) already existed; a parallel deal system would duplicate it. Terms are fixed at the reveal from
+  the card and the project: no free-form deals, no client or model amounts.
+- **Money moves only if the project is approved and the payer can pay then.** A void agreement (B4) moves nothing; a funding
+  agreement made unnecessary by an earlier source (grant before bond before partner before contribution before budget) is
+  `not-needed` and carries no strings. Why: no transfer without an accepted agreement, and no double funding.
+- **No double spend.** `committed()` sums what a wallet already promised on the board (accepted agreements, fund moves, own
+  private projects); accepting or funding beyond the rest is refused, and accepting twice is refused.
+- **Rule ids added:** A0 offer refused (no money), A1-A5 agreements, B3 arrears, B4 payer cannot pay, U2 bond installment,
+  U3 availability payment. RULES_VERSION 2.0.0 -> 3.0.0: older records load and report "not comparable", as designed.
+- **Persona colors follow the figurine bases:** Mayor blue, Activist pink, Resort Owner gold, Resident green (Fisherman teal).
+- **Nessie (live, checked 2026-10-11):** `https://prod-api.nessieisreal.com` works; `http://api.nessieisreal.com` does not answer.
+  The key's namespace started empty (0 customers, 0 accounts). Transfers take only `{transaction_date, status, amount,
+  description}` (no payee) and never change balances; deposits likewise; loans take `{type, status, credit_score,
+  monthly_payment, amount, description}`; bills need a `status` enum. An unknown key reads an empty namespace (200 []).
+- **One transfer record per ledger entry, on the payer's account.** The payee and the idempotency marker `[cc:<match>:<entry>]`
+  go in the description. Why: the API has no counterparty field; a second "deposit" leg would double the writes that can fail
+  half-way. Bonds are also mirrored as loan records (credit score 0: not applicable to a simulated municipal bond). Bills are
+  not used: scheduled payments become transfers when they are paid, and a bill would add a second record of the same money.
+- **Bounded accounts.** Eight fictional customers "CoastalClash <Wallet>" with one `cc-sim:<wallet>` account each, found by name
+  before anything is created and reused by every match. Why: a per-match account would grow without bound.
+- **Uncertain writes are reconciled, never retried blindly.** Timeout, network or 5xx on a write -> `uncertain`; the next pass
+  reads the payer's records and looks for the marker: found -> confirmed; absent -> pending, sent again (attempt cap 4, then
+  failed). A refusal is final (`failed`). An auth error pauses the mirror until a restart.
+- **Sync state survives a restart when Tiger Data is configured** (`cc_bank_sync`, `cc_bank_accounts`, idempotent schema).
+  Memory otherwise. The match record carries each item's status (`MatchRecord.bank`), separate from the outcomes.

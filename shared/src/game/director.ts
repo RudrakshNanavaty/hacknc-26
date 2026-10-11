@@ -7,7 +7,8 @@
 //   game state -> context (server) -> Gemini JSON -> validate* (here) -> applyDirectorEvent (deterministic) -> record
 import { CARDS, COMBOS, INDICATORS, NEGOTIATION_COST, PERSONA_INFO, PROJECTS, TOTAL_ROUNDS, isComboId, type ComboId, type Delta, type NegotiationMove, type PersonaId } from './content';
 import { DISTRICT_IDS, coastalHighHazard, districtById, isDistrictId, projectEligibility, type District } from './districts';
-import { checkAccept, checkMove, resolveRound, type Board, type CityState, type NegotiationAction, type OutcomeStatus, type RuleEvent } from './engine';
+import { checkAccept, checkMove, resolveRound, treasuryOf, type Board, type CityState, type NegotiationAction, type OutcomeStatus, type RuleEvent } from './engine';
+import { Books, budgetDelta, cloneTreasury } from './money';
 import { BUBBLE_WORDS, isReaction, isRoleId, roleInfo, wordCount, type Bubble, type Reaction, type RoleId } from './living';
 import type { Crisis, CrisisKind } from './scenario';
 
@@ -300,17 +301,21 @@ export function templateEventProposal(round: number, fired: EventType[], crisis?
 /** Apply an accepted twist to the city. Pure: replays call this with the stored event. */
 export function applyDirectorEvent(city: CityState, ev: AcceptedEvent): { city: CityState; event: RuleEvent } {
   const indicators = { ...city.indicators };
+  // The budget part is money: it moves through the books (twist entries r{round}-t{n}), never straight onto the meter.
+  const treasury = cloneTreasury(treasuryOf(city));
+  const books = new Books(treasury, ev.round, indicators, 't');
+  budgetDelta(books, ev.delta, { rule: 'D1', text: `Game event (fictional): ${ev.title}.` });
   for (const k of INDICATORS) {
     const v = ev.delta[k];
-    if (!v) continue;
-    indicators[k] = k === 'budget' ? Math.max(0, indicators[k] + v) : Math.max(0, Math.min(100, indicators[k] + v));
+    if (!v || k === 'budget') continue;
+    indicators[k] = Math.max(0, Math.min(100, indicators[k] + v));
   }
   const districts = Object.fromEntries(Object.entries(city.districts).map(([id, s]) => [id, { ...s, features: [...s.features] }]));
   const ds = districts[ev.district];
   if (ds) ds.resilience = Math.max(0, Math.min(100, ds.resilience + ev.resilience));
   const effect = Object.entries(ev.delta).map(([k, v]) => `${v! > 0 ? '+' : '−'}${k === 'budget' ? '$' : ''}${Math.abs(v!)}${k === 'budget' ? 'M' : ''} ${k}`).join(', ');
   return {
-    city: { ...city, indicators, districts },
+    city: { ...city, indicators, districts, treasury },
     event: {
       id: `${ev.id}-d1`, rule: 'D1', district: ev.district, delta: ev.delta,
       text: `Game event (fictional): ${ev.title} in ${districtById(ev.district).name}. ${effect}${ev.resilience ? `, area resilience ${ev.resilience}` : ''} (illustrative).`,
@@ -350,7 +355,8 @@ export function negotiationCandidates(board: Board, actions: NegotiationAction[]
     if (pl.moved) continue;
     for (const p of board.proposals) {
       for (const move of ['back', 'oppose', 'fund'] as NegotiationMove[]) {
-        if (checkMove(board, pl.seat, pl.influence, move, p.id)) continue;
+        // A fund move must be affordable from the player's own wallet, exactly as the room will check it.
+        if (checkMove(board, pl.seat, pl.influence, move, p.id, { persona: pl.persona, treasury: treasuryOf(city), actions })) continue;
         const next = resolveRound(board, [...actions, { seat: pl.seat, persona: pl.persona, move, proposalId: p.id }], city);
         const from = status(now, p.id);
         const to = status(next, p.id);
@@ -360,7 +366,7 @@ export function negotiationCandidates(board: Board, actions: NegotiationAction[]
   }
   for (const c of board.compromises.filter((x) => !x.accepted)) {
     const owner = players.find((x) => x.seat === c.owner);
-    if (!owner || checkAccept(board, c.owner, c.id)) continue;
+    if (!owner || checkAccept(board, c.owner, c.id, { treasury: treasuryOf(city), actions })) continue;
     const trial = { ...board, compromises: board.compromises.map((x) => (x.id === c.id ? { ...x, accepted: true } : x)) };
     const from = status(now, c.proposalId);
     const to = status(resolveRound(trial, actions, city), c.proposalId);
@@ -386,7 +392,7 @@ export function combosInReach(board: Board): ComboInReach[] {
   for (const p of board.proposals) {
     const on = board.attachments.filter((a) => a.proposalId === p.id).map((a) => a.card);
     const offers = board.compromises.filter((c) => c.proposalId === p.id);
-    if ((p.kind === 'drainage' || p.kind === 'seawall') && on.includes('private-investment')) out.push({ combo: 'public-private-flood', proposalIds: [p.id], needs: `${name(p.id)} must be approved` });
+    if ((p.kind === 'drainage' || p.kind === 'seawall') && offers.some((c) => c.kind === 'ppp')) out.push({ combo: 'public-private-flood', proposalIds: [p.id], needs: `the owner accepts the partnership and ${name(p.id)} is approved with the partner paying` });
     if (p.kind === 'shoreline' && on.includes('emergency-funding')) out.push({ combo: 'grant-match', proposalIds: [p.id], needs: `${name(p.id)} must be approved` });
     if ((p.kind === 'hotel' || p.kind === 'marina') && offers.some((c) => c.kind === 'setback' || c.kind === 'green')) out.push({ combo: 'eco-resort', proposalIds: [p.id], needs: `the owner accepts the green condition and ${name(p.id)} is approved` });
     if (p.kind === 'marina' && offers.some((c) => c.kind === 'access')) out.push({ combo: 'working-waterfront', proposalIds: [p.id], needs: `the owner accepts the public access guarantee and ${name(p.id)} is approved` });

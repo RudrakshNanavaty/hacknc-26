@@ -1,10 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { CARDS, HAND_SIZE, START_INDICATORS, TOTAL_ROUNDS, handFor, handOf, type CardId, type PersonaId } from './content';
 import { DISTRICTS, cardEligibility, coastalHighHazard, districtById } from './districts';
-import { botPlay, buildBoard, checkAccept, checkMove, checkPlay, finalResult, resolveRound, startCity, type Play } from './engine';
+import { botPlay, buildBoard, checkAccept, checkMove, checkPlay, finalResult, resolveRound, startCity, type CityState, type Play } from './engine';
+import { millions } from './money';
 
 const seat: Record<PersonaId, number> = { mayor: 0, activist: 1, resort: 2, resident: 3 };
 const play = (persona: PersonaId, card: CardId, district: string): Play => ({ seat: seat[persona], persona, card, district });
+/** A city whose public budget (the city wallet, and so the meter) holds $m M. */
+const withBudget = (city: CityState, m: number) => {
+  city.treasury.balances.city = millions(m);
+  city.indicators.budget = m;
+  return city;
+};
 
 describe('real geography', () => {
   it('measures four playable areas from the real layers, with source feature ids', () => {
@@ -100,7 +107,8 @@ describe('clashes', () => {
     const r = resolveRound(board, [], startCity());
     const o = r.outcomes[0]!;
     expect(o.status).toBe('approved');
-    expect(o.funding).toBe('covered');
+    expect(o.funding).toBe('grant');
+    expect(o.paidBy).toBe('grants');
     expect(r.after.budget).toBe(START_INDICATORS.budget);
     // +6 env +3 flood +2 access and the king tide's +2 flood; the grant match is a recorded combo (C3): +2 env more.
     expect(o.delta).toEqual({ environment: 6, flood: 5, access: 2 });
@@ -134,11 +142,11 @@ describe('clashes', () => {
   });
 
   it('runs out of budget: unfunded (B1)', () => {
-    const city = startCity();
-    city.indicators.budget = 5;
+    const city = withBudget(startCity(), 5);
     const r = resolveRound(buildBoard(1, [play('mayor', 'drainage-upgrade', 'west-avenue')]), [], city);
     expect(r.outcomes[0]!.status).toBe('unfunded');
     expect(r.after.budget).toBe(5);
+    expect(r.ledger).toEqual([]);
   });
 
   it('cards with nothing to act on fall back or refund', () => {
@@ -169,8 +177,13 @@ describe('negotiation', () => {
     const hotel = board.proposals.find((p) => p.kind === 'hotel')!.id;
     expect(checkMove(board, 0, 0, 'back', drainage)).toMatch(/costs 1/);
     expect(checkMove(board, 0, 3, 'oppose', drainage)).toMatch(/own proposal/);
-    expect(checkMove(board, 1, 3, 'fund', hotel)).toMatch(/privately funded/);
-    expect(checkMove(board, 1, 3, 'fund', drainage)).toBeNull();
+    const money = (persona: PersonaId) => ({ persona, treasury: startCity().treasury, actions: [] });
+    expect(checkMove(board, 1, 3, 'fund', hotel, money('activist'))).toMatch(/privately funded/);
+    // Funding pays from your own wallet: the Resort Owner has $20M, $6M of it promised to the hotel.
+    expect(checkMove(board, 2, 3, 'fund', drainage, money('resort'))).toBeNull();
+    expect(checkMove(board, 1, 3, 'fund', drainage, money('activist'))).toMatch(/\$8M of your own money; you have \$4M/);
+    expect(checkMove(board, 0, 3, 'fund', drainage, money('mayor'))).toMatch(/public budget already pays/);
+    expect(checkMove(board, 2, 3, 'fund', drainage)).toMatch(/own wallet/);
     expect(checkMove(board, 1, 3, 'back', 'nope')).toMatch(/not on the table/);
   });
   it('only the owner accepts a compromise', () => {

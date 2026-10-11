@@ -1,11 +1,12 @@
 // The planning-feedback record a match leaves behind, and what Planning Studio computes from them.
 // Role-play choices and personal preferences are kept apart, and so are demo sessions, bots and
 // community sessions: role-play is not public opinion.
-import { CARDS, INDICATORS, PERSONA_INFO, PROJECTS, RULES_VERSION, START_INDICATORS, type CardId, type ComboId, type Indicators, type PersonaId, type ProjectKind } from './content';
+import { AGREEMENTS, AGREEMENT_TYPES, CARDS, INDICATORS, PERSONA_INFO, PROJECTS, RULES_VERSION, START_INDICATORS, type AgreementType, type CardId, type ComboId, type Indicators, type PersonaId, type ProjectKind } from './content';
 import { applyDirectorEvent, type AcceptedEvent, type TableHint } from './director';
 import { DATA_SOURCES, DATA_VERSION, DISTRICTS, districtById, type DataSource } from './districts';
 import type { Crisis, LiveConditions } from './scenario';
-import { crisisFor, finalResult, resolveRound, startCity, type Attachment, type Compromise, type FinalResult, type NegotiationAction, type Outcome, type Proposal, type Resolution, type RuleEvent } from './engine';
+import { crisisFor, finalResult, resolveRound, startCity, type AgreementResult, type Funding, type Attachment, type Compromise, type FinalResult, type NegotiationAction, type Outcome, type Proposal, type Resolution, type RuleEvent } from './engine';
+import { inMillions, type Cents, type LedgerEntry, type WalletId } from './money';
 
 export type SessionKind = 'demo' | 'community';
 export type ParticipantKind = 'human' | 'bot';
@@ -34,6 +35,42 @@ export interface RoundRecord {
   combos?: { combo: ComboId; district: string; proposalIds: string[] }[];
   /** What the Game Director proposed and what the rules accepted (absent on rules 1.x records). */
   director?: RoundDirector;
+  /** Money (rules 3.x): every ledger entry this round (a twist's first), what became of each agreement, the books after. */
+  ledger?: LedgerEntry[];
+  agreements?: AgreementResult[];
+  money?: { balances: Record<WalletId, Cents>; debt: Cents };
+}
+
+/** Where a ledger entry's mirror in the external bank stands. Separate from the game: an approved project stays approved. */
+export type SyncStatus = 'pending' | 'uncertain' | 'confirmed' | 'failed';
+
+/** One mirrored item: a ledger entry (a transfer record on the payer's account) or a bond (a loan record). */
+export interface BankSync {
+  /** matchId:entryId (or matchId:debtId for a loan): the idempotency key, also written into the external description. */
+  key: string;
+  matchId: string;
+  entryId: string;
+  round: number;
+  kind: 'transfer' | 'loan';
+  from: WalletId;
+  to: WalletId;
+  amount: Cents;
+  /** The ledger rule (B2, A1, U1 ...), for the external description. */
+  rule?: string;
+  /** A bond's first installment (loan records carry a payment amount). */
+  installment?: Cents;
+  status: SyncStatus;
+  /** The external record's id once confirmed. */
+  externalId: string | null;
+  attempts: number;
+  error: string | null;
+  updatedAt: string;
+}
+
+/** The match's external mirror (Capital One Nessie, simulated accounts only), or off. */
+export interface BankRecord {
+  mirror: 'nessie' | 'off';
+  items: BankSync[];
 }
 
 /** One proposal from the Director (or its template fallback) and what validation did with it. */
@@ -98,6 +135,8 @@ export interface MatchRecord {
   /** Where this match's crises came from, and the live readings they were written from. */
   scenarioSource?: 'gemini' | 'authored';
   live?: LiveConditions | null;
+  /** The external bank mirror's state for this match's money (rules 3.x). Never decides anything. */
+  bank?: BankRecord;
 }
 
 export const SCENARIO_ID = 'miami-beach-coastal-2026';
@@ -145,13 +184,17 @@ export function replayMatch(m: MatchRecord): Replay {
     const crisis = recorded && typeof recorded === 'object' ? recorded : crisisFor(r.round);
     const board = { round: r.round, crisis, proposals: r.proposals, attachments: r.attachments, compromises: r.compromises };
     const res = resolveRound(board, r.actions, city);
+    if (r.ledger) {
+      const ledgerKey = (es: LedgerEntry[]) => es.map((e) => `${e.id}:${e.from}>${e.to}:${e.amount}`).join();
+      if (ledgerKey(res.city.treasury.ledger.filter((e) => e.round === r.round)) !== ledgerKey(r.ledger)) mismatches.push(`round ${r.round}: ledger`);
+    }
     if (!sameIndicators(res.before, r.before)) mismatches.push(`round ${r.round}: indicators before`);
     if (!sameIndicators(res.after, r.after)) mismatches.push(`round ${r.round}: indicators after`);
     if (res.outcomes.map((o) => `${o.proposalId}:${o.status}`).join() !== r.outcomes.map((o) => `${o.proposalId}:${o.status}`).join()) mismatches.push(`round ${r.round}: outcomes`);
     rounds.push(res);
     city = res.city;
   }
-  const final = finalResult(START_INDICATORS, city.indicators, rounds, m.players.map((p) => p.persona));
+  const final = finalResult(START_INDICATORS, city.indicators, rounds, m.players.map((p) => p.persona), city.treasury);
   const totals = (scores: FinalResult['scores']) => scores.map((s) => `${s.persona}:${s.total}`).sort().join();
   if (m.final && totals(final.scores) !== totals(m.final.scores)) mismatches.push('final scores');
   return { comparable: true, reason: null, rounds, final, matches: mismatches.length === 0, mismatches };
@@ -202,7 +245,21 @@ export interface StudioSummary {
   combos: { combo: ComboId; count: number }[];
   /** What the AI Game Director did. Game fiction and coaching: never public opinion, never findings. */
   director: DirectorSummary;
+  /** Simulated money: who paid for what, the agreements, the flows, the debt, and the external mirror's status. */
+  money: MoneySummary;
   findings: Finding[];
+}
+
+export interface MoneySummary {
+  /** Approved projects by who paid for them ($M simulated). */
+  funding: { source: Exclude<Funding, null>; projects: number; amount: number }[];
+  agreements: { type: AgreementType; name: string; offered: number; accepted: number; executed: number; void: number; notNeeded: number; refused: number }[];
+  /** Money moved between wallets, summed ($M simulated). */
+  flows: { from: WalletId; to: WalletId; amount: number; entries: number }[];
+  /** Still owed to the lender at the end of completed matches ($M simulated). */
+  debtAtEnd: number;
+  /** The external mirror: matches mirrored, and items by sync status. */
+  sync: { mirrored: number; off: number; confirmed: number; pending: number; uncertain: number; failed: number };
 }
 
 export interface DirectorSummary {
@@ -328,6 +385,48 @@ export function studioSummary(all: MatchRecord[], f: StudioFilter = {}): StudioS
     for (const q of m.reviewQueue ?? []) director.reviewQueue.push({ ...q, matchId: m.id });
   }
 
+  const money: MoneySummary = { funding: [], agreements: [], flows: [], debtAtEnd: 0, sync: { mirrored: 0, off: 0, confirmed: 0, pending: 0, uncertain: 0, failed: 0 } };
+  const funding = new Map<string, { projects: number; amount: number }>();
+  const deals = new Map(AGREEMENT_TYPES.map((t) => [t, { type: t, name: AGREEMENTS[t].name, offered: 0, accepted: 0, executed: 0, void: 0, notNeeded: 0, refused: 0 }]));
+  const flows = new Map<string, { from: WalletId; to: WalletId; amount: number; entries: number }>();
+  for (const m of matches) {
+    for (const r of m.rounds) {
+      for (const o of r.outcomes.filter((x) => x.status === 'approved' && x.funding)) {
+        const f = funding.get(o.funding!) ?? { projects: 0, amount: 0 };
+        f.projects += 1;
+        f.amount += PROJECTS[o.kind].budgetCost + PROJECTS[o.kind].privateCost;
+        funding.set(o.funding!, f);
+      }
+      for (const c of r.compromises.filter((x) => x.terms)) {
+        const d = deals.get(c.terms!.type)!;
+        d.offered += 1;
+        if (c.accepted) d.accepted += 1;
+      }
+      for (const a of r.agreements ?? []) {
+        const d = deals.get(a.type)!;
+        if (a.status === 'executed') d.executed += 1;
+        else if (a.status === 'void') d.void += 1;
+        else if (a.status === 'not-needed') d.notNeeded += 1;
+        else if (a.status === 'refused') d.refused += 1;
+      }
+      for (const e of r.ledger ?? []) {
+        const k = `${e.from}>${e.to}`;
+        const f = flows.get(k) ?? { from: e.from, to: e.to, amount: 0, entries: 0 };
+        f.amount += inMillions(e.amount);
+        f.entries += 1;
+        flows.set(k, f);
+      }
+    }
+    const last = m.rounds.at(-1);
+    if (m.final && last?.money) money.debtAtEnd += inMillions(last.money.debt);
+    if (m.bank?.mirror === 'nessie') money.sync.mirrored += 1;
+    else money.sync.off += 1;
+    for (const i of m.bank?.items ?? []) money.sync[i.status] += 1;
+  }
+  money.funding = [...funding.entries()].map(([source, f]) => ({ source: source as Exclude<Funding, null>, ...f })).sort((a, b) => b.projects - a.projects);
+  money.agreements = [...deals.values()].filter((d) => d.offered > 0);
+  money.flows = [...flows.values()].sort((a, b) => b.amount - a.amount);
+
   const summary: StudioSummary = {
     matches: matches.length,
     completed: matches.filter((m) => m.final).length,
@@ -342,6 +441,7 @@ export function studioSummary(all: MatchRecord[], f: StudioFilter = {}): StudioS
     crossovers: [...crossovers.values()].sort((a, b) => b.count - a.count),
     combos: [...combos.entries()].map(([combo, count]) => ({ combo, count })).sort((a, b) => b.count - a.count),
     director,
+    money,
     findings: [],
   };
   summary.findings = findings(summary, matches);
@@ -387,6 +487,7 @@ export const CSV_COLUMNS = [
   'card', 'project', 'proposal_id', 'district_id', 'district_name', 'planning_district', 'lon', 'lat', 'status',
   'support', 'opposition', 'conditions', 'rule_ids', 'zoning_object_ids', 'flood_zone_object_ids', 'source_layers',
   'event_type', 'event_source', 'fictional', 'effect',
+  'funding', 'paid_by', 'amount_usd', 'ledger_from', 'ledger_to', 'agreement', 'sync_status', 'external_id',
 ] as const;
 
 /** One row per decision: each card played, each negotiation move, each outcome and each personal preference. */
@@ -428,6 +529,25 @@ export function toCsv(matches: MatchRecord[]): string {
           ...base(r.round, 'outcome', o.seat, o.district), card: cardOf(o.kind), project: o.kind, proposal_id: o.proposalId, status: o.status,
           support: o.support, opposition: o.opposition, conditions: o.conditions.join('; '),
           rule_ids: o.rules.map((id) => r.events.find((e) => e.id === id)?.rule).filter(Boolean),
+          funding: o.funding ?? '', paid_by: o.paidBy ?? '',
+        });
+      }
+      // Money (simulated): what each agreement became, and every ledger entry with its external mirror status.
+      for (const a of r.agreements ?? []) {
+        const c = r.compromises.find((x) => x.id === a.compromiseId);
+        const p = r.proposals.find((x) => x.id === a.proposalId);
+        push({
+          ...base(r.round, 'agreement', c?.offeredBy ?? '', p?.district ?? null), project: p?.kind ?? '', proposal_id: a.proposalId, status: a.status, agreement: a.type,
+          amount_usd: c?.terms ? c.terms.amount / 100 : '', ledger_from: c?.terms?.funder ?? '', ledger_to: c?.terms?.to ?? '', fictional: true,
+        });
+      }
+      for (const e of r.ledger ?? []) {
+        const p = e.proposalId ? r.proposals.find((x) => x.id === e.proposalId) : undefined;
+        const sync = m.bank?.items.find((i) => i.entryId === e.id && i.kind === 'transfer');
+        push({
+          ...base(r.round, 'ledger', '', p?.district ?? null), project: p?.kind ?? '', proposal_id: e.proposalId ?? '', rule_ids: [e.rule], status: e.kind,
+          amount_usd: e.amount / 100, ledger_from: e.from, ledger_to: e.to, agreement: e.agreementId ?? '', fictional: true,
+          sync_status: sync?.status ?? (m.bank?.mirror === 'nessie' ? 'pending' : 'not mirrored'), external_id: sync?.externalId ?? '',
         });
       }
     }
