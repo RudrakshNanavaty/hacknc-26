@@ -112,7 +112,7 @@ export function Play({ code }: { code: string }) {
       <main className="lagoon relative flex min-h-full flex-col items-center gap-4 p-4 sm:p-6">
         <LagoonBubbles count={18} />
         <header className="flex w-full max-w-5xl items-center justify-between">
-          <Link to="/" className="vr text-24 text-white drop-shadow">🌊 Coastal Clash</Link>
+          <Link to="/" className="vr text-24 text-ink">🌊 Coastal Clash</Link>
           <span className="lchip">Room {code}</span>
         </header>
         {room.error && !missing && <p role="alert" className="wet max-w-2xl p-3 text-15 text-[#ff9c8c]">{room.error}</p>}

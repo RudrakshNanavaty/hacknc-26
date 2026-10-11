@@ -303,7 +303,7 @@ input[type="range"].aero-range {
 
   /* Dark liquid glass: the surface every overlay sits on. The backdrop is darkened and saturated
      behind it (brightness in --g-blur), so it separates from the light map whatever is under it. */
-  --g-bg: rgba(10, 24, 48, .62);
+  --g-bg: rgba(10, 24, 48, .7);
   --g-bg-deep: rgba(7, 17, 36, .8);
   --g-solid: linear-gradient(180deg, rgba(24, 44, 78, .95), rgba(8, 19, 40, .97)); /* map markers: no blur, they move every frame */
   --g-bloom: radial-gradient(120% 90% at 0% 0%, rgba(160, 215, 255, .2), transparent 55%), radial-gradient(90% 70% at 100% 100%, rgba(60, 140, 230, .18), transparent 60%);
@@ -391,7 +391,7 @@ input[type="range"].aero-range {
 .gel-sm { min-height: 32px; padding: 0 12px; font-size: 14px; }
 
 /* Chips. */
-.lchip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 11px; border-radius: 999px; font-size: 13px; font-weight: 900; color: var(--g-ink); background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.24); box-shadow: inset 0 1px 0 rgba(255,255,255,.18), 0 2px 6px rgba(2,10,28,.3); white-space: nowrap; }
+.lchip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 11px; border-radius: 999px; font-size: 13px; font-weight: 900; color: var(--g-ink); background: rgba(8,20,42,.58); border: 1px solid rgba(255,255,255,.28); box-shadow: inset 0 1px 0 rgba(255,255,255,.18), 0 2px 6px rgba(2,10,28,.3); white-space: nowrap; }
 .lchip-lime { color: #10300a; background: linear-gradient(180deg, #e2ffb8, #8bd346); border-color: #fff; }
 .lchip-aqua { color: #062a45; background: linear-gradient(180deg, #cff6ff, #7fd6f5); border-color: #fff; }
 .lchip-sun { color: #3a2a00; background: linear-gradient(180deg, #fff7c2, #ffd23f); border-color: #fff; }

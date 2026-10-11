@@ -150,7 +150,7 @@ export function Studio() {
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <Link to="/" className="font-display text-18 font-black text-aqua-deep">🌊 Coastal Clash</Link>
-          <h1 className="hero-title font-display text-48 leading-none font-black">Planning Studio</h1>
+          <h1 className="font-display text-48 leading-none font-black text-ink">Planning Studio</h1>
           <p className="text-15 font-bold text-ink">Every match as geographically linked planning feedback, Miami Beach.</p>
         </div>
         <div className="glass flex flex-wrap items-center gap-2 p-2">
