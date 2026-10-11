@@ -14,7 +14,8 @@ pipeline/ miami-beach.ts: fetches the real Miami Beach GIS layers and measures t
 shared/   Pure TypeScript, no I/O. Personas, cards, districts (real data), the rules engine, narration
           templates, match records, Planning Studio aggregation, the room protocol.
 app/      Vite + React + TypeScript strict, MapLibre, motion, zustand, Tailwind (tokens in styles.css).
-server/   Node + TypeScript (Fastify + ws). Authoritative rooms, Gemini narrator, ElevenLabs, Tiger Data.
+server/   Node + TypeScript (Fastify + ws). Authoritative rooms, live NOAA/NWS conditions, Gemini scenario desk,
+          narrator and Game Director (proposals only, validated in shared/), ElevenLabs, Tiger Data.
 ```
 
 Contracts live in `shared/src`: `room.ts` (wire protocol), `game/engine.ts` (Board, Resolution), `game/record.ts`

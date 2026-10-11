@@ -39,6 +39,7 @@ shared/src/               Pure TypeScript, no I/O. Imported as '@shared' by app 
   game/narrate.ts           template headlines + the facts handed to Gemini
   game/living.ts            scenario roles (Fisherman), reaction vocabulary -> avatar moods, template speech bubbles
   game/economy.ts           previews (projectPreview) and what the city owes next round (upcomingCosts)
+  game/scenario.ts          crisis kinds and their authored K1 bonus, live readings, the authored scenario, checkScenario
   game/director.ts          Director validators (dialogue, twists, hints, combos, explanations), twist catalogue, strayNumbers
   game/record.ts            MatchRecord, Planning Studio aggregation, CSV/GeoJSON      [contract]
 server/src/
@@ -48,14 +49,22 @@ server/src/
   studio.ts                 /api/studio, /api/matches/:id, /api/studio/export.{json,csv,geojson}, /api/studio/brief
   ai/gemini.ts, ai/narrator.ts   Gemini client (GROUNDED rule) and the news-line narrator
   ai/director.ts            the Gemini Game Director: public-state facts, structured prompts, 8 s timeouts (proposes only)
+  ai/scenario.ts            the scenario desk: Gemini writes each match's three crises and card quips (number-checked)
+  live.ts                   NOAA Virginia Key tide gauge + NWS forecast, cached 10 min, each part fails soft; GET /api/live
   voice.ts                  ElevenLabs TTS with a disk cache
   db/store.ts, db/tiger.ts, db/schema.sql   MemoryStore or Tiger Data (Postgres) behind failSoft
 app/src/
-  routes/Landing.tsx, Play.tsx, Studio.tsx    the three pages (tiny router in router.tsx)
+  routes/Landing.tsx, Play.tsx, Studio.tsx    the three pages (tiny router in router.tsx); Play is the stage:
+                            the map arena (meters, clock, player bubbles) and the lagoon column (one screen per phase)
   room/useRoom.ts           the WebSocket client: state, clock offset, one function per ClientMsg
-  game/panels.tsx           one panel per phase: Crisis, Hand, Reveal, Negotiation, Resolve, Final
-  game/Hud.tsx, Players.tsx, Lobby.tsx, Flights.tsx (card flights + verdict stamps), GameCard.tsx
-  map/CityMap.tsx           MapLibre: satellite, FEMA/zoning overlays, areas, markers, spotlight
+  game/screens.tsx          one screen per phase: Crisis, Card, Duel (reveal + negotiation), Result, Final
+  game/insights.tsx         what the rules and the Director add to the screens: twist card, Why?, hints, previews,
+                            if-it-passes, combos, recap, card extras, the round's bill, tweened numbers
+  game/Deck.tsx             the dealt hand (handFor: 4 of 6) and drag-to-deploy; GameCard.tsx (character card + mini card)
+  game/Hud.tsx, ui.tsx      meters (gel tubes), timer orb, player bubbles; Aero Lagoon pieces (Tube, Soap, Pips)
+  game/Lobby.tsx, Players.tsx, Flights.tsx (card flights + verdict stamps + bloom numbers)
+  map/CityMap.tsx, basemap.ts   tilted 3D street map (OpenFreeMap tiles), FEMA water, zoning and satellite toggles,
+                            areas, chips, pins, spotlight
   map/LivingLayer.tsx       avatars (sprites.ts), speech bubbles, ghost proposals, map effects (all Markers)
   styles.css, tokens.ts     Frutiger Aero theme (Tailwind v4 tokens live in styles.css)
   ui/                       sound (Web Audio), voice (calls /api/tts), Bubbles
@@ -80,6 +89,9 @@ client <--ServerMsg {t:'state'}-- publicState(room, viewer)  (one per connection
 - Side effects never run inside `rooms.ts`. It pushes `Effect`s (`record`, `reveal`, `resolved`, `final`) and
   `roomSocket.ts` drains them: it saves the `MatchRecord` and asks Gemini for a headline. The Gemini line replaces the
   template line only if `headline.key` is still current, and it is thrown out if it contains a number that is not in the facts.
+- A match's crises come from the scenario desk: `start` pushes a `scenario` effect, `roomSocket.ts` reads the live
+  conditions and asks Gemini (or uses `authoredScenario`), then `applyScenario` shows the crisis. Round 1 waits up to
+  `SCENARIO_WAIT_MS` (10 s). Everything that belongs to a crisis being on screen happens in `showCrisis` (rooms.ts).
 - Planning Studio reads saved records. `studioSummary()` in `record.ts` computes every finding, each with refs to the
   records behind it. Gemini only rewords the findings (`/api/studio/brief`).
 
@@ -129,20 +141,28 @@ cards' `combos`, and a test in `cards.test.ts`. Combos are authored: Gemini may 
 3. Commit the regenerated `shared/src/data/districts.json` and `app/public/data/miami-beach/*.geojson`.
 4. Check the measured shares against the game rules (which cards are now allowed where), update the table in
    `coastal-clash.md` §3, and fix the engine tests that name four areas.
-5. Crisis spotlights (`CRISES` in content.ts) refer to area ids.
+5. The authored scenario's spotlights (`authoredScenario` in `shared/src/game/scenario.ts`) refer to area ids, and so does
+   the scenario desk's schema (`server/src/ai/scenario.ts` reads `DISTRICT_IDS`).
 
 ### Add or change a crisis
-`CRISES` in `content.ts` (one per round, `round` 1..`TOTAL_ROUNDS`). `spotlight` = area ids, `bonus` = rule K1.
+Crises are written per match. To change what a kind of crisis DOES, edit `CRISIS_KIND_INFO` (its K1 bonus) in
+`shared/src/game/scenario.ts`. To add a kind: `CrisisKind` + `CRISIS_KINDS` + `CRISIS_KIND_INFO`, the characters' lines in
+`CRISIS_LINES` (living.ts, TypeScript forces it), the twists that fit it in `TWISTS_FOR` (director.ts), and the map effect in
+`LivingLayer.tsx`. The authored fallback scenario is `authoredScenario`; what Gemini may write is checked by `checkScenario`
+and the number check in `server/src/ai/scenario.ts`.
 
 ### Add a player action (protocol change)
 1. `shared/src/room.ts`: add to `ClientMsg` (and to `RoomState` if clients need to see it). This is a contract: say so in the commit.
 2. `server/src/rooms.ts`: an exported function that checks the phase and throws `RoomError` with a readable message.
 3. `server/src/roomSocket.ts`: a `case` in the dispatch `switch`.
-4. `app/src/room/useRoom.ts`: a sender on the `Room` interface. Then the UI in `game/panels.tsx`.
+4. `app/src/room/useRoom.ts`: a sender on the `Room` interface. Then the UI in the phase's screen in `game/screens.tsx`.
 5. A test in `server/src/rooms.test.ts`.
 
 ### UI work
-- Each phase's panel is in `game/panels.tsx`. The page shell is `routes/Play.tsx` (it switches at 1024 px: `useWide`).
+- Each phase's screen is in `game/screens.tsx`; rules/Director additions live in `game/insights.tsx`. The page shell is
+  `routes/Play.tsx`: the map is the arena, the lagoon column holds the screen (below the map on phones, under 1024 px).
+- The Aero Lagoon look: build with `wet` (glass panel), `frost` (light box), `gel` / `gel-sm` / `gel-lime` (buttons), `lchip`
+  (chips), `Tube`, `Soap` and `Pips` from `game/ui.tsx`, `glow-title` for headings.
 - The UI only shows what the server sends. Never compute an outcome in a component; call the shared engine (as the negotiation preview does) or show `state`.
 - Indicator values are illustrative and budgets hypothetical: keep the label next to any number you add.
 - Theme: reuse classes in `styles.css` (`glass`, `aero-btn`, `chip`, …) and colors from `tokens.ts`.
@@ -175,7 +195,7 @@ Schema changes go in `server/src/db/schema.sql`, written idempotently (`IF NOT E
 
 - Branch from `aum/coastal-clash` (the integration branch for this game) as `<name>/dev` or `<name>/<topic>`.
   `aum/dev` holds the older ReefForge project; do not merge between them.
-- Commit small with a message that says what changed and why. Pull and rebase often: `content.ts`, `engine.ts` and `panels.tsx` are where people collide.
+- Commit small with a message that says what changed and why. Pull and merge often: `content.ts`, `engine.ts`, `rooms.ts`, `screens.tsx` and `styles.css` are where people collide.
 - Never commit `.env`, `pipeline/cache/` or `node_modules/`.
 
 ## 7. Troubleshooting
@@ -187,6 +207,8 @@ Schema changes go in `server/src/db/schema.sql`, written idempotently (`IF NOT E
 | Phones cannot join | They must be on the same network. Check `/api/join-base`; set `PUBLIC_URL` to a tunnel when the LAN is locked down. |
 | No AI headline / no voice | Expected without `GEMINI_API_KEY` / `ELEVENLABS_API_KEY`. `/api/health` shows what is on (`ai`, `director`, `voice`). |
 | `director: template kept ... timed out` in the server log | Gemini was slower than 8 s (big prompt, busy key). The template is already showing; nothing breaks. Raise `geminiDirector(gemini, ms)` only if it happens constantly. |
+| `error 402 ... prepayment credits are depleted` in the server log | The Gemini key's AI Studio project is out of credit. Top it up at https://ai.studio/projects; until then every AI call falls back to templates and the game plays normally. |
+| `scenario desk: authored scenario stands in` | Gemini or the live feeds (NOAA, NWS) failed or were slow: the authored scenario, with whatever live readings arrived, is used. |
 | Avatars or effects pile up in one corner of the map | Something set `position` or animated `transform` on a MapLibre marker's root element. Animate a child instead. |
 | Studio is empty after a restart | The memory store is not persistent. Set `DATABASE_URL` for Tiger Data. |
 | `npm run data` fails | The GIS services are down or rate-limited. Run it without `--refresh` to use the cache; the committed data still works. |

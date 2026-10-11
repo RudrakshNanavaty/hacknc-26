@@ -35,13 +35,22 @@ Both earlier projects were available locally: Pocket Rivals at `~/Documents/Proj
 
 ```
 pipeline/miami-beach.ts       ArcGIS REST -> cache -> app/public/data/miami-beach/*.geojson + shared/src/data/districts.json
-shared/src/game/content.ts    personas, 12 cards, indicators, crises (authored, versioned RULES_VERSION)
+shared/src/game/content.ts    personas, 24 cards (6 per deck), HANDS, projects, COMBOS, indicators (RULES_VERSION 2.0.0)
 shared/src/game/districts.ts  playable areas (real measurements) and geographic eligibility
+shared/src/game/scenario.ts   crisis kinds (authored K1 bonuses), live readings, the authored scenario, scenario checks
 shared/src/game/engine.ts     buildBoard (reveal) -> resolveRound (deterministic, rule event log) -> finalResult; bots
-shared/src/game/record.ts     MatchRecord, Planning Studio aggregation, CSV/GeoJSON export
-server/src/rooms.ts           authoritative state machine; roomSocket.ts drains effects (save, narrate)
+shared/src/game/living.ts     the Fisherman (scenario role), reaction vocabulary, template speech bubbles
+shared/src/game/director.ts   Game Director validators, twist catalogue (D1), engine-found hints and combos, explanations
+shared/src/game/economy.ts    previews that match the engine, what the city owes next round
+shared/src/game/record.ts     MatchRecord, replayMatch, Planning Studio aggregation, CSV/GeoJSON export
+server/src/live.ts            NOAA Virginia Key tide gauge + NWS forecast (cached, fail soft); GET /api/live
+server/src/ai/scenario.ts     the scenario desk: Gemini writes each match's crises and card quips (checked)
+server/src/ai/director.ts     the Game Director: dialogue, twists, hint wording, explanations (proposes only)
+server/src/rooms.ts           authoritative state machine; roomSocket.ts drains effects (save, narrate, scenario, director)
 server/src/studio.ts          /api/studio, /api/matches/:id, /api/studio/export.{json,csv,geojson}, /api/studio/brief
-app/src/routes                Landing, Play (game screen), Studio
+app/src/map                   CityMap + basemap (tilted 3D street map, FEMA water), LivingLayer + sprites (avatars, bubbles, fx)
+app/src/game                  screens (one per phase), Deck, GameCard, Hud, ui (Aero Lagoon pieces), insights (Director/economy UI)
+app/src/routes                Landing, Play (the stage: map arena + lagoon column), Studio
 ```
 
 One server, one source of truth. The client never decides anything; the negotiation preview runs the same shared engine on the public table.
@@ -65,6 +74,10 @@ Real layers decide context and constraints. Effect sizes are **illustrative scen
 
 Every match gets a fresh scenario. At start the server reads NOAA CO-OPS Virginia Key (8723214): the latest water level, the week's predicted highs and NOAA's flood thresholds, converted to MLLW. It also reads the NWS forecast for Miami Beach. Gemini then writes three crises from those readings and the area facts. For each one it chooses a kind (flooding, development pressure, storm, beach erosion, budget crunch), one or two spotlight areas, the words, and which live readings to show. It also writes one line per card in its persona's voice. What each kind does (its K1 bonus) is authored, so outcomes stay deterministic. A scenario is thrown away if any number is not in the facts or any id is unknown, and the authored scenario, carrying the same live readings, stands in. Round 1 waits up to 10 s for the desk.
 
+The crisis moment (headline, the characters' first lines, and in rounds 2 and 3 the round's twist) starts when the crisis is on
+screen, so a scenario that arrives late still gets all of it. The fallback twist fits the crisis kind and stays in its spotlight
+where the real facts allow (section 6).
+
 ## 5. Rules in one page
 
 **Decks and hands (rules 2.0.0).** Each stakeholder has a deck of 6 cards; each crisis deals an authored hand of 4 (`HANDS` in
@@ -82,12 +95,19 @@ Each round: one card per player (cost in influence; start 5, +2 per round, max 8
 
 Rule ids in the event log: P1 proposal, F1-F4 funding/fast-track/bond, S1-S5 support, O1-O7 opposition (O4 moratorium, O5 habitat survey, O6 rent shield, O7 eco-certification refused), R1 coastal high hazard block, C1-C4 compromises, M1-M5 combos, N1-N3 negotiation, V1 vote, B1-B2 budget, U1 upkeep, L0/L1 delayed consequences, K1 crisis bonus, E1 built, X1-X2 fallbacks, S9 storm; D1 a validated twist event (stored in the round's `director` record).
 
-## 4b. The living city and the AI Game Director
+## 6. The living city and the AI Game Director
 
 **On the map.** Each stakeholder is a small SVG character standing near the area they played in. A Fisherman (a non-player
 scenario role) stands at the South Pointe pier. Characters walk, celebrate, protest and worry, and speak in short speech bubbles. Proposals show as
 ghost markers whose tag follows the live preview (proposed, would pass, delayed, blocked). Built projects, protests, investments,
 floods, storms and combos have short effects. All of this is decorative: positions are pixel offsets around an area, not surveyed sites.
+The characters' crisis lines are keyed by crisis kind, so they fit whatever scenario the desk wrote.
+
+**In the Aero Lagoon screens** (`app/src/game/insights.tsx`): the crisis screen shows the round's twist card (game fiction, its
+effects from the catalogue); the card screen adds the card's trade-off, what answers it, its combos and any delayed consequence, a
+before/after preview with warnings, and "Why here? / Why not here?"; the duel shows "if it passes" and the public table hints with
+"Do it"; the result screen shows completed combos and "Explain in plain words"; the podium has a round-by-round recap; the meters
+tween and carry "this round's bill" (upkeep and delayed consequences).
 
 **The Director** (`server/src/ai/director.ts` proposes, `shared/src/game/director.ts` validates, `server/src/rooms.ts` applies):
 
@@ -105,21 +125,27 @@ Each round record stores the accepted twist with its exact values, every hint sh
 proposal with its status (accepted, clamped or rejected) and reasons. `replayMatch(record)` re-runs a match from the record alone,
 without Gemini.
 
-## 6. Records and Planning Studio
+## 7. Records and Planning Studio
 
-A match record holds the session id, scenario, rules and data versions, data sources, session kind (demo or community), players (human or bot), every round's proposals, attachments, compromises, negotiation moves, outcomes and rule events with before/after indicators, the final result, and personal preferences. It is saved after every round, at the end and on every answer (Tiger Data `cc_matches` + `cc_decisions` hypertable, or memory). Studio findings are computed from the records and each lists the record ids it comes from; Gemini may only reword them into a brief.
+A match record holds the session id, scenario, rules and data versions, data sources, session kind (demo or community), players (human or bot), every round's crisis (as written for the match), proposals, attachments, compromises, negotiation moves, outcomes, combos and rule events with before/after indicators, the final result, and personal preferences. It also keeps where the scenario came from and the live readings it used (`scenarioSource`, `live`), each round's Director record (the applied twist with exact values, every hint shown and whether a player followed it, every AI proposal with accepted / clamped / rejected and why), and a review queue of AI combo ideas that were never played. It is saved after every round, at the end and on every answer (Tiger Data `cc_matches` + `cc_decisions` hypertable, or memory). Studio findings are computed from the records and each lists the record ids it comes from; Gemini may only reword them into a brief.
 
-## 7. Two-minute demo script
+Planning Studio keeps the AI apart from opinion data: an "AI Game Director" panel (twists by source, AI proposals by status, hints shown and followed, the review queue) is labelled game fiction and never feeds the findings. Each match's timeline shows its twists and combos and a replay check: `replayMatch` re-runs the record through the engine and must reproduce it.
+
+## 8. Two-minute demo script
 
 | Time | On screen | Say |
 |---|---|---|
-| 0:00 | Landing: Miami Beach on satellite with FEMA VE/AE zones. Tap South Pointe: its measured profile. | "This is a real city, and these are real planning constraints." |
-| 0:15 | Host a room (Demo pace); three phones join as Activist, Resort Owner, Resident. | "Four stakeholders, four agendas." |
-| 0:30 | Round 1 crisis, written live from today's tide gauge and forecast. Then (round 2, or skip to it) Resort drags Hotel onto South Pointe, Activist plays Environmental Challenge, Mayor plays Fast-Track, Resident plays Public Access Guarantee. Cards fly to South Pointe. | "Everyone plays on the same neighborhood." |
-| 0:55 | Negotiate: preview shows BLOCKED (R1: South Pointe borders a FEMA VE zone). Resort accepts the dune setback and the access corridor; preview flips to APPROVED. | "The geography is real; the deal is theirs." |
-| 1:20 | Resolve: APPROVED stamp, hotel, setback and access pins appear, indicators move, the Gemini news line plays. Show the rule trace. | "Every outcome shows the rules that produced it." |
-| 1:40 | Final: the honest question. Then Planning Studio: hotspot on South Pointe, compromises accepted, in-role vs personal preference, CSV with coordinates and zoning ids. | "Every match becomes geographically linked feedback planners can explore." |
+| 0:00 | Landing: the tilted 3D street map of Miami Beach with FEMA VE/AE zones as water. Tap South Pointe: its measured profile. | "This is a real city, and these are real planning constraints." |
+| 0:15 | Host a room (Demo pace); three phones join as Activist, Resort Owner, Resident (or add bots). | "Four stakeholders, four agendas." |
+| 0:30 | Round 1 crisis, written live from today's tide gauge and forecast. The characters gather on the map and react in speech bubbles; the Fisherman grumbles from the pier. | "The city is alive, and so are the people in it." |
+| 0:45 | Round 2 (or skip to it): the twist card (game fiction, sized by the rules). Resort drags Hotel onto South Pointe, Activist plays Environmental Challenge, Mayor plays Fast-Track, Resident plays Public Access Guarantee. Cards fly; the avatars walk to South Pointe. | "Everyone plays on the same neighborhood." |
+| 1:00 | Negotiate: the verdict pill shows BLOCKED (R1: South Pointe borders a FEMA VE zone). A table hint says accepting the dune setback flips it; the Resort taps "Do it"; the verdict flips to APPROVED; "Combo in reach: Eco-Resort Agreement". | "The engine finds the deal; the players take it." |
+| 1:20 | Resolve: APPROVED stamp, the combo banner, the hotel, setback and access pins, the meters count up, the avatars celebrate. Tap "Explain in plain words". | "Every outcome shows the rules that produced it." |
+| 1:40 | Podium with the round-by-round recap, the honest question, then Planning Studio: hotspots, compromises, in-role vs personal preference, the AI Director panel apart from the findings, the replay check, CSV with coordinates and zoning ids. | "Every match becomes geographically linked feedback planners can explore." |
 
-## 8. What is next (P3)
+Without a working Gemini key (no key, or a key out of credit) the same demo runs on the authored scenario, template bubbles,
+template twists and engine-worded hints: nothing is skipped.
 
-More cities and scenarios, a Fisherman persona for working-waterfront decisions, more cards per persona, ElevenLabs persona voices, richer layers (NOAA sea level rise), and a richer negotiation.
+## 9. What is next (P3)
+
+More cities and scenarios, the Fisherman as a playable fifth seat (today a non-player role), ElevenLabs persona voices, richer layers (NOAA sea level rise), designer review of the AI combo ideas queue, and balance tuning of the 24 cards from recorded community sessions.

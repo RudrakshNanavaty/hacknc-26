@@ -70,7 +70,18 @@ The fix was environmental: `fnm install 22` and a `.node-version` file. No code 
   engine really does). UI: before/after preview box with warnings (budget short, upkeep, viability floor, spotlight), "If it passes"
   line on each negotiated proposal, a "This round's bill" chip in the HUD (upkeep + delayed consequences), tweened gauge numbers,
   deal badges on the map's proposal ghosts (🤝 accepted, 🤝? on the table). The three-round state machine is unchanged.
-- [ ] M5 polish + Studio
+- [x] **M5 polish + Studio** (commit c83ba05): Studio "AI Game Director" panel (apart from findings), combos panel, timeline
+  twists/combos/hint follow-through and a replay check; podium recap; camera follows the card's target.
+- [x] **Integration with Aum's aum/coastal-clash (2026-10-11)**: merged his 3D street map, live per-match crises (NOAA + NWS +
+  Gemini scenario desk) and Aero Lagoon UI on branch `pratham/integrate-aum` (merge commit 3e5db65), made from `pratham/living-city`.
+  Our panels.tsx (deleted upstream) was ported into his screens through `app/src/game/insights.tsx`. Crisis lines, twists, previews
+  and replays now follow each match's crisis (kinds). Checked a full bot match at 1440 and 390 on the merged build (no console errors).
+- [ ] Review findings: a 5-dimension review with adversarial verification ran on the pre-merge code (c83ba05); apply the confirmed
+  ones to the merged code.
 
 ## Open questions for humans
-(filled in as they come up)
+- The Gemini key in `.env` returns HTTP 402 ("prepayment credits are depleted", 2026-10-11). Everything runs on templates until the
+  AI Studio project is topped up. Live AI behaviour (bubbles, twists, hint wording, scenarios) was verified earlier the same night.
+- Balance numbers for the 18 new cards, the combo bonuses, upkeep and twist magnitudes are first guesses (illustrative values);
+  they need playtesting.
+- Persona tone: the Mayor is now dry and pragmatic per the brief (was "overly dramatic"); the scenario desk prompt was aligned too.

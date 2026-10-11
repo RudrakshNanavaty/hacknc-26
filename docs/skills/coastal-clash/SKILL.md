@@ -42,10 +42,10 @@ Product and rules: `docs/coastal-clash.md`. Hard rules: `AGENTS.md`.
 | Card / cost / effect | `game/content.ts` `CARDS` (+ `rule` text), the `resolveRound` switch, `buildBoard` for compromises, `BOT_PREFS`, `engine.test.ts`; bump `RULES_VERSION` |
 | Project kind | `ProjectKind`/`PROJECTS`, `projectEligibility`, `FEATURE_ICON` in `app/src/map/CityMap.tsx`, `finalResult` bonuses |
 | Geography threshold | `GEO_RULES` in `game/districts.ts`; the table in `coastal-clash.md` §3 |
-| Playable area | `AREAS` in `pipeline/miami-beach.ts`, then `npm run data`; commit the generated JSON/GeoJSON; update `CRISES` spotlights and tests |
-| Crisis | `CRISES` in `content.ts` |
-| Player action | `room.ts` `ClientMsg`, an exported function in `rooms.ts` (throw `RoomError`), the `roomSocket.ts` switch, the `useRoom.ts` sender, `panels.tsx`, `rooms.test.ts` |
-| Phase UI | `app/src/game/panels.tsx`; shell `app/src/routes/Play.tsx` (breakpoint 1024 px) |
+| Playable area | `AREAS` in `pipeline/miami-beach.ts`, then `npm run data`; commit the generated JSON/GeoJSON; update `authoredScenario` spotlights and tests |
+| Crisis | per match: kinds and K1 bonuses in `shared/src/game/scenario.ts` (`CRISIS_KIND_INFO`), lines in `living.ts` `CRISIS_LINES`, twists in `director.ts` `TWISTS_FOR`; the desk prompt in `server/src/ai/scenario.ts` |
+| Player action | `room.ts` `ClientMsg`, an exported function in `rooms.ts` (throw `RoomError`), the `roomSocket.ts` switch, the `useRoom.ts` sender, the phase's screen in `screens.tsx`, `rooms.test.ts` |
+| Phase UI | `app/src/game/screens.tsx` (one screen per phase) + `insights.tsx` (Director/economy pieces); shell `app/src/routes/Play.tsx` (map arena + lagoon column; phones under 1024 px); look: `wet`, `frost`, `gel`, `lchip`, `Tube`/`Soap` in `ui.tsx` |
 | Studio finding / export | `studioSummary`, `toCsv`, `toGeoJson` in `game/record.ts`; `server/src/studio.ts`; `app/src/routes/Studio.tsx` |
 | DB | `server/src/db/schema.sql` (idempotent, `cc_` prefix), `db/tiger.ts`, `MemoryStore` in `db/store.ts` |
 | AI Director | prompts `server/src/ai/director.ts`; validators/catalogue `shared/src/game/director.ts`; apply `rooms.ts` (`applyDialogue`, `proposeEvent`, `applyHints`); wiring `roomSocket.ts` `drain` |
@@ -76,5 +76,8 @@ The contracts are `shared/src/room.ts`, the exported types in `engine.ts` and `r
 - MapLibre positions markers with a `transform` on the marker element: never set `position` or animate `transform` on a marker's
   root element (animate a child). Breaking this stacks or teleports avatars and effects.
 - Plain cards need no engine code (`attach` / `offer` / `delayed`); a card that only targets its own persona's projects is unplayable.
-- Tests must never reach Gemini: give `buildServer` `director: null` (or a fake) and `narrator`, and give `new Gemini` a fake `client`.
+- Tests must never reach the network: give `buildServer` a `narrator`, a `director` (null or a fake) and a `scenario`
+  (`{ live: async () => null, write: ... }`), and give `new Gemini` a fake `client`. Room tests call `applyScenario(room, authoredScenario(null), now)` after `start`.
+- A match's crisis can be null for up to 10 s at the start (the scenario desk is writing): code that reads `room.crisis` / `state.crisis` must handle null.
+- `RoundRecord.crisis` is a Crisis object on new records and a crisis id string on rules 1.x records.
 - `pipeline/cache/` is git-ignored. `npm run data -- --refresh` hits live County and City services; use it sparingly.
