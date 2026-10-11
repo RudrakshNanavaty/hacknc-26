@@ -425,6 +425,7 @@ input[type="range"].aero-range {
 }
 .ccard-art .soap { aspect-ratio: 1; }
 .ccard-art .soap > span { font-size: clamp(56px, 9vw, 92px); }
+.ccard-compact .soap > span { font-size: 48px; }
 .cost-orb {
   position: absolute; top: 12px; left: 12px; z-index: 4;
   width: 46px; height: 46px; border-radius: 50%;
@@ -447,8 +448,6 @@ input[type="range"].aero-range {
 .stat.zero { background: linear-gradient(180deg, #e9f3f8, #b9cfdb 50%, #9cb6c4 51%, #b6ccd8); }
 .quip { font: 600 15px/1.3 Nunito, sans-serif; }
 
-/* The deck tray: three mini cards and the influence tube (Clash Royale's hand and elixir). */
-.deck { display: flex; gap: 8px; align-items: flex-end; }
 .mini {
   position: relative; flex: 1; min-width: 0;
   border-radius: 20px; padding: 18px 6px 8px;
@@ -462,14 +461,7 @@ input[type="range"].aero-range {
 .mini .art { font-size: 34px; line-height: 1; filter: drop-shadow(0 4px 5px rgba(11,61,92,.3)); }
 .mini .nm { font: 400 13px/1.05 "Varela Round", sans-serif; text-align: center; }
 .mini .cost-orb { top: -10px; left: -6px; width: 30px; height: 30px; font-size: 16px; }
-.drag-ghost { position: fixed; z-index: 80; pointer-events: none; width: 104px; transform: translate(-50%, -70%) rotate(-6deg) scale(1.05); }
-.drop-hint { position: fixed; z-index: 81; pointer-events: none; transform: translate(-50%, 16px); }
 
-/* A footer that stays in reach: the deck, the deploy button, the negotiation moves. */
-.sticky-foot { position: sticky; bottom: -18px; z-index: 5; margin: 0 -14px -18px; padding: 10px 14px 18px; display: flex; flex-direction: column; gap: 8px;
-  background: linear-gradient(180deg, rgba(10,143,200,0), rgba(10,143,200,.85) 22%, rgba(10,134,190,.95));
-  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
-.sticky-foot .hint { color: #fff; font-size: 12px; font-weight: 800; text-align: center; text-shadow: 0 1px 2px rgba(0,60,100,.6); }
 
 /* Duel (reveal and negotiation). */
 .clash-row { display: flex; justify-content: center; align-items: center; gap: 6px; flex-wrap: wrap; }
@@ -514,16 +506,98 @@ input[type="range"].aero-range {
 .scanning { position: relative; overflow: hidden; }
 .scanning::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, rgba(255,255,255,.8), transparent); animation: scan 1.3s linear infinite; }
 
-/* The game screen. */
-.stage { position: fixed; inset: 0; display: grid; grid-template-columns: 1fr 440px; background: #0a86be; }
-.stage-map { position: relative; min-width: 0; }
-.stage-side.lagoon { background:
-    radial-gradient(circle at 86% 4%, rgba(255,255,255,.85) 0 3%, rgba(255,255,255,.3) 8%, transparent 18%),
-    radial-gradient(130% 9% at 50% 101%, #b8f27a 0 40%, var(--l-lime) 55%, #5fa82a 62%, transparent 63%),
-    linear-gradient(180deg, #7fd3f5 0%, #4fc3f7 22%, #22b0e4 60%, #0a8fc8 100%); background-attachment: local; }
-.stage-side { position: relative; display: flex; flex-direction: column; gap: 10px; padding: 14px 14px 18px; overflow-y: auto; border-left: 1px solid rgba(255,255,255,.6); box-shadow: -10px 0 30px rgba(11,61,92,.25); }
-.map-top { position: absolute; top: 12px; left: 12px; right: 12px; z-index: 20; display: flex; gap: 10px; align-items: flex-start; pointer-events: none; }
-.map-top > * { pointer-events: auto; }
+/* The game screen: the map is the whole board; everything else floats over it. */
+.stage { position: fixed; inset: 0; background: #0a86be; }
+.stage-map { position: absolute; inset: 0; }
+.hud { position: absolute; top: 12px; left: 12px; right: 12px; z-index: 20; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+.hud > * { pointer-events: none; }
+.hud-row { display: flex; gap: 10px; align-items: flex-start; }
+.hud-row > *, .hud-center > * { pointer-events: auto; }
+.hud-clock { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+/* The news sits between the stakeholders (left) and the cards that float at the right. */
+.hud-center { margin-left: 238px; width: min(660px, calc(100vw - 238px - 476px)); display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.hud-pill { white-space: normal; text-align: center; animation: pop-in .35s cubic-bezier(.2,.9,.3,1.3) both; }
+
+/* Cards floating over the map: the lagoon look in a rounded glass slab. */
+.float-card {
+  position: relative; padding: 14px; border-radius: 26px; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain;
+  color: var(--l-ink); font: 800 15px/1.3 Nunito, sans-serif;
+  background:
+    radial-gradient(circle at 92% 0%, rgba(255,255,255,.85) 0 3%, rgba(255,255,255,.3) 9%, transparent 20%),
+    linear-gradient(180deg, rgba(207,242,255,.97) 0%, rgba(127,211,245,.96) 30%, rgba(34,176,228,.96) 100%);
+  border: 1px solid rgba(255,255,255,.9);
+  box-shadow: 0 18px 44px rgba(11,61,92,.38), inset 0 1px 0 #fff;
+}
+.float-card .glow-title { font-size: 26px; }
+.anchor { position: fixed; z-index: 35; animation: pop-in .3s cubic-bezier(.2,.9,.3,1.3) both; }
+.anchor-body { display: flex; flex-direction: column; }
+.anchor-tail { position: absolute; width: 16px; height: 16px; margin-top: -8px; transform: rotate(45deg); background: #bfeaff; border: 1px solid rgba(255,255,255,.95); z-index: -1; }
+.anchor-tail.on-left { left: -7px; border-right: 0; border-top: 0; }
+.anchor-tail.on-right { right: -7px; border-left: 0; border-bottom: 0; }
+/* The action at the bottom of a floating card stays in reach while its body scrolls. */
+.anchor-foot { position: sticky; bottom: -14px; z-index: 5; margin: 2px -14px -14px; padding: 10px 14px 14px; display: flex; flex-direction: column; gap: 6px; color: #fff;
+  background: linear-gradient(180deg, rgba(10,143,200,0), rgba(10,143,200,.9) 26%, rgba(10,134,190,.97)); }
+.side-float { position: fixed; z-index: 35; top: 100px; right: 16px; bottom: 16px; width: 440px; animation: pop-in .35s cubic-bezier(.2,.9,.3,1.3) both; }
+.final-scrim { position: fixed; inset: 0; z-index: 45; display: grid; place-items: center; padding: 24px; background: rgba(6,40,66,.35); }
+.final-float { width: min(620px, 100%); max-height: calc(100vh - 48px); }
+
+/* Your cards in an area's popover. */
+.hand-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px 8px 14px; border-radius: 18px; text-align: left; cursor: pointer; transition: transform .15s var(--ease-thunk), box-shadow .15s; }
+.hand-row:hover:not(.is-off) { transform: translateX(3px); box-shadow: 0 0 0 3px rgba(139,211,70,.9), 0 6px 16px rgba(11,61,92,.25); }
+.hand-row.is-off { opacity: .62; filter: grayscale(.55); }
+.hand-row .cost-orb { position: static; flex-shrink: 0; width: 32px; height: 32px; font-size: 17px; }
+.hand-art { font-size: 30px; line-height: 1; filter: drop-shadow(0 3px 4px rgba(11,61,92,.3)); }
+.hand-go { font: 400 24px "Varela Round", sans-serif; color: #0a6f9a; }
+
+/* The news: the breaking card while the crisis lands, then a ticker. */
+.crisis-card { width: 100%; max-height: 300px; }
+.drop-in { animation: drop-in .6s cubic-bezier(.2,.9,.3,1.25) both; }
+@keyframes drop-in { from { transform: translateY(-40px) scale(.96); opacity: 0; } }
+.ticker-zone { width: 100%; display: flex; flex-direction: column; gap: 6px; }
+.ticker { width: 100%; display: flex; flex-direction: column; gap: 2px; padding: 7px 14px 8px; border-radius: 20px; text-align: left; cursor: pointer; color: var(--l-ink); background-color: rgba(230,248,255,.6); }
+.ticker:hover { box-shadow: 0 0 0 3px rgba(255,255,255,.6), 0 8px 22px rgba(11,61,92,.3); }
+.ticker-top { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.ticker-tag { padding: 1px 8px; border-radius: 6px; font: 400 11px "Varela Round", sans-serif; letter-spacing: .08em; color: #fff; background: linear-gradient(180deg, #ff8f7d, #e23c26); }
+.ticker-reading { min-width: 0; flex-shrink: 1; max-width: 210px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 1px 8px; border-radius: 99px; font-size: 12px; font-weight: 800; background: rgba(255,255,255,.75); }
+.ticker-chev { transition: transform .2s ease; }
+.ticker-chev.is-open { transform: rotate(180deg); }
+.ticker-line { font-size: 14px; font-weight: 700; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.ticker-drawer { max-height: calc(100vh - 200px); animation: pop-in .3s cubic-bezier(.2,.9,.3,1.3) both; }
+
+/* The crisis on the map. */
+.alert-pin { position: absolute; translate: -50% -100%; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.alert-head { position: relative; width: 58px; height: 58px; display: grid; place-items: center; font-size: 30px; border-radius: 50% 50% 50% 0; rotate: -45deg; background: radial-gradient(circle at 35% 30%, #fff 0 10%, #ffb3a6 34%, #e23c26 80%); border: 3px solid #fff; box-shadow: 0 8px 18px rgba(120,20,10,.45); }
+.alert-head > span { rotate: 45deg; }
+.alert-ring { position: absolute; top: 4px; width: 58px; height: 58px; border-radius: 50%; border: 3px solid rgba(255,143,125,.9); animation: alert-ring 1.4s ease-out infinite; }
+@keyframes alert-ring { from { transform: scale(.8); opacity: 1; } to { transform: scale(2.4); opacity: 0; } }
+.alert-label { padding: 2px 10px; border-radius: 8px; font: 400 12px "Varela Round", sans-serif; letter-spacing: .08em; color: #fff; white-space: nowrap; background: linear-gradient(180deg, #ff8f7d, #e23c26); box-shadow: 0 0 14px rgba(255,120,100,.7); }
+.map-chip { position: relative; }
+.map-chip-badge { position: absolute; left: -12px; top: -12px; width: 28px; height: 28px; display: grid; place-items: center; font-size: 16px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff 0 12%, #ffe0da 40%, #ff8f7d); border: 2px solid #fff; box-shadow: 0 3px 8px rgba(120,20,10,.35); animation: pulse-glow 2.2s ease-in-out infinite; }
+.water-note { position: absolute; left: 50%; bottom: 14px; translate: -50% 0; z-index: 15; white-space: nowrap; }
+.rain-layer { position: absolute; inset: 0; z-index: 12; pointer-events: none; overflow: hidden;
+  background: repeating-linear-gradient(105deg, rgba(220,240,255,0) 0 var(--gap), rgba(220,240,255,.42) var(--gap) calc(var(--gap) + 1px)), linear-gradient(180deg, rgba(20,40,70,var(--dark)), rgba(20,40,70,calc(var(--dark) * .4)));
+  background-size: 120px 120px, 100% 100%; animation: storm-fade-in .8s ease both, rain .35s linear infinite; }
+.rain-layer[data-level="light"] { --gap: 26px; --dark: .25; }
+.rain-layer[data-level="steady"] { --gap: 14px; --dark: .4; }
+.rain-layer[data-level="heavy"] { --gap: 7px; --dark: .55; }
+.rain-layer .storm-flash { animation: flash 4.2s linear infinite; }
+@keyframes storm-fade-in { from { opacity: 0; } }
+.fx-crane { font-size: 40px; translate: -50% -50%; transform-origin: 50% 100%; animation: crane-up 4s cubic-bezier(.2,.9,.3,1.2) both; filter: drop-shadow(0 3px 4px rgba(0,30,60,.5)); }
+.fx-crane.k1 { left: -56px; top: 6px; }
+.fx-crane.k2 { left: 0; top: -24px; animation-delay: .25s; font-size: 52px; }
+.fx-crane.k3 { left: 56px; top: 4px; animation-delay: .5s; }
+@keyframes crane-up { 0% { transform: scaleY(0); opacity: 0; } 20% { transform: scaleY(1.15); opacity: 1; } 30%, 85% { transform: scaleY(1); opacity: 1; } 100% { opacity: 0; } }
+.fx-drain-hole { width: 96px; height: 30px; translate: -50% 10px; border-radius: 50%; background: radial-gradient(ellipse, rgba(6,30,50,.85), rgba(6,30,50,0) 70%); animation: storm-fade 3.4s ease both; }
+.fx-fall { font-size: 30px; translate: -50% -50%; animation: coin-drain 1.6s ease-in both; filter: drop-shadow(0 2px 3px rgba(0,30,60,.5)); }
+.fx-fall.f1 { left: -26px; }
+.fx-fall.f2 { left: 18px; animation-delay: .35s; }
+.fx-fall.f3 { left: -4px; animation-delay: .7s; }
+.fx-fall.f4 { left: 30px; animation-delay: 1.05s; }
+.fx-fall { animation-iteration-count: 2; }
+@keyframes coin-drain { 0% { transform: translateY(-70px) rotate(0); opacity: 0; } 20% { opacity: 1; } 85% { transform: translateY(8px) rotate(200deg) scale(.8); opacity: 1; } 100% { transform: translateY(14px) scale(.2); opacity: 0; } }
+@keyframes tube-shake { 0%, 100% { transform: translateX(0); } 15%, 55% { transform: translateX(-5px); } 35%, 75% { transform: translateX(5px); } }
+.tube-shake { animation: tube-shake .5s ease-in-out 4; box-shadow: 0 0 0 3px rgba(255,122,107,.85), 0 0 18px rgba(255,122,107,.7); }
+
 .meters { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; flex: 1; }
 .meters .tube { grid-template-columns: 1fr; gap: 3px; padding: 5px 12px 7px; border-radius: 18px; }
 .meters .tube .lbl { display: flex; align-items: center; gap: 4px; font-size: 13px; }
@@ -577,24 +651,6 @@ input[type="range"].aero-range {
 .mini-card { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; width: 96px; padding: 14px 6px 8px; border-radius: 18px; position: relative; text-align: center; }
 .mini-card .cost-orb { top: -8px; left: -6px; width: 28px; height: 28px; font-size: 15px; }
 
-/* Phones: the map is a band on top, the lagoon below. */
-@media (max-width: 1023px) {
-  .stage { grid-template-columns: 1fr; grid-template-rows: 38svh 1fr; }
-  .stage-side { border-left: 0; border-top: 1px solid rgba(255,255,255,.7); padding: 10px 12px 14px; }
-  .sticky-foot { margin: 0 -12px -14px; padding: 8px 12px 14px; bottom: -14px; }
-  .map-top { top: 6px; left: 6px; right: 6px; }
-  .meters { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 3px; }
-  .meters .tube { padding: 2px 6px; font-size: 11px; }
-  .meters .tube .lbl .nm { display: none; }
-  .meters .tube { padding: 3px 6px 5px; }
-  .timer-orb { width: 52px; height: 52px; font-size: 17px; }
-  .player-bubbles { top: auto; bottom: 6px; left: 6px; right: 6px; flex-direction: row; overflow-x: auto; }
-  .pb { padding-right: 8px; }
-  .pb .who { display: none; }
-  .map-tools { left: auto; right: 8px; bottom: 60px; flex-direction: column; }
-  .glow-title { font-size: 27px; }
-  .glow-num { font-size: 46px; }
-}
 /* Planning Studio. */
 .bar-row { display: grid; grid-template-columns: minmax(0, 9rem) 1fr auto; align-items: center; gap: 8px; }
 .bar-track { height: 12px; border-radius: 0 4px 4px 0; background: rgba(11, 57, 84, 0.07); overflow: hidden; }
@@ -663,7 +719,7 @@ input[type="range"].aero-range {
 
 /* Proposals on the table. */
 /* The marker root keeps MapLibre's transform: animate the children only. */
-.ghost { display: flex; flex-direction: column; align-items: center; gap: 2px; pointer-events: auto; }
+.ghost { display: flex; flex-direction: column; align-items: center; gap: 2px; pointer-events: auto; cursor: pointer; }
 .ghost > * { animation: ghost-in 0.5s cubic-bezier(.2,.9,.3,1.4) both; }
 @keyframes ghost-in { from { opacity: 0; transform: translateY(-14px) scale(0.6); } }
 .ghost-icon { position: relative; width: 34px; height: 34px; display: grid; place-items: center; font-size: 18px; border-radius: 99px; background: rgba(255, 255, 255, 0.55); border: 2px dashed #fff; box-shadow: 0 4px 12px rgba(0, 40, 80, 0.35); }
@@ -706,10 +762,6 @@ input[type="range"].aero-range {
 .storm-flash { position: absolute; inset: 0; background: #fff; opacity: 0; animation: flash 4.2s linear both; }
 @keyframes flash { 0%, 20%, 24%, 60%, 63%, 100% { opacity: 0; } 21%, 61% { opacity: 0.55; } 22% { opacity: 0.1; } 23% { opacity: 0.4; } }
 
-@media (max-width: 1023px) {
-  .avatar { width: 36px; height: 46px; }
-  .avatar-bubble { max-width: 140px; font-size: 11px; }
-}
 
 /* Game Director: twist card, table hints, explanations. */
 @keyframes pop-in { 0% { transform: scale(0.85); opacity: 0; } 70% { transform: scale(1.02); opacity: 1; } 100% { transform: none; } }
@@ -729,10 +781,6 @@ input[type="range"].aero-range {
 .recap-tag { display: inline-block; margin-left: 6px; padding: 0 7px; border-radius: 99px; font-size: 11px; font-weight: 800; background: linear-gradient(90deg, #fff7c2, #f3edff); border: 1px solid #fff; }
 .recap-tag.is-twist { background: #f3edff; }
 
-/* Touch screens and phones: avatars and ghosts are decoration; taps go through to the chips and the map. */
-@media (hover: none), (max-width: 1023px) {
-  .avatar, .ghost { pointer-events: none; }
-}
 
 /* The round's bill spans the meters row. */
 .meters .bill-chip { grid-column: 1 / -1; justify-self: start; max-width: 100%; overflow: hidden; text-overflow: ellipsis; font-size: 12px; }

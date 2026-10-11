@@ -1,10 +1,14 @@
-// A Coastal Clash room. Lobby, then the stage: the real Miami Beach map as the arena (city meters,
-// clock and stakeholders over it) and the lagoon column beside it (or below, on a phone) with one
-// screen per phase. The server runs the clock and every rule; this page shows what it is sent.
-import { useEffect, useMemo, useState } from 'react';
+// A Coastal Clash room. Lobby, then the stage: the real Miami Beach map is the whole board. The crisis
+// lands on it (a pin, an animation, then a news ticker), you click an area to see the cards you can
+// play there, the table negotiates on a case file pinned to the proposal's area, and the round's
+// result floats beside the map. The server runs the clock and every rule; this page shows what it is sent.
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Map as MapLibreMap } from 'maplibre-gl';
-import { DISTRICT_IDS, cardEligibility, type CardId } from '@shared';
+import { CARDS, CRISIS_KIND_INFO, DISTRICT_IDS, cardEligibility, districtById, type CardId } from '@shared';
 import { CityMap, FLOOD_COLORS, ZONING_FAMILIES, type Overlays } from '../map/CityMap';
+import { CrisisAlert } from '../map/CrisisAlert';
+import { CrisisFx, type CrisisStage } from '../map/CrisisFx';
+import { crisisIntensity } from '../map/intensity';
 import { savedPlayer, useRoom } from '../room/useRoom';
 import { Link } from '../router';
 import { useSound } from '../ui/sound';
@@ -13,21 +17,12 @@ import { Flights, Stamps } from '../game/Flights';
 import { LivingLayer } from '../map/LivingLayer';
 import { Meters, PlayerBubbles, TimerOrb } from '../game/Hud';
 import { JoinForm, Lobby } from '../game/Lobby';
-import { CardScreen, CrisisScreen, DuelScreen, FinalScreen, ResultScreen } from '../game/screens';
-import { LagoonBubbles } from '../game/ui';
+import { CaseFile } from '../game/CaseFile';
+import { DistrictPopover, playableCount } from '../game/DistrictPopover';
+import { NewsTicker } from '../game/NewsTicker';
+import { ResultOverlay } from '../game/ResultOverlay';
+import { LagoonBubbles, RoundDots } from '../game/ui';
 import { useCountdown } from '../game/format';
-
-function useWide() {
-  const q = '(min-width: 1024px)';
-  const [wide, setWide] = useState(() => window.matchMedia(q).matches);
-  useEffect(() => {
-    const m = window.matchMedia(q);
-    const on = () => setWide(m.matches);
-    m.addEventListener('change', on);
-    return () => m.removeEventListener('change', on);
-  }, []);
-  return wide;
-}
 
 export function Legend({ overlays, setOverlays }: { overlays: Overlays; setOverlays: (o: Overlays) => void }) {
   return (
@@ -46,26 +41,32 @@ export function Play({ code }: { code: string }) {
   const room = useRoom(code);
   const { state } = room;
   const left = useCountdown(state, room.offset);
-  const wide = useWide();
   const [map, setMap] = useState<MapLibreMap | null>(null);
-  const [card, setCard] = useState<CardId | null>(null);
-  /** The card under the pointer: its legal targets light up before you pick it. */
+  /** The area whose popover is open (selection phase). */
+  const [open, setOpen] = useState<string | null>(null);
+  const [popKey, setPopKey] = useState(0);
+  /** The card being read in the popover: its other legal areas light up. */
   const [hoverCard, setHoverCard] = useState<CardId | null>(null);
-  const [target, setTarget] = useState<string | null>(null);
   const [focus, setFocus] = useState<string | null>(null);
   const [overlays, setOverlays] = useState<Overlays>({ flood: true, zoning: false });
   const [layers, setLayers] = useState(false);
+  const [newsOpen, setNewsOpen] = useState(false);
+  const [recenter, setRecenter] = useState(0);
   const sound = useSound();
   const [voiceOn, setVoiceOn] = useState(false);
 
   const me = state?.you ?? null;
   const host = me !== null && state?.hostSeat === me;
   const phase = state?.phase;
+  const locked = state?.mine?.selection ?? null;
   useEffect(() => {
-    setCard(null);
-    setTarget(null);
+    setOpen(null);
     setHoverCard(null);
-  }, [state?.round, phase === 'select']);
+    setNewsOpen(false);
+  }, [state?.round, phase]);
+  useEffect(() => {
+    if (locked) setOpen(null);
+  }, [locked]);
 
   useEffect(() => {
     if (!voiceOn || !state?.headline) return;
@@ -73,12 +74,23 @@ export function Play({ code }: { code: string }) {
     return () => hush();
   }, [voiceOn, state?.headline?.key, state?.headline?.source]);
 
-  const shownCard = card ?? hoverCard;
+  const picking = phase === 'select' && !locked && me !== null;
   const eligible = useMemo(
-    () => (phase === 'select' && shownCard && !state?.mine?.selection ? Object.fromEntries(DISTRICT_IDS.map((d) => [d, cardEligibility(shownCard, d).ok])) : null),
-    [phase, shownCard, state?.mine?.selection],
+    () => (picking && hoverCard ? Object.fromEntries(DISTRICT_IDS.map((d) => [d, cardEligibility(hoverCard, d).ok])) : null),
+    [picking, hoverCard],
   );
   const focusDistrict = useMemo(() => state?.board?.proposals.find((p) => p.id === focus)?.district ?? state?.board?.proposals[0]?.district ?? null, [state?.board, focus]);
+  const chipNote = useCallback((id: string) => {
+    if (!state || state.phase !== 'select' || me === null) return null;
+    if (locked) return id === locked.district ? '🂠 Your card, face down' : null;
+    const n = playableCount(state, id);
+    return n ? `${n} card${n > 1 ? 's' : ''} playable ›` : 'Nothing playable';
+  }, [state, me, locked]);
+  const crisis = state?.crisis ?? null;
+  const chipBadge = useCallback(
+    (id: string) => (crisis && phase !== 'final' && crisis.spotlight.includes(id) ? CRISIS_KIND_INFO[crisis.kind].icon : null),
+    [crisis, phase],
+  );
 
   const missing = !state && /not found/i.test(room.error ?? '');
   const joined = me !== null || !!savedPlayer(code);
@@ -102,52 +114,87 @@ export function Play({ code }: { code: string }) {
     );
   }
 
+  // The camera is directed for the shared beats (the crisis, the reveal, the result) and yours to
+  // drive while you choose and negotiate (Recenter brings back the overview).
+  const free = phase === 'select' || phase === 'negotiate';
   const camera =
-    phase === 'crisis' ? state.crisis?.spotlight[0] ?? null
-      : phase === 'select' ? target
-        : phase === 'reveal' || phase === 'negotiate' ? focusDistrict
-          : null;
-  const pickArea = phase === 'select' && card && !state.mine?.selection ? (id: string) => cardEligibility(card, id).ok && setTarget(id) : undefined;
-  const screen =
-    phase === 'crisis' ? <CrisisScreen state={state} />
-      : phase === 'select' ? <CardScreen state={state} room={room} card={card} setCard={setCard} target={target} setTarget={setTarget} map={map} onHover={setHoverCard} />
-        : phase === 'reveal' || phase === 'negotiate' ? <DuelScreen state={state} room={room} focus={focus} setFocus={setFocus} />
-          : phase === 'resolve' ? <ResultScreen state={state} host={host} onNext={room.skip} />
-            : <FinalScreen state={state} room={room} />;
+    phase === 'crisis' ? crisis?.spotlight[0] ?? null
+      : phase === 'reveal' || phase === 'negotiate' ? focusDistrict
+        : null;
+  // Room for the HUD at the top and whatever floats beside the focused area.
+  const padding =
+    phase === 'crisis' ? { top: 330, bottom: 40, left: 260, right: 80 }
+      : phase === 'reveal' || phase === 'negotiate' ? { top: 150, bottom: 40, left: 260, right: 470 }
+        : phase === 'resolve' ? { top: 150, bottom: 40, left: 260, right: 500 }
+          : { top: 150, bottom: 40, left: 260, right: 60 };
+  const stage: CrisisStage = phase === 'crisis' ? 'alert' : phase === 'select' || phase === 'reveal' || phase === 'negotiate' ? 'rest' : 'off';
+  const onPick =
+    picking ? (id: string) => {
+      setOpen(id);
+      setPopKey((k) => k + 1);
+    }
+      : phase === 'reveal' || phase === 'negotiate' ? (id: string) => {
+        const p = state.board?.proposals.find((x) => x.district === id);
+        if (p) setFocus(p.id);
+      }
+        : undefined;
+  const waiting = state.players.filter((p) => !p.ready).length;
 
   return (
     <main className="stage">
       <section className="stage-map">
         <CityMap
           city={state.city}
-          spotlight={phase === 'final' ? [] : state.crisis?.spotlight ?? []}
-          target={phase === 'select' ? target ?? state.mine?.selection?.district ?? null : phase === 'reveal' || phase === 'negotiate' ? focusDistrict : null}
+          spotlight={phase === 'final' ? [] : crisis?.spotlight ?? []}
+          target={phase === 'select' ? open ?? locked?.district ?? null : phase === 'reveal' || phase === 'negotiate' ? focusDistrict : null}
           eligible={eligible}
           overlays={overlays}
-          onPick={pickArea}
+          onPick={onPick}
+          onBlank={() => setOpen(null)}
           focus={camera}
-          padding={wide ? { top: 110, bottom: 40, left: 250, right: 40 } : { top: 70, bottom: 60, left: 10, right: 10 }}
+          free={free}
+          recenter={recenter}
+          padding={padding}
           onReady={setMap}
+          chipNote={chipNote}
+          chipBadge={chipBadge}
         />
-        <LivingLayer map={map} state={state} />
-        <div className="map-top">
-          <Meters state={state} />
-          <TimerOrb state={state} left={left} />
-        </div>
-        <PlayerBubbles state={state} />
-        <div className="map-tools">
-          <button type="button" className="gel gel-icon" onClick={sound.toggle} aria-pressed={sound.on} title="Sound">{sound.on ? '🔊' : '🔇'}</button>
-          <button type="button" className={`gel gel-icon ${voiceOn ? 'gel-lime' : ''}`} onClick={() => setVoiceOn((v) => !v)} aria-pressed={voiceOn} title="Read the news aloud">🎙️</button>
-          <button type="button" className={`gel gel-icon ${layers ? 'gel-sun' : ''}`} onClick={() => setLayers((v) => !v)} aria-pressed={layers} title="Real data layers">🗺️</button>
-          {host && state.endsAt !== null && <button type="button" className="gel" onClick={room.skip} title="Host: end this phase now">Skip ⏭</button>}
-          {layers && <Legend overlays={overlays} setOverlays={setOverlays} />}
-        </div>
       </section>
-      <aside className="stage-side lagoon">
-        <LagoonBubbles count={12} seed={phase?.length ?? 3} />
-        {room.error && <p role="alert" className="wet p-2 text-13 font-black text-[#c0392b]">{room.error}</p>}
-        {screen}
-      </aside>
+      <CrisisFx
+        map={map} id={crisis ? `${crisis.id}-${state.round}` : null} kind={crisis?.kind ?? null} spotlight={crisis?.spotlight ?? []}
+        intensity={crisis ? crisisIntensity(crisis.kind, state.live) : 2} stage={stage}
+      />
+      <LivingLayer map={map} state={state} onFocusProposal={setFocus} />
+      <CrisisAlert map={map} state={state} />
+      <div className="hud">
+        <div className="hud-row hud-block">
+          <Meters state={state} />
+          <div className="hud-clock">
+            <span className="lchip">Round {state.round} of {state.totalRounds} <RoundDots round={state.round} total={state.totalRounds} /></span>
+            <TimerOrb state={state} left={left} />
+          </div>
+        </div>
+        <div className="hud-center">
+          <NewsTicker state={state} open={newsOpen} setOpen={setNewsOpen} />
+          {picking && !open && <p className="hud-pill hud-block lchip lchip-sun">👆 Click an area on the map to see the cards you can play there</p>}
+          {phase === 'select' && locked && (
+            <p className="hud-pill hud-block lchip lchip-lime">🂠 Locked in: {CARDS[locked.card].name} on {districtById(locked.district).name} · {waiting ? `waiting for ${waiting} stakeholder${waiting > 1 ? 's' : ''}` : 'revealing…'}</p>
+          )}
+          {room.error && <p role="alert" className="hud-pill hud-block lchip lchip-coral">{room.error}</p>}
+        </div>
+      </div>
+      <PlayerBubbles state={state} />
+      <div className="map-tools">
+        <button type="button" className="gel gel-icon" onClick={sound.toggle} aria-pressed={sound.on} title="Sound">{sound.on ? '🔊' : '🔇'}</button>
+        <button type="button" className={`gel gel-icon ${voiceOn ? 'gel-lime' : ''}`} onClick={() => setVoiceOn((v) => !v)} aria-pressed={voiceOn} title="Read the news aloud">🎙️</button>
+        <button type="button" className={`gel gel-icon ${layers ? 'gel-sun' : ''}`} onClick={() => setLayers((v) => !v)} aria-pressed={layers} title="Real data layers">🗺️</button>
+        {free && <button type="button" className="gel gel-icon" onClick={() => setRecenter((n) => n + 1)} title="Recenter the map">🎯</button>}
+        {host && state.endsAt !== null && <button type="button" className="gel" onClick={room.skip} title="Host: end this phase now">Skip ⏭</button>}
+        {layers && <Legend overlays={overlays} setOverlays={setOverlays} />}
+      </div>
+      {picking && open && <DistrictPopover key={popKey} state={state} room={room} map={map} district={open} setDistrict={setOpen} onCard={setHoverCard} />}
+      {(phase === 'reveal' || phase === 'negotiate') && <CaseFile state={state} room={room} map={map} focus={focus} setFocus={setFocus} />}
+      <ResultOverlay state={state} room={room} />
       <Flights map={map} state={state} />
       <Stamps map={map} state={state} />
     </main>

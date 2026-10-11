@@ -1,3 +1,4 @@
+import { FxLab } from './routes/FxLab';
 import { Landing } from './routes/Landing';
 import { Play } from './routes/Play';
 import { Studio } from './routes/Studio';
@@ -9,6 +10,7 @@ export function App() {
 
   if (matchPath('/', path)) return <Landing />;
   if (matchPath('/studio', path)) return <Studio />;
+  if (import.meta.env.DEV && matchPath('/fx-lab', path)) return <FxLab />;
   if ((params = matchPath('/play/:code', path))) return <Play key={params.code} code={(params.code ?? '').toUpperCase()} />;
 
   return (

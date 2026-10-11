@@ -15,17 +15,11 @@ import { spriteSvg } from './sprites';
 const SLOT: Record<RoleId, [number, number]> = {
   mayor: [-112, 16], activist: [-68, 42], resort: [68, 42], resident: [112, 16], fisherman: [0, 118],
 };
-/** Phones: a tighter ring, so avatars stay above the bottom sheet. */
-const slotScale = () => (window.innerWidth < 1024 ? 0.6 : 1);
-const slot = (role: RoleId): [number, number] => {
-  const k = slotScale();
-  // The Fisherman stands below his area's chip: on a phone the ring is tighter, so step him down past it.
-  const extra = role === 'fisherman' && k < 1 ? 33 : 0;
-  return [Math.round(SLOT[role][0] * k), Math.round(SLOT[role][1] * k) + extra];
-};
+const slot = (role: RoleId): [number, number] => SLOT[role];
 const WALK_MS = 1500;
-/** Bubbles overlap a little on wide screens; phones show one at a time. */
-const bubbleTiming = () => (window.innerWidth < 1024 ? { gap: 2700, show: 2500 } : { gap: 1100, show: 5200 });
+/** Bubbles overlap a little: each shows for a while, the next one starts soon after. */
+const BUBBLE_GAP_MS = 1100;
+const BUBBLE_MS = 5200;
 const FX_MS = 2600;
 
 const reduceMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -94,7 +88,14 @@ const ANIM_FX: Record<Card['anim'], FxKind | null> = {
   construct: null, restore: null, protest: 'protest', invest: 'invest', campaign: 'campaign', legal: 'legal', deal: 'deal', stamp: 'stamp',
 };
 
-export function LivingLayer({ map, state }: { map: MapLibreMap | null; state: RoomState }) {
+export function LivingLayer({ map, state, onFocusProposal }: {
+  map: MapLibreMap | null;
+  state: RoomState;
+  /** A click on a proposal's marker opens it on the case file. */
+  onFocusProposal?: (proposalId: string) => void;
+}) {
+  const onFocusRef = useRef(onFocusProposal);
+  onFocusRef.current = onFocusProposal;
   const avatars = useRef(new Map<RoleId, { marker: Marker; el: HTMLDivElement; at: string | null; stop: () => void }>());
   const ghostMarkers = useRef(new Map<string, Marker>());
   const bubbleList = useRef<Bubble[]>([]);
@@ -176,7 +177,6 @@ export function LivingLayer({ map, state }: { map: MapLibreMap | null; state: Ro
   useEffect(() => {
     if (!map || !bubbleKey) return;
     const timers: ReturnType<typeof setTimeout>[] = [];
-    const { gap: BUBBLE_GAP_MS, show: BUBBLE_MS } = bubbleTiming();
     const order = bubbleList.current.map((b) => b.speaker);
     const setMood = (role: RoleId, mood: Mood) => {
       const a = avatars.current.get(role);
@@ -245,11 +245,14 @@ export function LivingLayer({ map, state }: { map: MapLibreMap | null; state: Ro
       if (!m) {
         const el = document.createElement('div');
         el.className = 'ghost';
+        el.addEventListener('click', (ev) => {
+          ev.stopPropagation();
+          onFocusRef.current?.(g.id);
+        });
         m = new Marker({ element: el, anchor: 'bottom' }).setLngLat(center(g.district)).addTo(map);
         ghostMarkers.current.set(g.id, m);
       }
-      const sk = slotScale();
-      m.setOffset([Math.round((k * 46 - (n - 1) * 23) * sk), Math.round(-62 * sk)]);
+      m.setOffset([k * 46 - (n - 1) * 23, -62]);
       const el = m.getElement();
       el.dataset.status = g.status;
       el.title = `${PROJECTS[g.kind].name} · ${districtById(g.district).name}: ${GHOST_TAG[g.status]}`;
@@ -273,14 +276,7 @@ export function LivingLayer({ map, state }: { map: MapLibreMap | null; state: Ro
   useEffect(() => {
     if (!map) return;
     const fx: { district: string; kind: FxKind; delay: number }[] = [];
-    if (state.phase === 'crisis' && state.crisis) {
-      // Each match's scenario picks the kind of crisis; the map shows it on the spotlight areas.
-      const k = state.crisis.kind;
-      const kindFx: Partial<Record<typeof k, FxKind>> = { flood: 'flood', erosion: 'flood', development: 'invest', budget: 'invest' };
-      const fxKind = kindFx[k];
-      if (fxKind) for (const d of state.crisis.spotlight) fx.push({ district: d, kind: fxKind, delay: 300 });
-      if (k === 'storm') setStorm(`crisis-${state.round}`);
-    }
+    // The crisis itself is acted out by CrisisFx.
     // The twist lands when play starts.
     if (state.phase === 'select' && state.event?.round === state.round) fx.push({ district: state.event.district, kind: DIRECTOR_EVENTS[state.event.type].fx, delay: 200 });
     if (state.phase === 'reveal' && state.board) {

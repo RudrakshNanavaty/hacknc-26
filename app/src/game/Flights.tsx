@@ -6,6 +6,7 @@ import type { Map as MapLibreMap } from 'maplibre-gl';
 import { CARDS, INDICATORS, INDICATOR_INFO, PROJECTS, districtById, type CardId, type RoomState } from '@shared';
 import { GameCard } from './GameCard';
 import { STATUS_STYLE } from './format';
+import { screenPoint, useCameraTick } from '../map/MapAnchor';
 import { playApproved, playBlocked, playReveal, playStamp } from '../ui/sound';
 
 interface Flight {
@@ -17,24 +18,6 @@ interface Flight {
 }
 
 const reduceMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-/** Screen position of a lng/lat on the map (page coordinates). */
-function screenPoint(map: MapLibreMap, lngLat: [number, number]) {
-  const r = map.getContainer().getBoundingClientRect();
-  const p = map.project(lngLat);
-  return { x: r.left + p.x, y: r.top + p.y };
-}
-
-/** Re-render when the camera moves, so stamps stay on their areas. */
-function useCameraTick(map: MapLibreMap | null) {
-  const [, setTick] = useState(0);
-  useEffect(() => {
-    if (!map) return;
-    const on = () => setTick((t) => t + 1);
-    map.on('move', on);
-    return () => void map.off('move', on);
-  }, [map]);
-}
 
 export function Flights({ map, state }: { map: MapLibreMap | null; state: RoomState }) {
   const [flights, setFlights] = useState<Flight[]>([]);

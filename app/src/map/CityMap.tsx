@@ -117,10 +117,10 @@ const FOCUS_PITCH = 62;
  * The overview: low over Biscayne Bay at South Beach, looking up the island (North Beach on the
  * horizon), close enough for the 3D city, like Mayday Mayor's view of Brickell.
  */
-const overview = () => {
-  const small = Math.min(window.innerWidth, window.innerHeight) < 700;
-  return { center: [-80.1355, 25.7835] as [number, number], zoom: small ? 13.6 : 14.15, pitch: OVERVIEW_PITCH, bearing: 14 };
-};
+const overview = () => ({ center: [-80.1355, 25.7835] as [number, number], zoom: 14.15, pitch: OVERVIEW_PITCH, bearing: 14 });
+
+/** South Pointe's chip hangs below its center (the area is at the island's tip); the rest sit above. */
+export const chipBelow = (districtId: string) => districtId === 'south-pointe';
 
 export interface CityMapProps {
   city: CityState;
@@ -130,8 +130,14 @@ export interface CityMapProps {
   eligible?: Record<string, boolean> | null;
   overlays: Overlays;
   onPick?: (districtId: string) => void;
+  /** A click on the map outside every area (closes whatever is open on the map). */
+  onBlank?: () => void;
   /** Fly the camera to an area (null: the overview). */
   focus?: string | null;
+  /** The player drives the camera: `focus` changes no longer move it. */
+  free?: boolean;
+  /** Bump to fly back to the overview (the Recenter button). */
+  recenter?: number;
   /** Room to keep clear for the HUD, in px. */
   padding?: { top: number; bottom: number; left: number; right: number };
   onReady?: (map: MapLibreMap) => void;
@@ -139,15 +145,19 @@ export interface CityMapProps {
   chips?: boolean;
   /** Extra text per area chip (e.g. counts in the studio). */
   chipNote?: (districtId: string) => string | null;
+  /** A small icon on the chip's corner (the crisis kind on its spotlight areas). */
+  chipBadge?: (districtId: string) => string | null;
   className?: string;
 }
 
-export function CityMap({ city, spotlight = [], target = null, eligible = null, overlays, onPick, focus = null, padding, onReady, chips = true, chipNote, className = '' }: CityMapProps) {
+export function CityMap({ city, spotlight = [], target = null, eligible = null, overlays, onPick, onBlank, focus = null, free = false, recenter = 0, padding, onReady, chips = true, chipNote, chipBadge, className = '' }: CityMapProps) {
   const container = useRef<HTMLDivElement>(null);
   const [map, setMap] = useState<MapLibreMap | null>(null);
   const [loaded, setLoaded] = useState(false);
   const onPickRef = useRef(onPick);
   onPickRef.current = onPick;
+  const onBlankRef = useRef(onBlank);
+  onBlankRef.current = onBlank;
   const chipEls = useRef(new Map<string, HTMLButtonElement>());
   const markerSets = useRef(new Map<string, Marker[]>());
   const pad = padding ?? { top: 40, bottom: 40, left: 40, right: 40 };
@@ -173,6 +183,10 @@ export function CityMap({ city, spotlight = [], target = null, eligible = null, 
       const id = e.features?.[0]?.properties?.id;
       if (typeof id === 'string') onPickRef.current?.(id);
     });
+    m.on('click', (e) => {
+      if (!m.getLayer('areas-fill') || m.queryRenderedFeatures(e.point, { layers: ['areas-fill'] }).length) return;
+      onBlankRef.current?.();
+    });
     m.on('mouseenter', 'areas-fill', () => (m.getCanvas().style.cursor = onPickRef.current ? 'pointer' : ''));
     m.on('mouseleave', 'areas-fill', () => (m.getCanvas().style.cursor = ''));
     setMap(m);
@@ -193,7 +207,7 @@ export function CityMap({ city, spotlight = [], target = null, eligible = null, 
           onPickRef.current?.(d.id);
         });
         chipEls.current.set(d.id, el);
-        const below = d.id === 'south-pointe';
+        const below = chipBelow(d.id);
         chipMarkers.push(new Marker({ element: el, anchor: below ? 'top' : 'bottom', offset: [0, below ? 14 : -14] }).setLngLat(d.center).addTo(m));
       }
     }
@@ -257,13 +271,14 @@ export function CityMap({ city, spotlight = [], target = null, eligible = null, 
       const r = city.districts[d.id]?.resilience ?? 0;
       const off = eligible ? eligible[d.id] === false : false;
       const note = chipNote?.(d.id);
+      const badge = chipBadge?.(d.id);
       el.dataset.target = String(target === d.id);
       el.dataset.spot = String(spotlight.includes(d.id));
       el.dataset.off = String(off);
       el.setAttribute('aria-label', `${d.name}, resilience ${r}${off ? ', not allowed for this card' : ''}`);
-      el.innerHTML = `<span class="map-chip-name">${d.name}</span><span class="map-chip-meter"><span style="width:${r}%"></span></span>${note ? `<span class="map-chip-note">${note}</span>` : ''}`;
+      el.innerHTML = `${badge ? `<span class="map-chip-badge" aria-hidden="true">${badge}</span>` : ''}<span class="map-chip-name">${d.name}</span><span class="map-chip-meter"><span style="width:${r}%"></span></span>${note ? `<span class="map-chip-note">${note}</span>` : ''}`;
     }
-  }, [city, target, spotlight, eligible, chipNote]);
+  }, [city, target, spotlight, eligible, chipNote, chipBadge]);
 
   // Built projects: glossy markers in a small ring around each area's center.
   useEffect(() => {
@@ -289,7 +304,7 @@ export function CityMap({ city, spotlight = [], target = null, eligible = null, 
 
   // Camera.
   useEffect(() => {
-    if (!map) return;
+    if (!map || free) return;
     const p = padRef.current;
     if (focus) {
       const d = DISTRICTS.find((x) => x.id === focus);
@@ -299,7 +314,13 @@ export function CityMap({ city, spotlight = [], target = null, eligible = null, 
     } else {
       map.flyTo({ ...overview(), padding: p, duration: 1400, essential: true });
     }
-  }, [map, focus, pad.top, pad.bottom, pad.left, pad.right]);
+  }, [map, focus, free, pad.top, pad.bottom, pad.left, pad.right]);
+
+  // Recenter: back to the overview, whoever is driving.
+  useEffect(() => {
+    if (!map || !recenter) return;
+    map.flyTo({ ...overview(), padding: padRef.current, duration: 1200, essential: true });
+  }, [map, recenter]);
 
   return (
     <div className={`relative h-full w-full overflow-hidden ${className}`}>

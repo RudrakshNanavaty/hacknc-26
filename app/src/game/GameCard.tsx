@@ -60,7 +60,11 @@ function derivedStats(id: CardId): Stat[] {
   return out.slice(0, 4);
 }
 
-export function CharacterCard({ id, quip, note }: { id: CardId; quip?: string | null; note?: string | null }) {
+export function CharacterCard({ id, quip, note, compact = false }: {
+  id: CardId; quip?: string | null; note?: string | null;
+  /** Inside a map popover: a shorter art band and title. */
+  compact?: boolean;
+}) {
   const c = CARDS[id];
   const p = PERSONA_INFO[c.persona];
   const cost = c.project ? PROJECTS[c.project].budgetCost : 0;
@@ -73,13 +77,13 @@ export function CharacterCard({ id, quip, note }: { id: CardId; quip?: string | 
           <span className={`lchip ${CATEGORY_TONE[c.category]}`}>{CATEGORY[c.category]}</span>
         </span>
       </div>
-      <div className="ccard-art wet !aspect-[16/8]">
+      <div className={`ccard-art wet ${compact ? 'ccard-compact !aspect-[16/5]' : '!aspect-[16/8]'}`}>
         <span className="cost-orb" aria-label={`${c.cost} influence`}>{c.cost}</span>
-        <Soap size={124} tint={p.color} className="bob">{c.art}</Soap>
+        <Soap size={compact ? 76 : 124} tint={p.color} className="bob">{c.art}</Soap>
         {cost > 0 && <span className="lchip lchip-sun absolute right-3 bottom-3">Public cost ${cost}M{c.project && PROJECTS[c.project].upkeep ? ` + $${PROJECTS[c.project].upkeep}M/round` : ''}</span>}
         {c.project && cost === 0 && <span className="lchip lchip-lime absolute right-3 bottom-3">Privately funded</span>}
       </div>
-      <h2 className="glow-title">{c.name}</h2>
+      <h2 className={`glow-title ${compact ? '!text-[24px]' : ''}`}>{c.name}</h2>
       <div className="wet flex flex-col gap-2 p-3">
         <div className="stats4">
           {cardStats(id).map((s) => (
