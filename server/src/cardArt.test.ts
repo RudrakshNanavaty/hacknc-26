@@ -129,19 +129,19 @@ describe('painting ahead', () => {
   it("a player's request jumps ahead of queued background work", async () => {
     const { started, client } = gate();
     const { app, art } = await make(client);
-    const ids = ['fast-track', 'seawall-upgrade', 'hotel-development', 'rent-shield', 'flood-watch', 'lobbying-blitz'] as const;
+    const ids = ['fast-track', 'seawall-upgrade', 'hotel-development', 'rent-shield', 'flood-watch', 'drainage-upgrade', 'dune-restoration', 'habitat-survey', 'lobbying-blitz'] as const;
     art.prefetch(ids.map((id) => ({ id })));
     await tick();
-    expect(started).toHaveLength(4); // the concurrency limit
+    expect(started).toHaveLength(6); // the concurrency limit
     const wanted = app.inject('/api/card-art/lobbying-blitz'); // last in line, but a player is waiting for it
     await tick();
     started[0]!.release(); // one slot frees up
     await tick();
-    expect(started[4]!.card).toBe(CARDS['lobbying-blitz'].name);
-    started.forEach((s) => s.release());
-    await tick();
-    started.forEach((s) => s.release());
-    await tick();
+    expect(started[6]!.card).toBe(CARDS['lobbying-blitz'].name);
+    for (let i = 0; i < 4; i++) {
+      started.forEach((s) => s.release());
+      await tick();
+    }
     expect((await wanted).statusCode).toBe(200);
     await app.close();
   });

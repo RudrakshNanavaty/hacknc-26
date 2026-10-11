@@ -5,7 +5,7 @@
 import type { IncomingMessage } from 'node:http';
 import type { Duplex } from 'node:stream';
 import { WebSocketServer, type WebSocket } from 'ws';
-import { EVENT_RULES, TOTAL_ROUNDS, authoredScenario, combosInReach, crisisFor, dealtHand, narrationFacts, type ClientMsg, type LiveConditions, type RoomState, type ServerMsg } from '@shared';
+import { type CivicStory, EVENT_RULES, TOTAL_ROUNDS, authoredScenario, combosInReach, crisisFor, dealtHand, narrationFacts, type ClientMsg, type LiveConditions, type RoomState, type ServerMsg } from '@shared';
 import type { MatchStore } from './db/store';
 import type { Narrator } from './ai/narrator';
 import type { ScenarioWriter } from './ai/scenario';
@@ -44,7 +44,7 @@ export interface RoomServerOptions {
   store: MatchStore;
   narrator: Narrator | null;
   /** Writes each match's scenario; the authored one stands in when it fails. */
-  scenario: { live: () => Promise<LiveConditions | null>; write: ScenarioWriter };
+  scenario: { live: () => Promise<LiveConditions | null>; write: ScenarioWriter; pick?: () => Promise<CivicStory[]> };
   /** The Gemini Game Director (null: templates only). */
   director?: Director | null;
   /** The civic record on Solana: every finished match is fingerprinted and anchored (null: off). */
@@ -119,11 +119,58 @@ export function roomServer({ store, narrator, scenario, director = null, civic =
     );
   }
 
+  /**
+   * In the lobby: choose this match's stories now (and keep them for Start) and paint round 1 for the
+   * personas people have taken, so by the time the host presses Start the first hand is usually done.
+   * Only round 1 and only seated humans, so an abandoned lobby costs a handful of pictures.
+   */
+  const prepared = new WeakMap<Room, CivicStory[]>();
+  const preparing = new WeakMap<Room, Promise<CivicStory[]>>();
+  async function warmLobby(room: Room) {
+    if (!art || !scenario.pick || room.phase !== 'lobby') return;
+    let stories = prepared.get(room);
+    if (!stories) {
+      let pending = preparing.get(room);
+      if (!pending) {
+        pending = scenario.pick().catch(() => []);
+        preparing.set(room, pending);
+      }
+      stories = await pending;
+      preparing.delete(room);
+      if (stories.length < 3) return;
+      if (!prepared.has(room)) prepared.set(room, stories);
+      stories = prepared.get(room)!;
+    }
+    if (room.phase !== 'lobby') return;
+    const first = stories[0]!;
+    art.prefetch(
+      room.players.filter((p) => !p.bot).flatMap((p) => (first.cast?.hands[p.persona] ?? []).map((id) => ({ id, skin: first.cast!.skins[id]?.name, place: first.cast!.district, story: first.title }))),
+    );
+  }
+
+  /** The same items as prefetchArt, from the chosen stories alone (their cast carries each hand, skin and area). */
+  function prefetchStories(room: Room, stories: CivicStory[]) {
+    if (!art) return;
+    const people = room.players.filter((p) => !p.bot);
+    art.prefetch(
+      stories.slice(0, 3).flatMap((s) =>
+        people.flatMap((p) =>
+          (s.cast?.hands[p.persona] ?? []).map((id) => ({ id, skin: s.cast!.skins[id]?.name, place: s.cast!.district, story: s.title })),
+        ),
+      ),
+    );
+  }
+
   function writeScenario(room: Room) {
     const matchId = room.matchId;
     void (async () => {
+      // The stories decide every hand, name and place, so painting can start the moment they are
+      // chosen: before the live readings are fetched and before the headlines are written.
+      const picked = prepared.get(room) ?? (await scenario.pick?.().catch(() => [])) ?? [];
+      prepared.delete(room);
+      if (picked.length >= 3) prefetchStories(room, picked);
       const live = await scenario.live().catch(() => null);
-      const written = await scenario.write(live).catch((err) => {
+      const written = await scenario.write(live, picked).catch((err) => {
         log.warn({ err: (err as Error).message, room: room.code }, 'scenario desk: authored scenario stands in');
         return authoredScenario(live);
       });
@@ -221,6 +268,7 @@ export function roomServer({ store, narrator, scenario, director = null, civic =
       const player = join(room, msg.name, msg.persona);
       conn.playerId = player.id;
       emit(room, 'join', player, { persona: msg.persona, create: !!msg.create }, now);
+      void warmLobby(room);
       send(conn.ws, { t: 'joined', playerId: player.id, seat: player.seat });
       return broadcast(room);
     }
@@ -256,6 +304,7 @@ export function roomServer({ store, narrator, scenario, director = null, civic =
       default: throw new RoomError('Unknown message.');
     }
     emit(room, msg.t, player, messagePayload(msg), now);
+    if (msg.t === 'persona' || msg.t === 'bot') void warmLobby(room);
     broadcast(room);
   }
 

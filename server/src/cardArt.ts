@@ -13,7 +13,7 @@ import { CARDS, CARD_ART_STYLE, CARD_IDS, DISTRICT_IDS, districtById, type Card,
 import type { Gemini } from './ai/gemini';
 
 const DIR = join(dirname(fileURLToPath(import.meta.url)), '..', '.cache', 'card-art');
-const CONCURRENCY = 4;
+const CONCURRENCY = 6;
 const MEMORY_MAX = 120;
 const FAIL_TTL_MS = 45_000;
 /** A quota or billing error (402, 429) pauses all painting: every card would only fail the same way. */

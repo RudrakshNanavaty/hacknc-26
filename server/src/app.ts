@@ -10,7 +10,7 @@ import { getRoom } from './rooms';
 import { registerStudio } from './studio';
 import { registerCardArt } from './cardArt';
 import { liveConditions, registerLive } from './live';
-import { type ScenarioWriter, geminiScenarioWriter, storyScenarioWriter } from './ai/scenario';
+import { type ScenarioWriter, geminiScenarioWriter, pickMatchStories, storyScenarioWriter } from './ai/scenario';
 import { loadStories } from './stories';
 import { devnetChain, loadAuthority } from './solana/chain';
 import { type CivicRecord, civicRecord } from './solana/civic';
@@ -34,7 +34,7 @@ export interface ServerOptions {
   /** Overrides the Gemini narrator (tests); null turns narration off. */
   narrator?: Narrator | null;
   /** Overrides the scenario desk (tests). */
-  scenario?: { live: () => Promise<import('@shared').LiveConditions | null>; write: ScenarioWriter };
+  scenario?: { live: () => Promise<import('@shared').LiveConditions | null>; write: ScenarioWriter; pick?: () => Promise<import('@shared').CivicStory[]> };
   /** Overrides the Gemini Game Director (tests); null means templates only. */
   director?: Director | null;
   /** Overrides the civic record (tests); null turns it off. */
@@ -90,6 +90,7 @@ export function buildServer({ store = new MemoryStore(), gemini = defaultGemini,
   });
 
   registerStudio(app, store, gemini, persist.snapshots);
+  if (!process.env.VITEST && !scenario) void loadStories(app.log); // the first match should not wait on Snowflake
   const cardArt = registerCardArt(app, gemini, { dir: process.env.VITEST ? null : undefined });
   // The lobby's example cards are generic and never change: paint them once, in the background, at start.
   if (!process.env.VITEST) setTimeout(() => cardArt.warmExamples(), 1_500).unref();
@@ -113,6 +114,7 @@ export function buildServer({ store = new MemoryStore(), gemini = defaultGemini,
     scenario: scenario ?? {
       live: () => liveConditions(),
       write: storyScenarioWriter(gemini, async () => (await loadStories(app.log)).stories, geminiScenarioWriter(gemini)),
+      pick: () => pickMatchStories(async () => (await loadStories(app.log)).stories),
     },
     director: theDirector,
     civic: theCivic,

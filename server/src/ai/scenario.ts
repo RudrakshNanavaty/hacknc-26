@@ -45,7 +45,12 @@ const schema = {
   required: ['rounds', 'quips'],
 };
 
-export type ScenarioWriter = (live: LiveConditions | null) => Promise<Scenario>;
+/** `picked` is the match's three stories when the caller already chose them (so it could start work on them early). */
+export type ScenarioWriter = (live: LiveConditions | null, picked?: CivicStory[]) => Promise<Scenario>;
+
+/** The match's three stories, chosen on their own so everything that depends on them can start at once. */
+export const pickMatchStories = async (stories: () => Promise<CivicStory[]>): Promise<CivicStory[]> =>
+  pickStories(await stories().catch(() => []), Math.floor(Math.random() * 2 ** 31));
 
 // ---------- Real civic stories ----------
 
@@ -66,8 +71,8 @@ interface StoryWritten {
  * match from the live readings alone.
  */
 export function storyScenarioWriter(gemini: Gemini, stories: () => Promise<CivicStory[]>, fallback: ScenarioWriter, timeoutMs = 9_000): ScenarioWriter {
-  return async (live) => {
-    const picked = pickStories(await stories().catch(() => []), Math.floor(Math.random() * 2 ** 31));
+  return async (live, chosen) => {
+    const picked = chosen?.length ? chosen : await pickMatchStories(stories);
     if (picked.length < 3) return fallback(live);
     const readings = liveReadings(live);
     const facts = { liveReadings: readings, rounds: picked.map((s, i) => ({ round: i + 1, ...storyFacts(s), area: s.cast!.district })) };
