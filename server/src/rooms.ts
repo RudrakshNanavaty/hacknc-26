@@ -9,8 +9,9 @@ import {
   CARDS, LOCK_GRACE_MS, MAX_PLAYERS, NEGOTIATION_COST, PACES, PERSONA_INFO, START_INDICATORS, START_INFLUENCE, TOTAL_ROUNDS,
   buildBoard, checkAccept, checkMove, checkPlay, crisisFor, crisisHeadline, finalHeadline, finalResult, isPersonaId, newMatchRecord,
   nextInfluence, resolutionHeadline, resolveRound, revealHeadline, startCity, botPlay, districtById,
+  crisisBubbles, finalBubbles, resolutionBubbles, revealBubbles,
   type Board, type CardId, type CityState, type Crisis, type FinalResult, type Headline, type MatchRecord, type NegotiationAction,
-  type PaceId, type PersonaId, type Proposal, type RoomPhase, type RoomState, type RoundSummary, type SessionKind,
+  type Bubble, type PaceId, type PersonaId, type Proposal, type RoomPhase, type RoomState, type RoundSummary, type SessionKind,
 } from '@shared';
 
 const ROOM_TTL_MS = 3 * 60 * 60 * 1000;
@@ -65,6 +66,7 @@ export interface Room {
   /** The last round resolved: a round can never resolve twice. */
   resolvedRound: number;
   headline: Headline | null;
+  bubbles: { key: string; list: Bubble[] } | null;
   final: FinalResult | null;
   effects: Effect[];
 }
@@ -75,7 +77,7 @@ export function newRoom(code: string, now = Date.now()): Room {
   return {
     code, phase: 'lobby', round: 0, endsAt: null, players: [], hostId: null, pace: 'standard', sessionKind: 'demo', touchedAt: now,
     matchId: null, record: null, city: startCity(), crisis: null, carried: [], board: null, actions: [], history: [], resolvedRound: 0,
-    headline: null, final: null, effects: [],
+    headline: null, bubbles: null, final: null, effects: [],
   };
 }
 
@@ -231,6 +233,7 @@ function enterCrisis(room: Room, now: number): void {
     p.done = false;
   }
   room.headline = { text: crisisHeadline(room.crisis, room.round), source: 'template', key: `crisis-${room.round}` };
+  room.bubbles = { key: `crisis-${room.round}`, list: crisisBubbles(room.crisis, room.players.map((p) => p.persona)) };
   room.endsAt = now + seconds(room, 'crisis');
   touch(room, now);
 }
@@ -272,6 +275,7 @@ function enterReveal(room: Room, now: number): void {
   room.endsAt = now + seconds(room, 'reveal');
   const key = `reveal-${room.round}`;
   room.headline = { text: revealHeadline(room.board), source: 'template', key };
+  room.bubbles = { key, list: revealBubbles(room.board) };
   room.effects.push({ t: 'reveal', key });
   touch(room, now);
 }
@@ -346,6 +350,7 @@ function enterResolve(room: Room, now: number): void {
   room.endsAt = now + seconds(room, 'resolve');
   const key = `resolve-${room.round}`;
   room.headline = { text: headline, source: 'template', key };
+  room.bubbles = { key, list: resolutionBubbles(resolution) };
   room.effects.push({ t: 'resolved', key, round: room.round }, { t: 'record' });
   touch(room, now);
 }
@@ -361,6 +366,7 @@ function enterFinal(room: Room, now: number): void {
   }
   const key = 'final';
   room.headline = { text: finalHeadline(room.final), source: 'template', key };
+  room.bubbles = { key, list: finalBubbles(room.final) };
   room.effects.push({ t: 'final', key }, { t: 'record' });
   touch(room, now);
 }
@@ -422,6 +428,7 @@ export function again(room: Room, player: Player): void {
   room.round = 0;
   room.final = null;
   room.headline = null;
+  room.bubbles = null;
   room.crisis = null;
   room.history = [];
   room.city = startCity();
@@ -480,6 +487,7 @@ export function publicState(room: Room, viewer: Player | null, now: number): Roo
     actions: showBoard ? room.actions : [],
     history: room.history,
     headline: room.headline,
+    bubbles: room.bubbles,
     final: room.final,
     mine: viewer ? { selection: viewer.selection, moved: viewer.moved, responded: viewer.responded } : null,
   };

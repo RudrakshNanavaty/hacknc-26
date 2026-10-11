@@ -649,3 +649,106 @@ button.game-card:hover:not(:disabled) { transform: translateY(-8px) rotate(-1deg
   .game-card { width: 104px; min-height: 150px; }
   .game-card-text { display: none; }
 }
+
+/* ===================== Living city: avatars, bubbles, ghosts, effects ===================== */
+
+.avatar { position: relative; width: 46px; height: 58px; pointer-events: auto; cursor: default; }
+.avatar-figure { position: absolute; inset: 0; transform-origin: 50% 100%; animation: av-breathe 2.6s ease-in-out infinite; }
+.avatar-svg { width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 2px 0 #fff) drop-shadow(0 4px 6px rgba(0, 30, 60, 0.45)); }
+.avatar-shadow { position: absolute; left: 50%; bottom: -3px; width: 34px; height: 9px; translate: -50% 0; border-radius: 50%; background: radial-gradient(ellipse, color-mix(in srgb, var(--tint) 55%, rgba(0, 30, 60, 0.6)), transparent 70%); z-index: -1; }
+.avatar-name { position: absolute; left: 50%; top: 100%; translate: -50% 2px; padding: 0 6px; border-radius: 99px; font: 900 9px/1.5 var(--font-display); color: #fff; white-space: nowrap; background: color-mix(in srgb, var(--tint) 85%, #063a5b); border: 1px solid #fff; box-shadow: 0 1px 4px rgba(0, 30, 60, 0.4); opacity: 0; transition: opacity 0.2s ease; }
+.avatar:hover .avatar-name, .avatar[data-speaking="true"] .avatar-name { opacity: 1; }
+.avatar[data-facing="left"] .avatar-svg { transform: scaleX(-1); }
+
+/* Faces: one mouth and one brow set per mood. */
+.avatar .av-mouth, .avatar .av-brows-angry, .avatar .av-brows-worried { display: none; }
+.avatar .av-mouth-smile { display: inline; }
+.avatar[data-mood="celebrate"] .av-mouth-smile, .avatar[data-mood="frustrated"] .av-mouth-smile,
+.avatar[data-mood="worried"] .av-mouth-smile, .avatar[data-mood="smug"] .av-mouth-smile { display: none; }
+.avatar[data-mood="celebrate"] .av-mouth-grin { display: inline; }
+.avatar[data-mood="frustrated"] .av-mouth-frown, .avatar[data-mood="frustrated"] .av-brows-angry { display: inline; }
+.avatar[data-mood="frustrated"] .av-brows-calm, .avatar[data-mood="worried"] .av-brows-calm { display: none; }
+.avatar[data-mood="worried"] .av-mouth-wobble, .avatar[data-mood="worried"] .av-brows-worried { display: inline; }
+.avatar[data-mood="smug"] .av-mouth-smirk { display: inline; }
+
+@keyframes av-breathe { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.02, 1.045); } }
+@keyframes av-walk { 0%, 100% { transform: translateY(0) rotate(-4deg); } 50% { transform: translateY(-5px) rotate(4deg); } }
+@keyframes av-jump { 0%, 100% { transform: translateY(0) scale(1); } 30% { transform: translateY(-16px) scale(1.06, 0.96); } 55% { transform: translateY(0) scale(1.08, 0.9); } 70% { transform: translateY(-6px); } }
+@keyframes av-shake { 0%, 100% { transform: translateX(0) rotate(0); } 20% { transform: translateX(-3px) rotate(-5deg); } 40% { transform: translateX(3px) rotate(5deg); } 60% { transform: translateX(-2px) rotate(-3deg); } 80% { transform: translateX(2px) rotate(3deg); } }
+@keyframes av-tremble { 0%, 100% { transform: translateX(0) scale(0.98, 0.97); } 50% { transform: translateX(1px) scale(0.98, 0.97); } }
+@keyframes av-lean { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(7deg) translateX(2px); } }
+@keyframes av-tilt { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(-9deg); } }
+.avatar[data-walking="true"] .avatar-figure { animation: av-walk 0.38s ease-in-out infinite; }
+.avatar[data-mood="celebrate"] .avatar-figure { animation: av-jump 0.85s ease-in-out 3; }
+.avatar[data-mood="frustrated"] .avatar-figure { animation: av-shake 0.5s ease-in-out 4; }
+.avatar[data-mood="worried"] .avatar-figure { animation: av-tremble 0.18s linear 14; }
+.avatar[data-mood="negotiate"] .avatar-figure { animation: av-lean 1.2s ease-in-out 3; }
+.avatar[data-mood="smug"] .avatar-figure { animation: av-tilt 1.4s ease-in-out 2; }
+/* Little mood marks over the head. */
+.avatar::after { position: absolute; left: 78%; top: -6px; font-size: 14px; opacity: 0; transition: opacity 0.2s ease; pointer-events: none; }
+.avatar[data-mood="celebrate"]::after { content: "✨"; opacity: 1; }
+.avatar[data-mood="frustrated"]::after { content: "💢"; opacity: 1; }
+.avatar[data-mood="worried"]::after { content: "💦"; opacity: 1; }
+.avatar[data-mood="negotiate"]::after { content: "🤝"; opacity: 1; }
+.avatar[data-mood="smug"]::after { content: "😏"; opacity: 1; font-size: 12px; }
+
+.avatar-bubble {
+  position: absolute; left: 50%; bottom: calc(100% + 8px); width: max-content; max-width: 178px;
+  padding: 6px 10px; border-radius: 14px; translate: -50% 0;
+  font: 800 12px/1.3 var(--font-body); color: var(--ink); text-align: center;
+  background: linear-gradient(180deg, #fff, #eefaff); border: 2px solid color-mix(in srgb, var(--tint) 70%, #fff);
+  box-shadow: 0 6px 16px rgba(0, 30, 60, 0.35), inset 0 1px 0 #fff;
+  opacity: 0; transform: translateY(6px) scale(0.85); transform-origin: 50% 100%;
+  transition: opacity 0.22s ease, transform 0.28s cubic-bezier(.2,.9,.3,1.4); pointer-events: none;
+}
+.avatar-bubble::after { content: ""; position: absolute; left: 50%; top: 100%; translate: -50% -1px; border: 7px solid transparent; border-top-color: color-mix(in srgb, var(--tint) 70%, #fff); }
+.avatar[data-speaking="true"] .avatar-bubble { opacity: 1; transform: none; }
+.avatar-bubble[data-source="gemini"]::before { content: "✦"; margin-right: 3px; color: var(--aqua-deep); }
+
+/* Proposals on the table. */
+.ghost { display: flex; flex-direction: column; align-items: center; gap: 2px; pointer-events: auto; animation: ghost-in 0.5s cubic-bezier(.2,.9,.3,1.4) both; }
+@keyframes ghost-in { from { opacity: 0; transform: translateY(-14px) scale(0.6); } }
+.ghost-icon { position: relative; width: 34px; height: 34px; display: grid; place-items: center; font-size: 18px; border-radius: 99px; background: rgba(255, 255, 255, 0.55); border: 2px dashed #fff; box-shadow: 0 4px 12px rgba(0, 40, 80, 0.35); }
+.ghost-tag { padding: 0 7px; border-radius: 99px; font: 900 9px/1.6 var(--font-display); text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink); background: #fff; box-shadow: 0 1px 4px rgba(0, 30, 60, 0.3); white-space: nowrap; }
+.ghost[data-status="proposed"] .ghost-icon { animation: pulse-glow 1.8s ease-in-out infinite; }
+.ghost[data-status="approved"] .ghost-icon { border-style: solid; border-color: #86df45; background: rgba(226, 255, 196, 0.85); }
+.ghost[data-status="approved"] .ghost-tag { background: linear-gradient(180deg, #e2ffc4, #86df45); color: #1f5a08; }
+.ghost[data-status="delayed"] .ghost-icon { border-color: #ffd23f; background: rgba(255, 247, 194, 0.85); }
+.ghost[data-status="delayed"] .ghost-tag { background: linear-gradient(180deg, #fff7c2, #ffd23f); color: #6b5200; }
+.ghost[data-status="delayed"] .ghost-tag::before { content: "⏳ "; }
+.ghost[data-status="blocked"] .ghost-icon, .ghost[data-status="rejected"] .ghost-icon { filter: grayscale(1); opacity: 0.7; border-color: #ff6b8a; }
+.ghost[data-status="blocked"] .ghost-icon::after, .ghost[data-status="rejected"] .ghost-icon::after { content: "✕"; position: absolute; font: 900 26px/1 var(--font-display); color: #e2244c; text-shadow: 0 1px 0 #fff; }
+.ghost[data-status="blocked"] .ghost-tag, .ghost[data-status="rejected"] .ghost-tag { background: linear-gradient(180deg, #ffd2dc, #ff6b8a); color: #6b0a20; }
+.ghost[data-status="unfunded"] .ghost-tag { background: linear-gradient(180deg, #ede4ff, #b79cff); color: #3b2580; }
+
+/* One-shot effects. */
+.fx { position: relative; width: 0; height: 0; pointer-events: none; }
+.fx > span { position: absolute; left: 0; top: 0; }
+.fx-icon { font-size: 30px; translate: -50% -50%; animation: fx-pop 2.4s cubic-bezier(.2,.9,.3,1.3) both; filter: drop-shadow(0 3px 4px rgba(0, 30, 60, 0.5)); }
+@keyframes fx-pop { 0% { transform: scale(0) translateY(10px); opacity: 0; } 15% { transform: scale(1.3); opacity: 1; } 30% { transform: scale(1); } 80% { opacity: 1; } 100% { transform: translateY(-26px); opacity: 0; } }
+.fx-dust { width: 70px; height: 70px; border-radius: 50%; background: radial-gradient(circle, rgba(240, 220, 180, 0.9), rgba(240, 220, 180, 0) 65%); animation: splash 1.4s ease-out both; }
+.fx-spark { width: 70px; height: 70px; border-radius: 50%; background: radial-gradient(circle, rgba(200, 255, 154, 0.95), rgba(111, 209, 58, 0) 65%); animation: splash 1.4s ease-out both; }
+.fx-sign, .fx-coin { font-size: 20px; animation: fx-rise 2.4s ease-out both; filter: drop-shadow(0 2px 3px rgba(0, 30, 60, 0.5)); }
+.fx-sign.s1, .fx-coin.c1 { translate: -38px -10px; }
+.fx-sign.s2, .fx-coin.c2 { translate: -8px -24px; animation-delay: 0.15s; }
+.fx-sign.s3, .fx-coin.c3 { translate: 22px -8px; animation-delay: 0.3s; }
+@keyframes fx-rise { 0% { opacity: 0; transform: translateY(14px) scale(0.6); } 20% { opacity: 1; transform: translateY(0) scale(1.1); } 35%, 55% { transform: translateY(-4px) rotate(-8deg); } 45%, 65% { transform: translateY(-4px) rotate(8deg); } 100% { opacity: 0; transform: translateY(-30px); } }
+.fx-ripple { width: 90px; height: 90px; border-radius: 50%; border: 3px solid rgba(143, 216, 255, 0.95); box-shadow: 0 0 16px rgba(25, 182, 230, 0.8); animation: splash 1.8s ease-out both; }
+.fx-ripple.r2 { animation-delay: 0.45s; }
+.fx-ripple.r3 { animation-delay: 0.9s; }
+
+.storm-overlay {
+  position: absolute; inset: 0; z-index: 12; pointer-events: none; overflow: hidden;
+  background: repeating-linear-gradient(105deg, rgba(220, 240, 255, 0) 0 14px, rgba(220, 240, 255, 0.35) 14px 15px), linear-gradient(180deg, rgba(20, 40, 70, 0.45), rgba(20, 40, 70, 0.2));
+  background-size: 120px 120px, 100% 100%;
+  animation: storm-fade 4.2s ease both, rain 0.35s linear 12;
+}
+@keyframes rain { to { background-position: -30px 120px, 0 0; } }
+@keyframes storm-fade { 0% { opacity: 0; } 12%, 80% { opacity: 1; } 100% { opacity: 0; } }
+.storm-flash { position: absolute; inset: 0; background: #fff; opacity: 0; animation: flash 4.2s linear both; }
+@keyframes flash { 0%, 20%, 24%, 60%, 63%, 100% { opacity: 0; } 21%, 61% { opacity: 0.55; } 22% { opacity: 0.1; } 23% { opacity: 0.4; } }
+
+@media (max-width: 1023px) {
+  .avatar { width: 36px; height: 46px; }
+  .avatar-bubble { max-width: 140px; font-size: 11px; }
+}

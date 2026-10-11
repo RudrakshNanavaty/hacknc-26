@@ -1,0 +1,60 @@
+# Coastal Clash evolution: working notes
+
+The brief has five milestones: living map (M1), AI Game Director (M2), card expansion (M3), economy and negotiation UX (M4), polish (M5).
+This file is the source of truth if a session is cut off. **Re-read it before continuing.** Update it at the end of every milestone.
+
+- Branch: `pratham/living-city`, made from `pratham/coastal-clash` (= `aum/coastal-clash` + a lockfile refresh + the docs commit).
+- Local dev: `npm run dev` on Node 22 (`.node-version`). App on http://localhost:5173, server on http://localhost:8787 (`PORT` in `.env`).
+  `.env` has GEMINI and ELEVENLABS keys, so AI runs live locally. The tests mock Gemini.
+
+## Baseline (2026-10-10, before any change)
+
+| Check | Node 22.11.0 (machine default) | Node 22.23.3 (fnm) |
+|---|---|---|
+| `npm run typecheck` | pass | pass |
+| `npm test` | 27/28: the WebSocket match test crashes, `require()` of ESM-only `cookie@2` from Fastify's `light-my-request` | **28/28 pass** |
+
+The fix was environmental: `fnm install 22` and a `.node-version` file. No code change was needed.
+
+## M0 audit: what is reused
+
+- **Map:** `CityMap.tsx` already uses MapLibre HTML `Marker`s for chips and built-project pins, feature-state for highlights, `flyTo`,
+  and a reduced-motion-aware spotlight. Avatars, bubbles and effects use the same Marker approach (no new dependency).
+- **Animation:** `motion` (framer) is already in use in `Flights.tsx` (card flights, verdict stamps). The CSS keyframes are in `styles.css`.
+- **Cards:** `GameCard.tsx`, `CARDS` in `content.ts`. The attachment `switch` in `resolveRound` is the place to extend.
+- **AI:** `Gemini.json()` already does schema-constrained output, a timeout, model fallback and a `check` hook. `narrator.ts` uses
+  `strayNumbers` plus a template-first, replace-if-current headline (`headline.key`). The Director copies this pattern exactly.
+- **No zod in the repo:** the validators are hand-written in pure TS in `shared/` (testable, no new dependency).
+- **Records:** `MatchRecord` lives in a JSON(B) row. New fields are optional, so old records still load.
+
+## Plan and decisions
+
+1. **Fisherman = non-player scenario role.** The game stays four players, with no change to seats, lobby or scoring. The Fisherman is an NPC
+   avatar at the South Pointe pier who reacts and talks (template or Gemini). `SCENARIO_ROLES` makes roles swappable. Making him
+   playable is P2. *Why:* a fifth seat would ripple through rooms, the lobby, scoring, Studio and the tests.
+2. **Avatars:** inline SVG chibi sprites (big head, distinct silhouette props), MapLibre `Marker`s with pixel offsets around an area's
+   center (decorative, not surveyed positions), CSS-transform animations, and `prefers-reduced-motion` respected. Moods come from a
+   fixed reaction vocabulary in `shared/` that maps to CSS animation classes.
+3. **Dialogue and reactions:** `RoomState.bubbles`. Deterministic template bubbles are set at every transition. Gemini lines replace them
+   only if they validate and the moment is still current (the same pattern as headlines).
+4. **Director events:** Gemini proposes `{type, district, magnitude, narrative}`. `validateEventProposal` (shared, pure) checks the type
+   enum, phase, geography (real `districts.json` facts), the once-per-match rule and the bounds, then accepts, clamps or rejects it.
+   A deterministic template event is the fallback. The accepted event (exact deltas) is stored in the round record, so a replay never calls Gemini.
+5. **Hands:** authored, crisis-themed hands of 4 from a 6-card deck per persona (no randomness, so replays and tests stay deterministic).
+6. **Combos:** authored templates detected by the engine (rule ids `M*`). Gemini only selects and explains them. Novel AI ideas go to `record.reviewQueue`.
+7. **Hints are public:** every negotiation hint goes to the whole table, built from `publicState(room, null)`, so the model never sees hidden selections.
+
+## Progress
+
+- [x] Baseline, Node fix, docs, branch
+- [x] **M1 living map** (commit "M1: living map"): `shared/src/game/living.ts` (roles incl. Fisherman NPC, reaction vocabulary,
+  template bubbles), `RoomState.bubbles` (**contract change**), `app/src/map/{sprites.ts,LivingLayer.tsx}`, CSS in `styles.css`
+  ("Living city" section), card-hover target highlight, the Flights stuck-card fix. Checked in the browser at 1440 and 390 (Playwright
+  script in the session scratchpad: hosts a room, adds bots, screenshots each phase).
+- [ ] M2 Director
+- [ ] M3 cards
+- [ ] M4 economy UX
+- [ ] M5 polish + Studio
+
+## Open questions for humans
+(filled in as they come up)

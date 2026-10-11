@@ -45,8 +45,9 @@ export function CrisisPanel({ state }: { state: RoomState }) {
 }
 
 /** Your three cards and where to play them. */
-export function HandPanel({ state, room, card, setCard, target, setTarget }: {
+export function HandPanel({ state, room, card, setCard, target, setTarget, onHover }: {
   state: RoomState; room: Room; card: CardId | null; setCard: (c: CardId | null) => void; target: string | null; setTarget: (d: string | null) => void;
+  onHover?: (c: CardId | null) => void;
 }) {
   const me = state.players.find((p) => p.seat === state.you);
   if (!me) return null;
@@ -72,6 +73,7 @@ export function HandPanel({ state, room, card, setCard, target, setTarget }: {
           return (
             <GameCard
               key={id} id={id} selected={card === id} disabled={short} note={short ? 'Not enough influence' : null}
+              onHover={(on) => onHover?.(on ? id : null)}
               onClick={() => {
                 unlockAudio();
                 setCard(card === id ? null : id);

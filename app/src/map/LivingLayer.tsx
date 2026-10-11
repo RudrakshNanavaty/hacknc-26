@@ -1,0 +1,299 @@
+// The living city on top of the real map: stakeholder avatars that walk to where they played,
+// speech bubbles above their heads, ghost markers for proposals on the table, and short effects
+// (construction, restoration, protest, investment, flood, storm). Everything here is presentation of
+// state the server already decided. Avatars and effects sit at pixel offsets around an area's
+// center: they are decorative and do not mark surveyed positions.
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Marker, type Map as MapLibreMap } from 'maplibre-gl';
+import {
+  CARDS, PROJECTS, REACTION_MOOD, SCENARIO_ROLES, districtById, resolveRound, roleInfo,
+  type Board, type Bubble, type Mood, type OutcomeStatus, type RoleId, type RoomState,
+} from '@shared';
+import { spriteSvg } from './sprites';
+
+/** Screen offset of each role around an area's center (px), clear of the area's chip. */
+const SLOT: Record<RoleId, [number, number]> = {
+  mayor: [-112, 16], activist: [-68, 42], resort: [68, 42], resident: [112, 16], fisherman: [0, 118],
+};
+/** Phones: a tighter ring, so avatars stay above the bottom sheet. */
+const slotScale = () => (window.innerWidth < 1024 ? 0.6 : 1);
+const slot = (role: RoleId): [number, number] => {
+  const k = slotScale();
+  return [Math.round(SLOT[role][0] * k), Math.round(SLOT[role][1] * k)];
+};
+const WALK_MS = 1500;
+const BUBBLE_GAP_MS = 1100;
+const BUBBLE_MS = 5200;
+const FX_MS = 2600;
+
+const reduceMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const center = (district: string) => districtById(district).center;
+
+/** Where each role stands in this phase. */
+export function avatarSpots(state: RoomState): Partial<Record<RoleId, string>> {
+  const out: Partial<Record<RoleId, string>> = {};
+  const spot = state.crisis?.spotlight ?? [];
+  state.players.forEach((p, i) => {
+    if (spot.length) out[p.persona] = spot[i % spot.length];
+  });
+  const board = state.board ?? (state.phase === 'resolve' || state.phase === 'final' ? state.history.at(-1)?.board ?? null : null);
+  if (board && state.phase !== 'crisis' && state.phase !== 'select') {
+    for (const p of board.proposals) if (!p.carried) out[p.persona] = p.district;
+    for (const a of board.attachments) out[a.persona] = a.district;
+  }
+  out.fisherman = SCENARIO_ROLES.fisherman.home;
+  for (const b of state.bubbles?.list ?? []) if (b.district) out[b.speaker] = b.district;
+  return out;
+}
+
+/** What each proposal on the map looks like right now. */
+type GhostStatus = 'proposed' | OutcomeStatus;
+function ghosts(state: RoomState, preview: ReturnType<typeof resolveRound> | null): { id: string; kind: Board['proposals'][number]['kind']; district: string; status: GhostStatus }[] {
+  if ((state.phase === 'reveal' || state.phase === 'negotiate') && state.board) {
+    return state.board.proposals.map((p) => ({
+      id: p.id, kind: p.kind, district: p.district,
+      status: state.phase === 'negotiate' ? preview?.outcomes.find((o) => o.proposalId === p.id)?.status ?? 'proposed' : 'proposed',
+    }));
+  }
+  if (state.phase === 'resolve') {
+    return (state.history.at(-1)?.resolution.outcomes ?? []).filter((o) => o.status !== 'approved').map((o) => ({ id: o.proposalId, kind: o.kind, district: o.district, status: o.status }));
+  }
+  return [];
+}
+
+const GHOST_TAG: Record<GhostStatus, string> = {
+  proposed: 'Proposed', approved: 'Would pass', blocked: 'Blocked', rejected: 'Voted down', delayed: 'Delayed', unfunded: 'Unfunded',
+};
+
+export type FxKind = 'construct' | 'restore' | 'protest' | 'invest' | 'flood' | 'blocked';
+const FX_ICON: Record<FxKind, string> = {
+  construct: '<span class="fx-icon">🏗️</span><span class="fx-dust"></span>',
+  restore: '<span class="fx-icon">🌱</span><span class="fx-spark"></span>',
+  protest: '<span class="fx-sign s1">✊</span><span class="fx-sign s2">📢</span><span class="fx-sign s3">🪧</span>',
+  invest: '<span class="fx-coin c1">🪙</span><span class="fx-coin c2">🪙</span><span class="fx-coin c3">🪙</span>',
+  flood: '<span class="fx-ripple r1"></span><span class="fx-ripple r2"></span><span class="fx-ripple r3"></span>',
+  blocked: '<span class="fx-icon">⛔</span>',
+};
+
+const RESTORE = new Set(['shoreline']);
+
+export function LivingLayer({ map, state }: { map: MapLibreMap | null; state: RoomState }) {
+  const avatars = useRef(new Map<RoleId, { marker: Marker; el: HTMLDivElement; at: string | null; stop: () => void }>());
+  const ghostMarkers = useRef(new Map<string, Marker>());
+  const bubbleList = useRef<Bubble[]>([]);
+  bubbleList.current = state.bubbles?.list ?? [];
+  const [storm, setStorm] = useState<string | null>(null);
+
+  const roles = useMemo<RoleId[]>(() => [...state.players.map((p) => p.persona), 'fisherman'], [state.players.map((p) => p.persona).join(',')]);
+  const spots = avatarSpots(state);
+  const spotKey = roles.map((r) => `${r}:${spots[r] ?? ''}`).join('|');
+
+  // Avatars: one marker per role, made once per map.
+  useEffect(() => {
+    if (!map) return;
+    const made = avatars.current;
+    for (const role of roles) {
+      if (made.has(role)) continue;
+      const info = roleInfo(role);
+      const el = document.createElement('div');
+      el.className = 'avatar';
+      el.dataset.role = role;
+      el.dataset.mood = 'idle';
+      el.style.setProperty('--tint', info.color);
+      el.innerHTML = `<div class="avatar-bubble" role="status"></div><div class="avatar-figure">${spriteSvg(role)}</div><div class="avatar-shadow"></div><div class="avatar-name">${info.name.replace('Environmental ', '')}</div>`;
+      el.title = `${info.name}: ${'title' in info ? info.title : ''}`;
+      const marker = new Marker({ element: el, anchor: 'bottom', offset: slot(role) });
+      made.set(role, { marker, el, at: null, stop: () => {} });
+    }
+    for (const [role, a] of made) a.el.style.display = roles.includes(role) ? '' : 'none';
+  }, [map, roles]);
+
+  useEffect(() => () => {
+    for (const a of avatars.current.values()) {
+      a.stop();
+      a.marker.remove();
+    }
+    avatars.current.clear();
+  }, [map]);
+
+  // Walk to where you played.
+  useEffect(() => {
+    if (!map) return;
+    for (const role of roles) {
+      const a = avatars.current.get(role);
+      const to = spots[role];
+      if (!a || !to || a.at === to) continue;
+      a.stop();
+      if (a.at === null || reduceMotion()) {
+        a.marker.setLngLat(center(to)).addTo(map);
+        a.at = to;
+        continue;
+      }
+      const from = center(a.at);
+      const dest = center(to);
+      const t0 = performance.now();
+      let raf = 0;
+      a.el.dataset.walking = 'true';
+      a.el.dataset.facing = dest[0] < from[0] ? 'left' : 'right';
+      const step = (t: number) => {
+        const k = Math.min(1, (t - t0) / WALK_MS);
+        const e = k < 0.5 ? 2 * k * k : 1 - (-2 * k + 2) ** 2 / 2;
+        a.marker.setLngLat([from[0] + (dest[0] - from[0]) * e, from[1] + (dest[1] - from[1]) * e]);
+        if (k < 1) raf = requestAnimationFrame(step);
+        else a.el.dataset.walking = 'false';
+      };
+      raf = requestAnimationFrame(step);
+      a.stop = () => {
+        cancelAnimationFrame(raf);
+        a.el.dataset.walking = 'false';
+      };
+      a.at = to;
+    }
+    // spotKey captures every input that moves an avatar.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map, spotKey]);
+
+  // Speech bubbles: one after another, each auto-dismissed; the speaker acts out the reaction.
+  const bubbleKey = state.bubbles?.key ?? null;
+  useEffect(() => {
+    if (!map || !bubbleKey) return;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    const order = bubbleList.current.map((b) => b.speaker);
+    const setMood = (role: RoleId, mood: Mood) => {
+      const a = avatars.current.get(role);
+      if (a) a.el.dataset.mood = mood;
+    };
+    order.forEach((speaker, i) => {
+      timers.push(setTimeout(() => {
+        const b = bubbleList.current.find((x) => x.speaker === speaker);
+        const a = avatars.current.get(speaker);
+        if (!b || !a) return;
+        const el = a.el.querySelector<HTMLDivElement>('.avatar-bubble')!;
+        el.textContent = b.text;
+        el.dataset.source = b.source;
+        a.el.dataset.speaking = 'true';
+        a.el.style.zIndex = '6';
+        setMood(speaker, REACTION_MOOD[b.reaction]);
+      }, 350 + i * BUBBLE_GAP_MS));
+      timers.push(setTimeout(() => {
+        const a = avatars.current.get(speaker);
+        if (!a) return;
+        a.el.dataset.speaking = 'false';
+        a.el.style.zIndex = '';
+      }, 350 + i * BUBBLE_GAP_MS + BUBBLE_MS));
+      timers.push(setTimeout(() => setMood(speaker, 'idle'), 350 + i * BUBBLE_GAP_MS + BUBBLE_MS + 2500));
+    });
+    return () => {
+      timers.forEach(clearTimeout);
+      for (const a of avatars.current.values()) {
+        a.el.dataset.speaking = 'false';
+        a.el.dataset.mood = 'idle';
+        a.el.style.zIndex = '';
+      }
+    };
+  }, [map, bubbleKey]);
+
+  // A Gemini line that arrives late replaces the text of a bubble that is still showing.
+  useEffect(() => {
+    for (const b of state.bubbles?.list ?? []) {
+      const a = avatars.current.get(b.speaker);
+      if (!a || a.el.dataset.speaking !== 'true') continue;
+      const el = a.el.querySelector<HTMLDivElement>('.avatar-bubble')!;
+      if (el.textContent !== b.text) {
+        el.textContent = b.text;
+        el.dataset.source = b.source;
+      }
+    }
+  }, [state.bubbles]);
+
+  // Proposals on the table, as ghost markers in their area.
+  const preview = useMemo(
+    () => (state.phase === 'negotiate' && state.board ? resolveRound(state.board, state.actions, state.city) : null),
+    [state.phase, state.board, state.actions, state.city],
+  );
+  const ghostList = ghosts(state, preview);
+  const ghostKey = ghostList.map((g) => `${g.id}:${g.status}`).join('|');
+  useEffect(() => {
+    if (!map) return;
+    const live = new Set(ghostList.map((g) => g.id));
+    for (const [id, m] of ghostMarkers.current) if (!live.has(id)) (m.remove(), ghostMarkers.current.delete(id));
+    const perDistrict = new Map<string, number>();
+    for (const g of ghostList) {
+      const k = perDistrict.get(g.district) ?? 0;
+      perDistrict.set(g.district, k + 1);
+      const n = ghostList.filter((x) => x.district === g.district).length;
+      let m = ghostMarkers.current.get(g.id);
+      if (!m) {
+        const el = document.createElement('div');
+        el.className = 'ghost';
+        m = new Marker({ element: el, anchor: 'bottom' }).setLngLat(center(g.district)).addTo(map);
+        ghostMarkers.current.set(g.id, m);
+      }
+      const sk = slotScale();
+      m.setOffset([Math.round((k * 46 - (n - 1) * 23) * sk), Math.round(-62 * sk)]);
+      const el = m.getElement();
+      el.dataset.status = g.status;
+      el.title = `${PROJECTS[g.kind].name} · ${districtById(g.district).name}: ${GHOST_TAG[g.status]}`;
+      el.innerHTML = `<span class="ghost-icon">${PROJECTS[g.kind].marker}</span><span class="ghost-tag">${GHOST_TAG[g.status]}</span>`;
+    }
+    // ghostKey captures the list.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map, ghostKey]);
+  useEffect(() => () => {
+    for (const m of ghostMarkers.current.values()) m.remove();
+    ghostMarkers.current.clear();
+  }, [map]);
+
+  // Effects at each moment.
+  const moment = `${state.phase}-${state.round}`;
+  useEffect(() => {
+    if (!map) return;
+    const fx: { district: string; kind: FxKind; delay: number }[] = [];
+    if (state.phase === 'crisis' && state.crisis) {
+      if (state.crisis.id === 'king-tide') for (const d of state.crisis.spotlight) fx.push({ district: d, kind: 'flood', delay: 300 });
+      if (state.crisis.id === 'storm-season') setStorm(`crisis-${state.round}`);
+    }
+    if (state.phase === 'reveal' && state.board) {
+      state.board.attachments.forEach((a, i) => {
+        const cat = CARDS[a.card].category;
+        if (cat === 'opposition') fx.push({ district: a.district, kind: 'protest', delay: 1300 + i * 280 });
+        if (a.card === 'private-investment' || a.card === 'emergency-funding') fx.push({ district: a.district, kind: 'invest', delay: 1300 + i * 280 });
+      });
+    }
+    if (state.phase === 'resolve') {
+      const last = state.history.at(-1);
+      last?.resolution.outcomes.forEach((o, i) => {
+        if (o.status === 'approved') fx.push({ district: o.district, kind: RESTORE.has(o.kind) ? 'restore' : 'construct', delay: 400 + i * 350 });
+        if (o.status === 'blocked' || o.status === 'rejected') fx.push({ district: o.district, kind: 'blocked', delay: 400 + i * 350 });
+      });
+      if (last?.resolution.events.some((e) => e.rule === 'S9')) setStorm(`storm-${state.round}`);
+    }
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    const made: Marker[] = [];
+    for (const f of fx) {
+      timers.push(setTimeout(() => {
+        const el = document.createElement('div');
+        el.className = `fx fx-${f.kind}`;
+        el.setAttribute('aria-hidden', 'true');
+        el.innerHTML = FX_ICON[f.kind];
+        const m = new Marker({ element: el, offset: [0, -10] }).setLngLat(center(f.district)).addTo(map);
+        made.push(m);
+        timers.push(setTimeout(() => m.remove(), FX_MS));
+      }, reduceMotion() ? 0 : f.delay));
+    }
+    return () => {
+      timers.forEach(clearTimeout);
+      made.forEach((m) => m.remove());
+    };
+    // One set of effects per moment.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map, moment]);
+
+  useEffect(() => {
+    if (!storm) return;
+    const t = setTimeout(() => setStorm(null), 4200);
+    return () => clearTimeout(t);
+  }, [storm]);
+
+  return storm ? <div key={storm} className="storm-overlay" aria-hidden><span className="storm-flash" /></div> : null;
+}

@@ -11,6 +11,7 @@ import { Bubbles } from '../ui/Bubbles';
 import { useSound } from '../ui/sound';
 import { say, hush } from '../ui/voice';
 import { Flights, Stamps } from '../game/Flights';
+import { LivingLayer } from '../map/LivingLayer';
 import { Hud } from '../game/Hud';
 import { JoinForm, Lobby } from '../game/Lobby';
 import { Players } from '../game/Players';
@@ -63,6 +64,8 @@ export function Play({ code }: { code: string }) {
   const wide = useWide();
   const [map, setMap] = useState<MapLibreMap | null>(null);
   const [card, setCard] = useState<CardId | null>(null);
+  /** The card under the pointer: its legal targets light up before you pick it. */
+  const [hoverCard, setHoverCard] = useState<CardId | null>(null);
   const [target, setTarget] = useState<string | null>(null);
   const [overlays, setOverlays] = useState<Overlays>({ flood: true, zoning: false });
   const sound = useSound();
@@ -83,9 +86,10 @@ export function Play({ code }: { code: string }) {
     return () => hush();
   }, [voiceOn, state?.headline?.key, state?.headline?.source]);
 
+  const shown = card ?? hoverCard;
   const eligible = useMemo(
-    () => (phase === 'select' && card && !state?.mine?.selection ? Object.fromEntries(DISTRICT_IDS.map((d) => [d, cardEligibility(card, d).ok])) : null),
-    [phase, card, state?.mine?.selection],
+    () => (phase === 'select' && shown && !state?.mine?.selection ? Object.fromEntries(DISTRICT_IDS.map((d) => [d, cardEligibility(shown, d).ok])) : null),
+    [phase, shown, state?.mine?.selection],
   );
   const hottest = useMemo(() => {
     if (!state?.board) return null;
@@ -121,7 +125,7 @@ export function Play({ code }: { code: string }) {
   const pickArea = phase === 'select' && card && !state.mine?.selection ? (id: string) => cardEligibility(card, id).ok && setTarget(id) : undefined;
   const panel =
     phase === 'crisis' ? <CrisisPanel state={state} />
-      : phase === 'select' ? <HandPanel state={state} room={room} card={card} setCard={setCard} target={target} setTarget={setTarget} />
+      : phase === 'select' ? <HandPanel state={state} room={room} card={card} setCard={setCard} target={target} setTarget={setTarget} onHover={setHoverCard} />
         : phase === 'reveal' ? <RevealPanel state={state} />
           : phase === 'negotiate' ? <NegotiationPanel state={state} room={room} />
             : phase === 'resolve' ? <ResolvePanel state={state} />
@@ -158,6 +162,7 @@ export function Play({ code }: { code: string }) {
           <button type="button" className="aero-btn aero-btn-icon" onClick={() => setOverlays({ ...overlays, flood: !overlays.flood })} aria-pressed={overlays.flood} title="FEMA flood zones">🌊</button>
         )}
       </div>
+      <LivingLayer map={map} state={state} />
       <Flights map={map} state={state} />
       <Stamps map={map} state={state} />
     </main>

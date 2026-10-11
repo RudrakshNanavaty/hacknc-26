@@ -69,6 +69,9 @@ export function Flights({ map, state }: { map: MapLibreMap | null; state: RoomSt
     return () => {
       timers.forEach(clearTimeout);
       clearTimeout(clear);
+      // The phase can end early (host skip): never leave a card hanging over the map.
+      setFlights([]);
+      setSplashes([]);
     };
     // One flight per reveal.
     // eslint-disable-next-line react-hooks/exhaustive-deps

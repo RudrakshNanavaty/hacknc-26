@@ -4,8 +4,8 @@ import { CARDS, PERSONA_INFO, type CardId } from '@shared';
 const CATEGORY = { project: 'Project', support: 'Support', opposition: 'Opposition', negotiation: 'Negotiation' } as const;
 
 export function GameCard({
-  id, selected = false, disabled = false, compact = false, onClick, note,
-}: { id: CardId; selected?: boolean; disabled?: boolean; compact?: boolean; onClick?: () => void; note?: string | null }) {
+  id, selected = false, disabled = false, compact = false, onClick, onHover, note,
+}: { id: CardId; selected?: boolean; disabled?: boolean; compact?: boolean; onClick?: () => void; onHover?: (on: boolean) => void; note?: string | null }) {
   const c = CARDS[id];
   const color = PERSONA_INFO[c.persona].color;
   const body = (
@@ -23,7 +23,10 @@ export function GameCard({
   const cls = `game-card ${compact ? 'game-card-compact' : ''} ${selected ? 'is-selected' : ''} ${disabled ? 'is-disabled' : ''}`;
   if (!onClick) return <div className={cls} style={{ ['--tint' as string]: color }}>{body}</div>;
   return (
-    <button type="button" className={cls} style={{ ['--tint' as string]: color }} onClick={onClick} aria-pressed={selected} disabled={disabled} title={c.rule}>
+    <button
+      type="button" className={cls} style={{ ['--tint' as string]: color }} onClick={onClick} aria-pressed={selected} disabled={disabled} title={c.rule}
+      onPointerEnter={() => onHover?.(true)} onPointerLeave={() => onHover?.(false)} onFocus={() => onHover?.(true)} onBlur={() => onHover?.(false)}
+    >
       {body}
     </button>
   );
