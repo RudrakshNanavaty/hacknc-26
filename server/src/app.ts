@@ -1,5 +1,5 @@
 import Fastify from 'fastify';
-import { CARDS, COMBOS, CRISIS_KIND_INFO, DATA_METHOD, DATA_SOURCES, DATA_VERSION, DIRECTOR_EVENTS, DISTRICTS, HANDS, PERSONA_INFO, RULES_VERSION, checkSpoken, explainEligibility, explainOutcome, type Explanation } from '@shared';
+import { AGREEMENTS, CARDS, COMBOS, CRISIS_KIND_INFO, DATA_METHOD, DATA_SOURCES, DATA_VERSION, DIRECTOR_EVENTS, DISTRICTS, HANDS, PERSONA_INFO, RULES_VERSION, START_WALLETS, WALLET_INFO, affordability, checkSpoken, explainEligibility, explainOutcome, type Explanation } from '@shared';
 import { type MatchStore, MemoryStore } from './db/store';
 import { lanAddresses } from './net';
 import { roomServer } from './roomSocket';
@@ -52,7 +52,7 @@ export function buildServer({ store = new MemoryStore(), gemini = defaultGemini,
   // The rules and the data, as the engine uses them (the "how it works" page and audits).
   app.get('/api/rules', async () => ({
     rulesVersion: RULES_VERSION, dataVersion: DATA_VERSION, dataMethod: DATA_METHOD, sources: DATA_SOURCES, districts: DISTRICTS, personas: PERSONA_INFO,
-    cards: CARDS, hands: HANDS, combos: COMBOS, crisisKinds: CRISIS_KIND_INFO,
+    cards: CARDS, hands: HANDS, combos: COMBOS, crisisKinds: CRISIS_KIND_INFO, agreements: AGREEMENTS, wallets: WALLET_INFO, startWallets: START_WALLETS,
     twists: Object.values(DIRECTOR_EVENTS).map((e) => ({ type: e.type, title: e.title, perMagnitude: e.perMagnitude })),
   }));
 
@@ -64,7 +64,19 @@ export function buildServer({ store = new MemoryStore(), gemini = defaultGemini,
     const b = req.body ?? {};
     let e: Explanation | null = null;
     if (b.kind === 'eligibility') e = explainEligibility(String(b.card ?? ''), String(b.district ?? ''));
-    else if (b.kind === 'outcome') {
+    else if (b.kind === 'affordability') {
+      // "Can we afford this?": from the books of the live room (public money), never from the model.
+      try {
+        const room = getRoom(String(b.code ?? ''));
+        const p = room.board?.proposals.find((x) => x.id === b.proposalId);
+        if (p) {
+          const a = affordability(room.city, room.round, p.kind, p.persona);
+          e = { question: 'Can this be paid for?', answer: a.answer, facts: a.facts, source: 'template' };
+        }
+      } catch {
+        e = null;
+      }
+    } else if (b.kind === 'outcome') {
       try {
         const room = getRoom(String(b.code ?? ''));
         // A delayed proposal is decided again later: explain its latest verdict.

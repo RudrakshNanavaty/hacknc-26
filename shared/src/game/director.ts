@@ -7,8 +7,8 @@
 //   game state -> context (server) -> Gemini JSON -> validate* (here) -> applyDirectorEvent (deterministic) -> record
 import { CARDS, COMBOS, INDICATORS, NEGOTIATION_COST, PERSONA_INFO, PROJECTS, TOTAL_ROUNDS, isComboId, type ComboId, type Delta, type NegotiationMove, type PersonaId } from './content';
 import { DISTRICT_IDS, coastalHighHazard, districtById, isDistrictId, projectEligibility, type District } from './districts';
-import { checkAccept, checkMove, resolveRound, treasuryOf, type Board, type CityState, type NegotiationAction, type OutcomeStatus, type RuleEvent } from './engine';
-import { Books, budgetDelta, cloneTreasury } from './money';
+import { checkAccept, checkMove, resolveRound, treasuryOf, type Board, type CityState, type Compromise, type NegotiationAction, type OutcomeStatus, type RuleEvent } from './engine';
+import { Books, budgetDelta, cloneTreasury, usd, WALLET_INFO } from './money';
 import { BUBBLE_WORDS, isReaction, isRoleId, roleInfo, wordCount, type Bubble, type Reaction, type RoleId } from './living';
 import type { Crisis, CrisisKind } from './scenario';
 
@@ -426,6 +426,9 @@ const STATUS_WORD: Record<OutcomeStatus, string> = { approved: 'approved', block
 const MOVE_WORD: Record<NegotiationMove, string> = { back: 'backing', oppose: 'opposing', fund: 'funding' };
 export const HINTS_MAX = 4;
 
+/** Who pays what under a deal, in words (simulated money), or nothing for a plain condition. */
+const dealWords = (c: Compromise): string => (c.terms ? ` (${WALLET_INFO[c.terms.funder].short} pays ${usd(c.terms.amount)}, simulated)` : '');
+
 /** Deterministic hints: the moves that flip an outcome, then the combos in reach. */
 export function templateHints(board: Board, candidates: MoveCandidate[], reach: ComboInReach[]): TableHint[] {
   const label = (id: string) => {
@@ -436,7 +439,7 @@ export function templateHints(board: Board, candidates: MoveCandidate[], reach: 
     // The id names the outcome it predicts: when the engine's prediction changes, so does the hint (and old AI wording goes).
     id: `h-${c.id}-${c.from}-${c.to}`, kind: c.kind, proposalId: c.proposalId, seat: c.seat, move: c.move, compromiseId: c.compromiseId, combo: null, source: 'template',
     text: c.kind === 'accept'
-      ? `If the ${PERSONA_INFO[c.persona].name} accepts "${board.compromises.find((x) => x.id === c.compromiseId)!.title}", ${label(c.proposalId)} goes from ${STATUS_WORD[c.from]} to ${STATUS_WORD[c.to]}.`
+      ? `If the ${PERSONA_INFO[c.persona].name} accepts "${board.compromises.find((x) => x.id === c.compromiseId)!.title}"${dealWords(board.compromises.find((x) => x.id === c.compromiseId)!)}, ${label(c.proposalId)} goes from ${STATUS_WORD[c.from]} to ${STATUS_WORD[c.to]}.`
       : `The ${PERSONA_INFO[c.persona].name} ${MOVE_WORD[c.move as NegotiationMove]} it (${NEGOTIATION_COST[c.move as NegotiationMove]} influence) turns ${label(c.proposalId)} from ${STATUS_WORD[c.from]} to ${STATUS_WORD[c.to]}.`,
   }));
   const combos: TableHint[] = reach.map((r) => ({

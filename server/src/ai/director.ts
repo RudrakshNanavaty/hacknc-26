@@ -6,7 +6,7 @@
 // cannot hand one player information the others lack. Every call has a timeout; a missing key, a slow
 // answer or malformed JSON throws AIError and the template already on screen stays.
 import {
-  DIRECTOR_EVENTS, DISTRICTS, EVENT_RULES, EVENT_TYPES, PERSONA_INFO, PROJECTS, REACTIONS, ROLES, SCENARIO_ROLES, COMBOS, checkSpoken, districtById, districtFacts,
+  DIRECTOR_EVENTS, DISTRICTS, EVENT_RULES, EVENT_TYPES, PERSONA_INFO, PROJECTS, REACTIONS, ROLES, SCENARIO_ROLES, COMBOS, WALLET_INFO, billFor, checkSpoken, debtOutstanding, districtById, districtFacts, inMillions, treasuryOf,
   type ComboInReach, type EventType, type Explanation, type RoleId, type RoomState, type TableHint,
 } from '@shared';
 import { GROUNDED, type Gemini } from './gemini';
@@ -21,6 +21,8 @@ export function directorFacts(state: RoomState) {
     phase: state.phase,
     crisis: state.crisis ? { title: state.crisis.title, text: state.crisis.text, spotlight: state.crisis.spotlight.map((d) => districtById(d).name) } : null,
     indicators: state.city.indicators,
+    // Public money only (wallets are on the table for everyone); all simulated, in $M.
+    money: moneyFacts(state),
     places: DISTRICTS.map((d) => ({ id: d.id, name: d.name, shore: d.shore, facts: districtFacts(d) })),
     stakeholders: [
       ...state.players.map((p) => ({ role: p.persona, name: PERSONA_INFO[p.persona].name, voice: PERSONA_INFO[p.persona].voice, goal: PERSONA_INFO[p.persona].goal })),
@@ -30,7 +32,10 @@ export function directorFacts(state: RoomState) {
       ? {
           proposals: state.board.proposals.map((p) => ({ id: p.id, by: p.persona, project: PROJECTS[p.kind].name, place: districtById(p.district).name, delayed: p.carried })),
           cards: state.board.attachments.map((a) => ({ by: a.persona, card: a.card, place: districtById(a.district).name, on: a.proposalId })),
-          conditions: state.board.compromises.map((c) => ({ id: c.id, title: c.title, on: c.proposalId, accepted: c.accepted })),
+          conditions: state.board.compromises.map((c) => ({
+            id: c.id, title: c.title, on: c.proposalId, accepted: c.accepted,
+            ...(c.terms ? { deal: { payer: WALLET_INFO[c.terms.funder].short, amountM: inMillions(c.terms.amount), paysTheCost: c.terms.covers, laterPaymentsM: c.terms.schedule.map((x) => inMillions(x.amount)) } } : {}),
+          })),
           moves: state.actions.map((a) => ({ by: a.persona, move: a.move, on: a.proposalId })),
         }
       : null,
@@ -46,6 +51,20 @@ export function directorFacts(state: RoomState) {
 }
 
 export type DirectorFacts = ReturnType<typeof directorFacts>;
+
+/** The money everyone at the table can see: wallets, debt, and what the next round's bill already holds ($M, simulated). */
+export function moneyFacts(state: RoomState) {
+  const t = treasuryOf(state.city);
+  const bill = billFor(state.city, state.round + (state.phase === 'resolve' || state.phase === 'final' ? 1 : 0));
+  return {
+    note: 'Simulated, illustrative money in $M. The game moves it; you only talk about it.',
+    publicBudgetM: state.city.indicators.budget,
+    debtOwedM: inMillions(debtOutstanding(t)),
+    wallets: Object.fromEntries((['activist', 'resort', 'resident'] as const).map((w) => [WALLET_INFO[w].short, inMillions(t.balances[w])])),
+    nextBillM: state.city.indicators.budget - bill.indicators.budget,
+    scheduledPayments: t.obligations.map((o) => ({ to: WALLET_INFO[o.to].short, amountM: inMillions(o.amount), round: o.dueRound })),
+  };
+}
 
 const PERSONAS_TEXT = `Characters (nuanced people, never caricatures):
 - Mayor: pragmatic, budget-wary, politically cautious, dry humor. ("We have three disasters and one budget. Fantastic.")
@@ -83,7 +102,8 @@ export function geminiDirector(gemini: Gemini, timeoutMs = 8_000): Director | nu
         system: `You write speech bubbles for characters standing on the map in "Coastal Clash", a playful city-planning game.
 ${PERSONAS_TEXT}
 Write at most one line per character listed in "speakers": 8 to 15 words, in character, funny and warm, general-audience safe.
-React to the current moment (${moment}): the crisis, the cards just played, the deals on the table, or what was decided.
+React to the current moment (${moment}): the crisis, the cards just played, the deals and money on the table, or what was decided.
+You may react to who is paying and what it costs, using only amounts in the facts; never promise, move or invent money.
 Pick each character's reaction from the given list only. Optionally name the place id where they stand.
 - Do not decide or predict outcomes; only react to the facts.
 ${GROUNDED}`,
@@ -140,7 +160,7 @@ ${GROUNDED}`,
     async hints(facts, hints, reach) {
       const out = await gemini.json<{ suggestions: unknown[]; combos: unknown[] }>({
         system: `You coach the whole negotiating table in "Coastal Clash" (everyone sees the same hints). The game engine has already found which moves would change an outcome ("hints") and which authored combos are within reach ("reach").
-Rewrite each hint as a short, friendly pitch (under 30 words) that names who could do it and what would change. Never invent a move, a combo or an effect; only use the hint ids and combo ids given. Players decide; you only point things out.
+Rewrite each hint as a short, friendly pitch (under 30 words) that names who could do it and what would change. Never invent a move, a combo, a deal, an amount or an effect; only use the hint ids and combo ids given. A hint about accepting a deal may say who pays and what it costs, using only the amounts in the facts. Players decide; you only point things out.
 For combos in reach, explain in one sentence why the pairing works. If you think of a new combo that is not in the list, put it in "novelIdea" (it will be reviewed by a designer, never played).
 ${GROUNDED}`,
         prompt: JSON.stringify({ hints: hints.filter((h) => h.kind !== 'combo').map((h) => ({ id: h.id, text: h.text })), reach: reach.map((r) => ({ combo: r.combo, name: COMBOS[r.combo].name, recipe: COMBOS[r.combo].recipe, proposalIds: r.proposalIds, needs: r.needs })), facts }),

@@ -2,7 +2,8 @@
 import { describe, expect, it } from 'vitest';
 import { PROJECTS, TOTAL_ROUNDS, type CardId, type PersonaId } from './content';
 import { botPlay, buildBoard, checkAccept, checkMove, checkPlay, crisisFor, resolveRound, startCity, type CityState, type Play } from './engine';
-import { negotiationCandidates } from './director';
+import { applyDirectorEvent, checkSpoken, combosInReach, negotiationCandidates, templateHints, validateEventProposal, validateSuggestion } from './director';
+import { affordability } from './economy';
 import { Books, MoneyError, WALLETS, WALLET_INFO, inMillions, millions, startTreasury, type Treasury } from './money';
 
 const seat: Record<PersonaId, number> = { mayor: 0, activist: 1, resort: 2, resident: 3 };
@@ -204,5 +205,59 @@ describe('wealth cannot buy past geography', () => {
     expect(r.outcomes[0]!.status).toBe('blocked');
     expect(r.ledger).toEqual([]);
     expect(crisisFor(2).spotlight.length).toBeGreaterThan(0);
+  });
+});
+
+describe('the Director proposes, never executes money', () => {
+  const table = () => {
+    const board = buildBoard(2, [
+      play('mayor', 'seawall-upgrade', 'west-avenue'),
+      play('resort', 'private-investment', 'west-avenue'),
+      play('resident', 'neighborhood-petition', 'west-avenue'),
+    ]);
+    const city = setWallet(startCity(), 'city', 3);
+    const hints = templateHints(board, negotiationCandidates(board, [], city, players(['mayor', 'activist', 'resort', 'resident'])), combosInReach(board));
+    return { board, city, hints };
+  };
+
+  it('the template hint for a deal says who pays and how much, from the terms', () => {
+    const { hints } = table();
+    const deal = hints.find((h) => h.kind === 'accept')!;
+    expect(deal.text).toMatch(/Resort capital pays \$7M, simulated/);
+  });
+
+  it('an invented transfer, deal or amount from the model is rejected; a faithful pitch passes', () => {
+    const { hints } = table();
+    const deal = hints.find((h) => h.kind === 'accept')!;
+    const facts = { money: { publicBudgetM: 3, wallets: { 'Resort capital': 20 } }, deal: { amountM: 7 } };
+    // Not one of the engine's moves: the model cannot create a transfer.
+    expect(validateSuggestion({ hint: 'transfer-5M-resort-to-city', pitch: 'Resort, send the city five million, deal?' }, hints, facts)).toMatchObject({ ok: false });
+    // A real hint, but an amount the facts do not hold.
+    expect(validateSuggestion({ hint: deal.id, pitch: 'Mayor, accept the deal: the Resort pays $12M and it gets built.' }, hints, facts)).toMatchObject({ ok: false });
+    expect(validateSuggestion({ hint: deal.id, pitch: 'Mayor, accept the deal: the Resort pays twelve million and it gets built.' }, hints, facts)).toMatchObject({ ok: false });
+    const ok = validateSuggestion({ hint: deal.id, pitch: 'Mayor, accept the partnership: the Resort pays $7M and the seawall gets built.' }, hints, facts);
+    expect(ok).toMatchObject({ ok: true, value: { id: deal.id, compromiseId: deal.compromiseId, source: 'gemini' } });
+  });
+
+  it('a twist cannot bring its own money: magnitude is clamped and the amount comes from the catalogue', () => {
+    const v = validateEventProposal({ type: 'federal-grant', district: 'west-avenue', magnitude: 99, narrative: 'A grant program takes an interest in the neighborhood.', amount: 1e9, delta: { budget: 500 } }, { round: 2, phase: 'crisis', fired: [], count: 0 }, 'gemini');
+    expect(v.ok).toBe(true);
+    if (!v.ok) return;
+    expect(v.value.magnitude).toBe(3);
+    expect(v.value.delta).toEqual({ budget: 6 });
+    const applied = applyDirectorEvent(startCity(), v.value);
+    // The budget part moved through the books: outside money in, the meter follows the wallet.
+    expect(applied.city.treasury.ledger).toEqual([expect.objectContaining({ id: 'r2-t1', rule: 'D1', from: 'grants', to: 'city', amount: millions(6) })]);
+    expect(applied.city.indicators.budget).toBe(startCity().indicators.budget + 6);
+  });
+
+  it('"can we afford it?" is answered from the books; the model may only reword it', () => {
+    const city = setWallet(startCity(), 'city', 3);
+    const a = affordability(city, 2, 'seawall', 'mayor');
+    expect(a.answer).toMatch(/Not from the budget: it will hold \$3M and this needs \$7M/);
+    expect(a.facts.join(' ')).toMatch(/\$7M/);
+    // A rewording that adds a number the facts do not hold is refused.
+    expect(checkSpoken('The city could borrow $9M from the bond market.', { question: '', answer: a.answer, facts: a.facts })).toMatch(/9/);
+    expect(affordability(startCity(), 1, 'hotel', 'resort').answer).toMatch(/Vance Hospitality capital can pay the \$6M itself/);
   });
 });
