@@ -193,7 +193,7 @@ Schema changes go in `server/src/db/schema.sql`, written idempotently (`IF NOT E
 
 ## 6. Git workflow
 
-- Branch from `aum/coastal-clash` (the integration branch for this game) as `<name>/dev` or `<name>/<topic>`.
+- Branch from `pratham/coastal-clash` (it carries `aum/coastal-clash` plus the living map, the Director, the 24 cards and the review fixes; merge `aum/coastal-clash` in again as Aum pushes) as `<name>/dev` or `<name>/<topic>`.
   `aum/dev` holds the older ReefForge project; do not merge between them.
 - Commit small with a message that says what changed and why. Pull and merge often: `content.ts`, `engine.ts`, `rooms.ts`, `screens.tsx` and `styles.css` are where people collide.
 - Never commit `.env`, `pipeline/cache/` or `node_modules/`.

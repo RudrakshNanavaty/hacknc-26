@@ -3,9 +3,22 @@
 The brief has five milestones: living map (M1), AI Game Director (M2), card expansion (M3), economy and negotiation UX (M4), polish (M5).
 This file is the source of truth if a session is cut off. **Re-read it before continuing.** Update it at the end of every milestone.
 
-- Branch: `pratham/living-city`, made from `pratham/coastal-clash` (= `aum/coastal-clash` + a lockfile refresh + the docs commit).
+## Where things stand (2026-10-11, handoff)
+
+- **Pushed:** `origin/pratham/coastal-clash` at the commit that adds this section. It holds all five milestones, the merge of
+  `aum/coastal-clash` (3D street map, live crises, Aero Lagoon UI) and the review fixes. The work was done on the local branch
+  `pratham/living-city` (same commits); the temporary `pratham/integrate-aum` worktree branch has been deleted.
+- **Green:** `npm run typecheck` and `npm test` (92 tests). Full bot matches checked in the browser at 1440 px and 390 px.
+- **Gemini key out of credit:** every call returns HTTP 402 ("prepayment credits are depleted"). Top up the AI Studio project;
+  until then the scenario desk, narrator and Director run on their authored templates (the game is unaffected).
+- **Next:** playtest the balance numbers; Aum to review the merge into his screens (`app/src/game/insights.tsx` holds our
+  additions); decide the open questions at the end of this file. To pick up, read `AGENTS.md`, `docs/contributing.md`, then this file.
+- Cleanup left for a human: the folder `../coastal-clash-integrate` (no longer a git worktree, held by a file lock) can be deleted.
+
+## Setup
+
 - Local dev: `npm run dev` on Node 22 (`.node-version`). App on http://localhost:5173, server on http://localhost:8787 (`PORT` in `.env`).
-  `.env` has GEMINI and ELEVENLABS keys, so AI runs live locally. The tests mock Gemini.
+  `.env` holds the GEMINI and ELEVENLABS keys (see above for the Gemini credit). The tests mock every AI call and the live feeds.
 
 ## Baseline (2026-10-10, before any change)
 
@@ -73,11 +86,11 @@ The fix was environmental: `fnm install 22` and a `.node-version` file. No code 
 - [x] **M5 polish + Studio** (commit c83ba05): Studio "AI Game Director" panel (apart from findings), combos panel, timeline
   twists/combos/hint follow-through and a replay check; podium recap; camera follows the card's target.
 - [x] **Integration with Aum's aum/coastal-clash (2026-10-11)**: merged his 3D street map, live per-match crises (NOAA + NWS +
-  Gemini scenario desk) and Aero Lagoon UI on branch `pratham/integrate-aum` (merge commit 3e5db65), made from `pratham/living-city`.
+  Gemini scenario desk) and Aero Lagoon UI (merge commit 3e5db65, now on `pratham/coastal-clash`).
   Our panels.tsx (deleted upstream) was ported into his screens through `app/src/game/insights.tsx`. Crisis lines, twists, previews
   and replays now follow each match's crisis (kinds). Checked a full bot match at 1440 and 390 on the merged build (no console errors).
 - [x] **Review fixes (commit c87f2f7)**: a 5-dimension review (engine authority, AI safety/fairness, research integrity, rules/cards,
-  UI) with one adversarial skeptic per dimension ran on c83ba05; 40 findings, all fixed on the merged code with 12 regression tests.
+  UI) with one adversarial skeptic per dimension ran on c83ba05; 40 findings (26 of the first 31 confirmed by the skeptics, the rest fixed anyway as low-risk hardening), all fixed on the merged code with 12 regression tests.
   The highest-impact ones: the replay check compared JSON text (every Tiger Data/jsonb record would show "Replay differs"); AI text
   checks missed spelled-out numbers ("seventy-five percent"), inflected unsafe words, unsafe novel ideas and combo explanations; hints
   were capped in seat order (unfair); C3 was logged even when the shoreline failed; previews ignored this round's bill; "Explain"
