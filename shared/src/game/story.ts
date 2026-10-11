@@ -19,6 +19,13 @@ export interface StorySource {
   kind: 'official' | 'news' | 'advocacy' | 'industry' | 'other';
 }
 
+/** The research reviewer's report on a story: did the sources agree, and what was done about it. */
+export interface StoryVerification {
+  status: 'sources-checked' | 'resolved' | 'conflict';
+  notes: string[];
+  resolution?: string;
+}
+
 export interface StorySide {
   who: string;
   position: string;
@@ -70,6 +77,9 @@ export interface CivicStory {
   card_ideas: string[];
   sources: Omit<StorySource, 'id'>[];
   cast?: StoryCast | null;
+  verification?: StoryVerification | null;
+  /** When the sources were retrieved (YYYY-MM-DD). */
+  retrieved_at?: string | null;
 }
 
 /** What a crisis carries about its story (shown on the crisis card and kept in the match record). */
@@ -83,6 +93,8 @@ export interface CrisisStory {
   concerns: string[];
   sources: StorySource[];
   roles: Record<RoleId, StoryRole>;
+  verification?: StoryVerification | null;
+  retrievedAt?: string | null;
 }
 
 export const storySources = (s: CivicStory): StorySource[] => s.sources.map((x, i) => ({ ...x, id: `${s.id}#${i}` }));
@@ -219,7 +231,7 @@ export function storyCrisis(round: number, s: CivicStory, readings: string[], wr
     source: written ? 'gemini' : 'authored',
     story: {
       id: s.id, title: s.title, years: s.years, summary: s.summary, facts: s.facts, sides: s.sides, concerns: s.concerns,
-      sources: storySources(s), roles: cast.roles,
+      sources: storySources(s), roles: cast.roles, verification: s.verification ?? null, retrievedAt: s.retrieved_at ?? null,
     },
     hands: cast.hands,
     skins: cast.skins,

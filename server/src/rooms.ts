@@ -6,7 +6,7 @@
 // lobby -> [crisis -> select -> reveal -> negotiate -> resolve] x3 -> final -> lobby
 import { randomUUID } from 'node:crypto';
 import {
-  CARDS, LOCK_GRACE_MS, MAX_PLAYERS, NEGOTIATION_COST, PACES, PERSONA_INFO, START_INDICATORS, START_INFLUENCE, TOTAL_ROUNDS,
+  CARDS, MAX_PLAYERS, NEGOTIATION_COST, PERSONA_INFO, START_INDICATORS, START_INFLUENCE, TOTAL_ROUNDS,
   DISTRICT_IDS, PING_EMOTES, buildBoard, checkAccept, checkMove, checkPlay, crisisFor, crisisHeadline, finalHeadline, finalResult, isPersonaId, newMatchRecord,
   nextInfluence, resolutionHeadline, resolveRound, revealHeadline, startCity, botPlay, districtById, authoredScenario,
   crisisBubbles, finalBubbles, resolutionBubbles, revealBubbles,
@@ -14,7 +14,7 @@ import {
   validateComboSuggestion, validateDialogue, validateEventProposal, validateSuggestion,
   type AcceptedEvent, type CharacterDialogue, type DirectorLogEntry, type EventType, type RoleId, type RuleEvent, type TableHint,
   type Board, type CardId, type CityState, type Crisis, type FinalResult, type Headline, type MatchRecord, type NegotiationAction,
-  type Bubble, type PaceId, type Ping, type PingEmote, type PersonaId, type Proposal, type Scenario, type RoomPhase, type RoomState, type RoundSummary, type SessionKind,
+  type Bubble, type Ping, type PingEmote, type PersonaId, type Proposal, type Scenario, type RoomPhase, type RoomState, type RoundSummary, type SessionKind,
 } from '@shared';
 
 const ROOM_TTL_MS = 3 * 60 * 60 * 1000;
@@ -60,7 +60,6 @@ export interface Room {
   endsAt: number | null;
   players: Player[];
   hostId: string | null;
-  pace: PaceId;
   sessionKind: SessionKind;
   touchedAt: number;
   matchId: string | null;
@@ -97,7 +96,7 @@ export const rooms = new Map<string, Room>();
 
 export function newRoom(code: string, now = Date.now()): Room {
   return {
-    code, phase: 'lobby', round: 0, endsAt: null, players: [], hostId: null, pace: 'standard', sessionKind: 'demo', touchedAt: now,
+    code, phase: 'lobby', round: 0, endsAt: null, players: [], hostId: null, sessionKind: 'demo', touchedAt: now,
     matchId: null, record: null, city: startCity(), crisis: null, scenario: null, carried: [], board: null, actions: [], history: [], resolvedRound: 0,
     headline: null, bubbles: null, final: null, effects: [],
     event: null, eventApplied: null, firedEvents: [], hints: null, hintLog: new Map(), earlyEvent: null, directorLog: [],
@@ -206,13 +205,6 @@ export function setBot(room: Room, player: Player, persona: unknown, on: boolean
   touch(room);
 }
 
-export function setPace(room: Room, player: Player, pace: unknown): void {
-  requireHost(room, player);
-  if (pace !== 'standard' && pace !== 'demo') throw new RoomError('Unknown pace.');
-  room.pace = pace;
-  touch(room);
-}
-
 export function setSession(room: Room, player: Player, kind: unknown): void {
   requireHost(room, player);
   if (room.phase !== 'lobby') throw new RoomError('Set the session type before the match.');
@@ -223,8 +215,6 @@ export function setSession(room: Room, player: Player, kind: unknown): void {
 
 /** How long the first crisis waits for the live desk before the authored scenario stands in. */
 export const SCENARIO_WAIT_MS = 10_000;
-
-const seconds = (room: Room, phase: keyof (typeof PACES)['standard']) => PACES[room.pace][phase] * 1000;
 
 /** The host starts the match. */
 export function start(room: Room, player: Player, now: number): void {
@@ -260,7 +250,7 @@ function enterCrisis(room: Room, now: number): void {
   for (const p of room.players) {
     p.selection = null;
     p.moved = false;
-    p.done = false;
+    p.done = p.bot;
   }
   // This round's Director state starts empty, even while the scenario is still being written.
   room.bubbles = null;
@@ -292,7 +282,7 @@ function showCrisis(room: Room, now: number): void {
   room.earlyEvent = null;
   if (early && early.round === room.round) proposeEvent(room, `crisis-${room.round}`, early.raw, now);
   room.effects.push({ t: 'crisis', key: `crisis-${room.round}`, round: room.round });
-  room.endsAt = now + seconds(room, 'crisis');
+  room.endsAt = null;
 }
 
 /** The match's scenario has been written (or the authored one stands in). First one wins. */
@@ -410,7 +400,7 @@ function enterSelect(room: Room, now: number): void {
     room.firedEvents.push(room.event.type);
   }
   room.phase = 'select';
-  room.endsAt = now + seconds(room, 'select');
+  room.endsAt = null;
   for (const p of room.players.filter((x) => x.bot)) p.selection = botPlay(p.persona, p.influence, room.round, room.crisis ?? undefined);
   touch(room, now);
   maybeReveal(room, now);
@@ -442,7 +432,8 @@ function enterReveal(room: Room, now: number): void {
   });
   room.board = buildBoard(room.round, plays, room.carried, room.crisis ?? crisisFor(room.round));
   room.phase = 'reveal';
-  room.endsAt = now + seconds(room, 'reveal');
+  room.endsAt = null;
+  for (const p of room.players) p.done = p.bot;
   const key = `reveal-${room.round}`;
   room.headline = { text: revealHeadline(room.board), source: 'template', key };
   room.bubbles = { key, list: revealBubbles(room.board) };
@@ -454,7 +445,7 @@ function enterNegotiate(room: Room, now: number): void {
   // Nothing to negotiate over: go straight to the resolution.
   if (!room.board?.proposals.length) return enterResolve(room, now);
   room.phase = 'negotiate';
-  room.endsAt = now + seconds(room, 'negotiate');
+  room.endsAt = null;
   for (const p of room.players) {
     p.moved = false;
     p.done = p.bot;
@@ -506,12 +497,24 @@ export function ping(room: Room, player: Player, district: unknown, emote: unkno
   return { seat: player.seat, district, emote: emote as PingEmote, at: now };
 }
 
+/** Ready for the next step. The table moves on when every present player is: there is no clock. */
 export function done(room: Room, player: Player, now: number): void {
-  if (room.phase !== 'negotiate') throw new RoomError('Nothing to finish right now.');
+  if (!WAITING.includes(room.phase) || (room.phase === 'crisis' && !room.crisis)) throw new RoomError('Nothing to finish right now.');
   player.done = true;
-  refreshHints(room);
+  if (room.phase === 'negotiate') refreshHints(room);
   touch(room, now);
   maybeResolve(room, now);
+  maybeProceed(room, now);
+}
+
+/** Phases that end when everyone present has said they are ready (selection and negotiation have their own rules). */
+const WAITING: RoomPhase[] = ['crisis', 'reveal', 'negotiate', 'resolve'];
+
+function maybeProceed(room: Room, now: number): void {
+  if (room.phase !== 'crisis' && room.phase !== 'reveal' && room.phase !== 'resolve') return;
+  if (room.phase === 'crisis' && !room.crisis) return;
+  const here = present(room, now);
+  if (here.length && here.every((p) => p.done)) advance(room, now);
 }
 
 function maybeResolve(room: Room, now: number): void {
@@ -546,7 +549,8 @@ function enterResolve(room: Room, now: number): void {
   room.directorLog = [];
   room.hintLog = new Map();
   room.phase = 'resolve';
-  room.endsAt = now + seconds(room, 'resolve');
+  room.endsAt = null;
+  for (const p of room.players) p.done = p.bot;
   const key = `resolve-${room.round}`;
   room.headline = { text: headline, source: 'template', key };
   room.bubbles = { key, list: resolutionBubbles(resolution) };
@@ -662,17 +666,19 @@ export function presence(room: Room, player: Player, connected: boolean, now = D
   touch(room, now);
 }
 
-/** Time: a phase ends at its clock (selection and negotiation get a short grace for in-flight messages). */
+/**
+ * Turn-based: no phase has a clock. Time only matters twice: someone's reconnect grace ran out and
+ * everyone left is already done, and the opening live-desk wait (`SCENARIO_WAIT_MS`) that the
+ * authored scenario ends.
+ */
 export function tick(room: Room, now: number): boolean {
-  if (room.endsAt === null) return false;
-  // Someone's reconnect grace ran out and everyone left in the phase is done.
   const before = room.phase;
   maybeReveal(room, now);
   maybeResolve(room, now);
+  maybeProceed(room, now);
   if (room.phase !== before) return true;
-  const grace = room.phase === 'select' || room.phase === 'negotiate' ? LOCK_GRACE_MS : 0;
-  if (now < room.endsAt + grace) return false;
-  return advance(room, now);
+  if (room.phase === 'crisis' && !room.crisis && room.endsAt !== null && now >= room.endsAt) return advance(room, now);
+  return false;
 }
 
 export function publicState(room: Room, viewer: Player | null, now: number): RoomState {
@@ -686,12 +692,11 @@ export function publicState(room: Room, viewer: Player | null, now: number): Roo
     serverNow: now,
     you: viewer?.seat ?? null,
     hostSeat: hostSeat(room),
-    pace: room.pace,
     sessionKind: room.sessionKind,
     matchId: room.matchId,
     players: room.players.map((p) => ({
       seat: p.seat, name: p.name, persona: p.persona, connected: p.bot || p.connected, bot: p.bot, influence: p.influence,
-      ready: room.phase === 'select' ? !!p.selection : room.phase === 'negotiate' ? p.done : room.phase === 'final' ? p.responded !== null : false,
+      ready: room.phase === 'select' ? !!p.selection : room.phase === 'final' ? p.responded !== null : WAITING.includes(room.phase) ? p.done && (room.phase !== 'crisis' || !!room.crisis) : false,
     })),
     city: room.city,
     crisis: room.crisis,

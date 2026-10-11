@@ -1,4 +1,3 @@
-export * from './config';
 export * from './room';
 export * from './game/content';
 export * from './game/districts';

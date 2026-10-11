@@ -22,7 +22,7 @@ npm test            # vitest: shared engine tests + server room tests (incl. a 4
 Windows: the commands work in Git Bash and PowerShell. If `npm install` rewrites `package-lock.json`, commit that on its own.
 
 **Playing it locally alone.** Open `http://localhost:5173`, host a room, and as host fill the empty seats with bots in the lobby.
-Pick the Demo pace; the host's skip button ends any phase. To test real multiplayer, open the room in other browser profiles,
+There is no clock; with bots filling the other seats, click through each step, and the host's "Move on without them" button skips a player who is away. To test real multiplayer, open the room in other browser profiles,
 or on other laptops on the same Wi-Fi (Vite listens on the LAN, and the room QR uses the LAN address or `PUBLIC_URL`).
 The game is desktop only; `/fx-lab` (dev builds) plays every crisis animation on demand.
 
@@ -32,7 +32,6 @@ The game is desktop only; `/fx-lab` (dev builds) plays every crisis animation on
 pipeline/miami-beach.ts   ArcGIS REST -> pipeline/cache/ (git-ignored) -> app/public/data/miami-beach/*.geojson
                           + shared/src/data/districts.json          (npm run data; npm run data -- --refresh to refetch)
 shared/src/               Pure TypeScript, no I/O. Imported as '@shared' by app and server.
-  config.ts                 phase timings (PACES: standard, demo)
   room.ts                   wire protocol: RoomState, ClientMsg, ServerMsg              [contract]
   game/content.ts           personas, cards, projects, indicators, crises, RULES_VERSION
   game/districts.ts         playable areas (real data) and where each card may go
@@ -93,7 +92,7 @@ client <--ServerMsg {t:'state'}-- publicState(room, viewer)  (one per connection
 ```
 
 - `rooms.ts` is the only place state changes. Actions (`join`, `select`, `move`, `accept`, `done`, `respond`, …) validate and
-  record. `tick(room, now)` moves time: each phase ends at `endsAt`, or early when every present player is ready.
+  record. Play is turn-based: crisis, reveal and results end when every present player is ready (`done`), selection when every card is locked, negotiation when everyone is done. Bots are always ready, and a player gone past the reconnect grace stops holding the table. `tick(room, now)` only applies that grace and the opening live-desk wait (`SCENARIO_WAIT_MS`).
   Phases: `lobby -> [crisis -> select -> reveal -> negotiate -> resolve] x3 -> final -> lobby`.
 - The engine (`shared/src/game/engine.ts`) is pure and deterministic. `resolveRound` writes every effect to a `RuleEvent`
   with a rule id (P1, R1, C1, …, listed in `coastal-clash.md` §4). The same engine runs on the client only for the
@@ -119,7 +118,7 @@ the current moment and logs it. Nothing from the model changes the city except a
 Before each: write or adjust a test first where you can. After each: run §5.
 
 ### Change a number (timing, cost, effect size, threshold)
-- Phase lengths: `shared/src/config.ts` `PACES`.
+- There are no phase lengths: steps wait for players (see `done`, `maybeProceed` in `rooms.ts`).
 - Influence, start indicators, viability floor, storm test: top and bottom of `game/content.ts`.
 - Card cost and project effects: `CARDS` / `PROJECTS` in `content.ts`. **Also update the card's `rule` text**, which is what players read.
 - Geography thresholds: `GEO_RULES` in `districts.ts`. Update the thresholds in `coastal-clash.md` §3 too.

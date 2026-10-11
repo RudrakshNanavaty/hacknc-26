@@ -1,7 +1,7 @@
 // One WebSocket per page to /ws/rooms/:code (proxied to the server by Vite). Reconnects on its own;
 // a player who joined keeps their secret id in localStorage, so a reload resumes the same seat.
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { CardId, ClientMsg, NegotiationMove, PaceId, PersonaId, Ping, PingEmote, RoomState, ServerMsg, SessionKind } from '@shared';
+import type { CardId, ClientMsg, NegotiationMove, PersonaId, Ping, PingEmote, RoomState, ServerMsg, SessionKind } from '@shared';
 
 /** How long a reaction stays on the map. */
 const PING_MS = 2600;
@@ -31,7 +31,6 @@ export interface Room {
   join: (name: string, persona: PersonaId, create?: boolean) => void;
   persona: (persona: PersonaId) => void;
   bot: (persona: PersonaId, on: boolean) => void;
-  pace: (pace: PaceId) => void;
   session: (kind: SessionKind) => void;
   start: () => void;
   skip: () => void;
@@ -116,7 +115,6 @@ export function useRoom(code: string): Room {
     join: useCallback((name, persona, create) => send({ t: 'join', name, persona, create }), [send]),
     persona: useCallback((persona) => send({ t: 'persona', persona }), [send]),
     bot: useCallback((persona, on) => send({ t: 'bot', persona, on }), [send]),
-    pace: useCallback((pace) => send({ t: 'pace', pace }), [send]),
     session: useCallback((kind) => send({ t: 'session', kind }), [send]),
     start: useCallback(() => send({ t: 'start' }), [send]),
     skip: useCallback(() => send({ t: 'skip' }), [send]),

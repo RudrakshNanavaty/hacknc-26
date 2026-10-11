@@ -10,7 +10,7 @@ import { playableStories, type CivicStory } from '@shared';
 
 const CACHE = join(dirname(fileURLToPath(import.meta.url)), '..', '.cache', 'stories.json');
 const TTL_MS = 10 * 60 * 1000;
-const QUERY = `SELECT ID, TITLE, AREA, SCOPE, CATEGORY, YEARS, SUMMARY, FACTS, SIDES, TENSIONS, CONCERNS, CARD_IDEAS, SOURCES, STORY_CAST
+const QUERY = `SELECT ID, TITLE, AREA, SCOPE, CATEGORY, YEARS, SUMMARY, FACTS, SIDES, TENSIONS, CONCERNS, CARD_IDEAS, SOURCES, STORY_CAST, VERIFICATION, TO_VARCHAR(RETRIEVED_AT)
   FROM COASTAL_CLASH.CORPUS.APPROVED_ISSUES WHERE STORY_CAST IS NOT NULL ORDER BY ID`;
 
 export interface StoryFeed {
@@ -59,6 +59,7 @@ async function fromSnowflake(): Promise<CivicStory[]> {
     id: String(r[0]), title: String(r[1]), area: String(r[2]), scope: r[3] as CivicStory['scope'], category: String(r[4]),
     years: String(r[5]), summary: String(r[6]), facts: parse(r[7]) ?? [], sides: parse(r[8]) ?? [], tensions: parse(r[9]) ?? [],
     concerns: parse(r[10]) ?? [], card_ideas: parse(r[11]) ?? [], sources: parse(r[12]) ?? [], cast: parse(r[13]) ?? null,
+    verification: parse(r[14]) ?? null, retrieved_at: r[15] ? String(r[15]) : null,
   }));
 }
 

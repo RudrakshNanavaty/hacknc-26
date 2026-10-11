@@ -138,7 +138,7 @@ Planning Studio keeps the AI apart from opinion data: an "AI Game Director" pane
 | Time | On screen | Say |
 |---|---|---|
 | 0:00 | Landing: the tilted 3D street map of Miami Beach with FEMA VE/AE zones as water. Tap South Pointe: its measured profile. | "This is a real city, and these are real planning constraints." |
-| 0:15 | Host a room (Demo pace); three laptops join as Activist, Resort Owner, Resident (or add bots). | "Four stakeholders, four agendas." |
+| 0:15 | Host a room; three laptops join as Activist, Resort Owner, Resident (or add bots). | "Four stakeholders, four agendas." |
 | 0:30 | Round 1 crisis, written live from today's tide gauge and forecast: breaking pins drop on West Avenue and South Pointe and water rises inside their real FEMA flood zones (higher when the tide is near NOAA's flood level). The characters react in speech bubbles; the story folds into the news crawl and the anchor's card in the top-right corner. | "The city is alive, and so are the people in it." |
 | 0:45 | Round 2 (or skip to it): the twist card (game fiction, sized by the rules). Each player clicks South Pointe and sees the cards they can play there (the rest greyed with the real reason). Resort deploys Hotel, Activist Environmental Challenge, Mayor Fast-Track, Resident Public Access Guarantee. Cards fly; the avatars walk to South Pointe. | "Everyone plays on the same neighborhood." |
 | 1:00 | Negotiate, on the case file pinned to South Pointe: the verdict pill shows BLOCKED (R1: South Pointe borders a FEMA VE zone). A table hint says accepting the dune setback flips it; the Resort taps "Do it"; the verdict flips to APPROVED; "Combo in reach: Eco-Resort Agreement". | "The engine finds the deal; the players take it." |

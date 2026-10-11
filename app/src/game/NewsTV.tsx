@@ -8,7 +8,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { CRISIS_KIND_INFO, INDICATOR_INFO, PERSONA_INFO, districtById, districtFacts, type RoomState } from '@shared';
 import { spriteSvg } from '../map/sprites';
 import { TwistCard } from './insights';
-import { StoryPanel } from './story';
+import { EvidenceStrip, StoryPanel } from './story';
 
 const ANCHOR_SVG = spriteSvg('anchor');
 /** The card shows this many lines; a longer headline pans like a teleprompter. */
@@ -67,6 +67,7 @@ export function CrisisBriefing({ state }: { state: RoomState }) {
       <h2 className="glow-title !text-[28px]">{c.title}</h2>
       <p className="typed text-15 font-semibold">{c.text}</p>
       {c.readings.length > 0 && <div className="flex flex-wrap gap-1">{c.readings.map((r) => <span key={r} className="reading !py-1">{r}</span>)}</div>}
+      <EvidenceStrip crisis={c} />
       <Agenda state={state} />
     </div>
   );

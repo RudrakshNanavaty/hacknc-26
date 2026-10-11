@@ -2,7 +2,7 @@
 // names of the dealt cards, each character's part, and the sources. Outside a match (lobby, landing)
 // there is no story and cards keep their own names.
 import { createContext, useContext, type ReactNode } from 'react';
-import { CARDS, PERSONA_INFO, SCENARIO_ROLES, cardName, type CardId, type Crisis, type PersonaId, type RoleId, type StorySource } from '@shared';
+import { CARDS, PERSONA_INFO, SCENARIO_ROLES, cardName, type CardId, type Crisis, type CrisisStory, type PersonaId, type RoleId, type StorySource } from '@shared';
 
 const CrisisContext = createContext<Crisis | null>(null);
 
@@ -30,6 +30,46 @@ export function SourceChips({ sources, max = 4 }: { sources: StorySource[]; max?
           <span aria-hidden>{KIND_ICON[s.kind]}</span> {s.outlet}
         </a>
       ))}
+    </div>
+  );
+}
+
+const BADGE = {
+  'sources-checked': { icon: '✅', label: 'Sources checked', tone: 'lchip-lime' },
+  resolved: { icon: '⚖️', label: 'Sources disagreed, resolved', tone: 'lchip-sun' },
+  conflict: { icon: '⚠️', label: 'Sources disagree', tone: 'lchip-coral' },
+} as const;
+
+/** The reviewer's verdict on a story's sources, with what they disagreed about. */
+export function Verification({ story, detail = false }: { story: CrisisStory; detail?: boolean }) {
+  const v = story.verification;
+  if (!v) return <span className="lchip" title="No review report for this story">📄 Sources linked</span>;
+  const b = BADGE[v.status];
+  return (
+    <span className="flex flex-col gap-1">
+      <span className={`lchip w-fit ${b.tone}`} title={v.notes.join(' · ')}>{b.icon} {b.label}</span>
+      {detail && v.notes.length > 0 && (
+        <span className="text-13 font-semibold">
+          {v.notes.map((n) => <span key={n} className="block">• {n}</span>)}
+          {v.resolution && <span className="block"><b>How we handled it:</b> {v.resolution}</span>}
+        </span>
+      )}
+    </span>
+  );
+}
+
+/** Always-visible evidence for the round's real story: where it comes from and whether it checked out. */
+export function EvidenceStrip({ crisis }: { crisis: Crisis }) {
+  const s = crisis.story;
+  if (!s) return null;
+  return (
+    <div className="frost flex flex-col gap-1.5 p-2.5" aria-label="Sources for this story">
+      <p className="flex flex-wrap items-center gap-1.5">
+        <span className="lchip lchip-lime">📄 Real story</span>
+        <span className="lchip">{s.years}</span>
+        <Verification story={s} />
+      </p>
+      <SourceChips sources={s.sources} max={3} />
     </div>
   );
 }
@@ -65,8 +105,17 @@ export function StoryPanel({ crisis, you }: { crisis: Crisis; you: PersonaId | n
           );
         })}
       </ul>
-      <SourceChips sources={s.sources} />
-      <p className="text-[11px] opacity-70">Facts from the linked sources (reviewed corpus in Snowflake). Characters stand in for the real sides; game effects are illustrative.</p>
+      {s.facts.length > 0 && (
+        <div>
+          <p className="text-13 font-black">Facts this round uses</p>
+          <ul className="list-disc pl-5 text-13 font-semibold">{s.facts.map((f) => <li key={f}>{f}</li>)}</ul>
+        </div>
+      )}
+      <Verification story={s} detail />
+      <SourceChips sources={s.sources} max={8} />
+      <p className="text-[11px] opacity-70">
+        Facts are as reported by the linked sources{s.retrievedAt ? `, retrieved ${s.retrievedAt}` : ''} (reviewed corpus in Snowflake). Characters stand in for the real sides; game effects are illustrative.
+      </p>
     </div>
   );
 }

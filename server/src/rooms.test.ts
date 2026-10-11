@@ -84,14 +84,41 @@ describe('room state machine', () => {
     done(room, a, 4); // everyone done: resolve
     expect(room.phase).toBe('resolve');
     expect(room.history).toHaveLength(1);
-    // A late tick and a stray done change nothing.
-    expect(() => done(room, a, 5)).toThrow(RoomError);
+    // There is no clock: however long it ticks, the round waits for the player.
+    expect(room.endsAt).toBeNull();
     expect(tick(room, 6)).toBe(false);
+    expect(tick(room, 6 + 3_600_000)).toBe(false);
+    expect(room.phase).toBe('resolve');
     expect(room.history).toHaveLength(1);
-    const end = room.endsAt!;
-    expect(tick(room, end)).toBe(true);
+    done(room, a, 7);
     expect(room.round).toBe(2);
+    expect(room.phase).toBe('crisis');
     expect(room.history).toHaveLength(1);
+  });
+
+  it('turn-based: crisis, reveal and results wait for every present player, bots always ready', () => {
+    const room = fresh();
+    const a = join(room, 'Ana', 'mayor');
+    const b = join(room, 'Ben', 'activist');
+    setBot(room, a, 'resort', true);
+    start(room, a, 0);
+    applyScenario(room, authoredScenario(null), 0);
+    expect(room.phase).toBe('crisis');
+    const ready = () => publicState(room, a, 1).players.map((p) => p.ready);
+    expect(ready()).toEqual([false, false, true]);
+    done(room, a, 1);
+    expect(room.phase).toBe('crisis');
+    expect(tick(room, 3_600_000)).toBe(false);
+    done(room, b, 2);
+    expect(room.phase).toBe('select');
+    // A player who dropped for good stops holding the table.
+    presence(room, b, false, 3);
+    select(room, a, 'drainage-upgrade', 'west-avenue', 3);
+    expect(room.phase).toBe('select');
+    expect(tick(room, 3 + RECONNECT_GRACE_MS)).toBe(true);
+    expect(room.phase).toBe('reveal');
+    done(room, a, 3 + RECONNECT_GRACE_MS + 1);
+    expect(room.phase).toBe('negotiate');
   });
 
   it('negotiation: one move, influence charged, owner-only compromises, carried into the outcome', () => {
@@ -239,7 +266,6 @@ describe('four browsers over WebSockets', () => {
     await Promise.all(c.map((x) => x.open));
     c[0]!.send({ t: 'join', name: 'Mae', persona: 'mayor', create: true });
     await c[0]!.next((m) => m.t === 'joined');
-    c[0]!.send({ t: 'pace', pace: 'demo' });
     for (const [i, p] of personas.entries()) {
       if (i === 0) continue;
       c[i]!.send({ t: 'join', name: `P${i}`, persona: p });
@@ -247,7 +273,6 @@ describe('four browsers over WebSockets', () => {
     }
     const lobby = await c[3]!.state((s) => s.players.length === 4);
     expect(lobby.players.map((p) => p.persona)).toEqual(personas);
-    expect(lobby.pace).toBe('demo');
     const [mayor, activist, resort, resident] = c as [typeof c[0], typeof c[0], typeof c[0], typeof c[0]];
 
     mayor.send({ t: 'start' });

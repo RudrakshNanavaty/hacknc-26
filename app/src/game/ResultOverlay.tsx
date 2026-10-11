@@ -11,6 +11,8 @@ import { explain } from '../api';
 import { ComboBanners, Recap, WhyButton } from './insights';
 import { RoundDots, Soap, Tube } from './ui';
 import { STATUS_STYLE } from './format';
+import { ReadyBar } from './Turn';
+import { EvidenceStrip, SourceChips, Verification } from './story';
 
 const placeName = (id: string) => districtById(id).name;
 const proposalName = (p: Proposal) => `${PROJECTS[p.kind].name}`;
@@ -56,7 +58,7 @@ function OutcomeCard({ o, state, events, i }: { o: Outcome; state: RoomState; ev
   );
 }
 
-function ResultScreen({ state, host, onNext }: { state: RoomState; host: boolean; onNext: () => void }) {
+function ResultScreen({ state, room }: { state: RoomState; room: Room }) {
   const last = state.history[state.history.length - 1];
   if (!last) return null;
   const r = last.resolution;
@@ -68,9 +70,9 @@ function ResultScreen({ state, host, onNext }: { state: RoomState; host: boolean
       {r.outcomes.map((o, i) => <OutcomeCard key={o.proposalId} o={o} state={state} events={r.events} i={i} />)}
       <ComboBanners combos={r.combos ?? []} />
       {loose.length > 0 && <ol className="frost flex flex-col gap-1 p-3">{loose.map((e) => <Rule key={e.id} e={e} />)}</ol>}
+      {state.crisis && <EvidenceStrip crisis={state.crisis} />}
       <p className="text-center text-[12px] font-bold opacity-80">Effects are illustrative scenario values. The geography (zoning, FEMA zones) and the live readings are real.</p>
-      {host ? <div className="anchor-foot"><button type="button" className="gel gel-lime gel-big" onClick={onNext}>{state.round < state.totalRounds ? 'Next round ▶' : 'See who won ▶'}</button></div>
-        : <p className="text-center text-13 font-black">The next round starts when the clock runs out.</p>}
+      <div className="anchor-foot"><ReadyBar state={state} room={room} label={state.round < state.totalRounds ? 'Next round ▶' : 'See who won ▶'} /></div>
     </div>
   );
 }
@@ -101,6 +103,19 @@ function FinalScreen({ state, room }: { state: RoomState; room: Room }) {
         <p className="text-15 font-bold">{wp ? `as the ${PERSONA_INFO[winner.persona].name}` : ''} · {winner.total} points</p>
       </div>
       <Recap state={state} />
+      {state.history.some((h) => h.board.crisis.story) && (
+        <div className="frost flex flex-col gap-2 p-3">
+          <p className="vr text-18">The real stories behind this match</p>
+          {state.history.map((h) => h.board.crisis.story && (
+            <div key={h.round} className="flex flex-col gap-1">
+              <p className="text-15 font-black">Round {h.round}: {h.board.crisis.story.title} <span className="font-semibold opacity-75">({h.board.crisis.story.years})</span></p>
+              <Verification story={h.board.crisis.story} detail />
+              <SourceChips sources={h.board.crisis.story.sources} max={8} />
+            </div>
+          ))}
+          <p className="text-[11px] opacity-70">Facts are as reported by the linked sources. Effects in the game are illustrative.</p>
+        </div>
+      )}
       {ranked.map((s) => {
         const p = state.players.find((x) => x.persona === s.persona);
         return (
@@ -133,9 +148,8 @@ function FinalScreen({ state, room }: { state: RoomState; room: Room }) {
 }
 
 export function ResultOverlay({ state, room }: { state: RoomState; room: Room }) {
-  const host = state.you !== null && state.you === state.hostSeat;
   if (state.phase === 'resolve') {
-    return <aside className="float-card side-float flex flex-col gap-3" aria-label="Round result"><ResultScreen state={state} host={host} onNext={room.skip} /></aside>;
+    return <aside className="float-card side-float flex flex-col gap-3" aria-label="Round result"><ResultScreen state={state} room={room} /></aside>;
   }
   if (state.phase === 'final') {
     return (

@@ -53,6 +53,15 @@ describe('a match from stories', () => {
     expect(pickStories(stories.slice(0, 1), 1)).toEqual([]);
   });
 
+  it('carries the sources and the reviewer report with the crisis, so players can verify it', () => {
+    const s: CivicStory = { ...cast[0]!, verification: { status: 'resolved', notes: ['Budget differs between pages'], resolution: 'Stated as a range' }, retrieved_at: '2026-10-11' };
+    const story = storyCrisis(1, s, []).story!;
+    expect(story.sources.length).toBeGreaterThan(0);
+    expect(story.sources.every((x) => /^https?:\/\//.test(x.url) && x.id.startsWith(s.id))).toBe(true);
+    expect(story.verification).toEqual({ status: 'resolved', notes: ['Budget differs between pages'], resolution: 'Stated as a range' });
+    expect(story.retrievedAt).toBe('2026-10-11');
+  });
+
   it('deals the story hand: only those cards can be played, under their story names', () => {
     const s = cast.find((x) => x.id === 'fontainebleau-water-park') ?? cast[0]!;
     const crisis = storyCrisis(2, s, []);

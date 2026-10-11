@@ -1,8 +1,6 @@
-// Over the map: the five city meters as gel tubes, the clock as a glossy orb, the stakeholders as
+// Over the map: the five city meters as gel tubes, the stakeholders as
 // soap bubbles with their influence pips.
-import { useEffect, useRef } from 'react';
-import { INDICATORS, INDICATOR_INFO, PACES, PERSONA_INFO, VIABILITY_FLOOR, type Indicator, type RoomState } from '@shared';
-import { playTick } from '../ui/sound';
+import { INDICATORS, INDICATOR_INFO, PERSONA_INFO, VIABILITY_FLOOR, type Indicator, type RoomState } from '@shared';
 import { Pips, Soap, Tube, type Tone } from './ui';
 import { Bill, useTween } from './insights';
 
@@ -33,27 +31,6 @@ export function Meters({ state }: { state: RoomState }) {
         );
       })}
       <Bill state={state} />
-    </div>
-  );
-}
-
-export function TimerOrb({ state, left }: { state: RoomState; left: number | null }) {
-  const last = useRef<number | null>(null);
-  const timed = state.phase === 'select' || state.phase === 'negotiate';
-  useEffect(() => {
-    if (timed && left !== null && left <= 5 && left > 0 && left !== last.current) playTick();
-    last.current = left;
-  }, [left, timed]);
-  const phase = state.phase as keyof (typeof PACES)['standard'];
-  const total = state.phase === 'crisis' && !state.crisis ? 10 : PACES[state.pace][phase] ?? 30;
-  const frac = left === null ? 0 : Math.min(1, left / total);
-  return (
-    <div className={`timer-orb ${timed && left !== null && left <= 5 ? 'urgent' : ''}`} aria-label={left === null ? 'No clock' : `${left} seconds left`}>
-      <svg viewBox="0 0 40 40" aria-hidden>
-        <circle cx="20" cy="20" r="18" fill="none" stroke="rgba(255,255,255,.35)" strokeWidth="3" />
-        <circle cx="20" cy="20" r="18" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeDasharray={`${113 * frac} 113`} style={{ transition: 'stroke-dasharray .25s linear' }} />
-      </svg>
-      {left === null ? '∞' : left}
     </div>
   );
 }

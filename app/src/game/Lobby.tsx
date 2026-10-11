@@ -1,5 +1,5 @@
-// The lobby: join as a stakeholder, see who is in, and (host) fill seats with bots, pick the pace
-// and the session type, then start.
+// The lobby: join as a stakeholder, see who is in, and (host) fill seats with bots, pick the session
+// type, then start.
 import { useState, type FormEvent } from 'react';
 import { PERSONAS, PERSONA_INFO, handOf, type PersonaId, type RoomState } from '@shared';
 import { Invite } from '../room/Invite';
@@ -98,14 +98,6 @@ export function Lobby({ state, room }: { state: RoomState; room: Room }) {
         </ul>
         {host ? (
           <div className="flex flex-col gap-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-13 font-bold">Pace</span>
-              {(['standard', 'demo'] as const).map((p) => (
-                <button key={p} type="button" className="aero-btn !py-1 text-13" aria-pressed={state.pace === p} onClick={() => room.pace(p)}>
-                  {p === 'standard' ? 'Standard (~4 min)' : 'Demo (~2 min)'}
-                </button>
-              ))}
-            </div>
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-13 font-bold">Session</span>
               {(['demo', 'community'] as const).map((k) => (

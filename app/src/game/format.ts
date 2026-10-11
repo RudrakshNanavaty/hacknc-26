@@ -1,19 +1,5 @@
 // Small display helpers shared by the game screens.
 import { INDICATOR_INFO, PERSONA_INFO, type Delta, type Indicator, type PersonaId, type RoomState } from '@shared';
-import { useEffect, useState } from 'react';
-
-export const clock = (s: number | null) => (s === null ? '' : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`);
-
-/** Seconds left on the server's clock, ticking locally. */
-export function useCountdown(state: RoomState | null, offset: number) {
-  const [now, setNow] = useState(Date.now());
-  useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 250);
-    return () => clearInterval(t);
-  }, []);
-  if (!state?.endsAt) return null;
-  return Math.max(0, Math.ceil((state.endsAt - (now + offset)) / 1000));
-}
 
 export const personaColor = (p: PersonaId) => PERSONA_INFO[p].color;
 

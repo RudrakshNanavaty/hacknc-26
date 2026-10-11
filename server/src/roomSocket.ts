@@ -12,7 +12,7 @@ import type { ScenarioWriter } from './ai/scenario';
 import { directorFacts, type Director } from './ai/director';
 import {
   RoomError, accept, again, applyDialogue, applyHints, applyScenario, choosePersona, done, findPlayer, getOrCreateRoom, getRoom, join, mapRoles, move,
-  ping, presence, proposeEarlyEvent, proposeEvent, publicState, respond, select, setBot, setPace, setSession, skip, start, sweep, tick, type Room,
+  ping, presence, proposeEarlyEvent, proposeEvent, publicState, respond, select, setBot, setSession, skip, start, sweep, tick, type Room,
 } from './rooms';
 
 const ROOM_PATH = /^\/ws\/rooms\/([A-Za-z]{4})$/;
@@ -174,7 +174,6 @@ export function roomServer({ store, narrator, scenario, director = null, log }: 
     switch (msg.t) {
       case 'persona': choosePersona(room, player, msg.persona); break;
       case 'bot': setBot(room, player, msg.persona, !!msg.on); break;
-      case 'pace': setPace(room, player, msg.pace); break;
       case 'session': setSession(room, player, msg.kind); break;
       case 'start': start(room, player, now); break;
       case 'skip': skip(room, player, now); break;

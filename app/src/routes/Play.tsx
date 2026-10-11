@@ -5,7 +5,7 @@
 // page shows what it is sent.
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Map as MapLibreMap } from 'maplibre-gl';
-import { CARDS, CRISIS_KIND_INFO, DISTRICT_IDS, cardEligibility, districtById, type CardId } from '@shared';
+import { CRISIS_KIND_INFO, DISTRICT_IDS, cardEligibility, cardName, districtById, type CardId } from '@shared';
 import { CityMap, FLOOD_COLORS, ZONING_FAMILIES, type Overlays } from '../map/CityMap';
 import { CrisisAlert } from '../map/CrisisAlert';
 import { CrisisFx, type CrisisStage } from '../map/CrisisFx';
@@ -18,14 +18,14 @@ import { Flights, Stamps } from '../game/Flights';
 import { HandDeck } from '../game/HandDeck';
 import { LivingLayer } from '../map/LivingLayer';
 import { PingLayer } from '../map/PingLayer';
-import { Meters, PlayerBubbles, TimerOrb } from '../game/Hud';
+import { Meters, PlayerBubbles } from '../game/Hud';
+import { ReadyBar, TurnOrb } from '../game/Turn';
 import { JoinForm, Lobby } from '../game/Lobby';
 import { CaseFile } from '../game/CaseFile';
 import { DistrictPopover, playableCount } from '../game/DistrictPopover';
 import { CrisisBriefing, NewsTV } from '../game/NewsTV';
 import { ResultOverlay } from '../game/ResultOverlay';
 import { LagoonBubbles, RoundDots } from '../game/ui';
-import { useCountdown } from '../game/format';
 import { CrisisProvider } from '../game/story';
 
 export function Legend({ overlays, setOverlays }: { overlays: Overlays; setOverlays: (o: Overlays) => void }) {
@@ -44,7 +44,6 @@ export function Legend({ overlays, setOverlays }: { overlays: Overlays; setOverl
 export function Play({ code }: { code: string }) {
   const room = useRoom(code);
   const { state } = room;
-  const left = useCountdown(state, room.offset);
   const [map, setMap] = useState<MapLibreMap | null>(null);
   /** The area whose popover is open (selection phase). */
   const [open, setOpen] = useState<string | null>(null);
@@ -188,14 +187,17 @@ export function Play({ code }: { code: string }) {
           <Meters state={state} />
           <div className="hud-clock">
             <span className="lchip">Round {state.round} of {state.totalRounds} <RoundDots round={state.round} total={state.totalRounds} /></span>
-            <TimerOrb state={state} left={left} />
+            <TurnOrb state={state} />
           </div>
         </div>
         <div className="hud-center">
           <CrisisBriefing state={state} />
-          {picking && !open && <p className="hud-pill hud-block lchip lchip-sun">{armed ? `👆 Click a lit area to play ${CARDS[armed].name} there` : '👆 Pick a card from your hand, then a lit area (or click an area first)'}</p>}
+          {picking && !open && <p className="hud-pill hud-block lchip lchip-sun">{armed ? `👆 Click a lit area to play ${cardName(armed, state.crisis)} there` : '👆 Pick a card from your hand, then a lit area (or click an area first)'}</p>}
           {phase === 'select' && locked && (
-            <p className="hud-pill hud-block lchip lchip-lime">🂠 Locked in: {CARDS[locked.card].name} on {districtById(locked.district).name} · {waiting ? `waiting for ${waiting} stakeholder${waiting > 1 ? 's' : ''}` : 'revealing…'}</p>
+            <p className="hud-pill hud-block lchip lchip-lime">🂠 Locked in: {cardName(locked.card, state.crisis)} on {districtById(locked.district).name} · {waiting ? `waiting for ${waiting} stakeholder${waiting > 1 ? 's' : ''}` : 'revealing…'}</p>
+          )}
+          {(phase === 'crisis' && crisis || phase === 'reveal') && (
+            <div className="hud-pill hud-block"><ReadyBar state={state} room={room} label={phase === 'crisis' ? 'Got it, to the cards ▶' : 'On to negotiation ▶'} /></div>
           )}
           {room.error && <p role="alert" className="hud-pill hud-block lchip lchip-coral">{room.error}</p>}
         </div>
@@ -207,8 +209,7 @@ export function Play({ code }: { code: string }) {
         <button type="button" className={`gel gel-icon ${voiceOn ? 'gel-lime' : ''}`} onClick={() => setVoiceOn((v) => !v)} aria-pressed={voiceOn} title="Read the news aloud">🎙️</button>
         <button type="button" className={`gel gel-icon ${layers ? 'gel-sun' : ''}`} onClick={() => setLayers((v) => !v)} aria-pressed={layers} title="Real data layers">🗺️</button>
         {free && <button type="button" className="gel gel-icon" onClick={() => setRecenter((n) => n + 1)} title="Recenter the map">🎯</button>}
-        {host && state.endsAt !== null && <button type="button" className="gel" onClick={room.skip} title="Host: end this phase now">Skip ⏭</button>}
-        {layers && <Legend overlays={overlays} setOverlays={setOverlays} />}
+                {layers && <Legend overlays={overlays} setOverlays={setOverlays} />}
       </div>
       {picking && open && <DistrictPopover key={popKey} state={state} room={room} map={map} district={open} setDistrict={setOpen} onCard={setHoverCard} initialCard={armed} />}
       {(phase === 'reveal' || phase === 'negotiate') && <CaseFile state={state} room={room} map={map} focus={focus} setFocus={setFocus} />}

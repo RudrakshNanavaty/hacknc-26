@@ -38,7 +38,7 @@ Product and rules: `docs/coastal-clash.md`. Hard rules: `AGENTS.md`.
 
 | Task | Files (in order) |
 |---|---|
-| Timings | `shared/src/config.ts` `PACES` |
+| Turn flow | `server/src/rooms.ts` (`done`, `maybeProceed`; no clocks) |
 | Card / cost / effect | `game/content.ts` `CARDS` (+ `rule` text), the `resolveRound` switch, `buildBoard` for compromises, `BOT_PREFS`, `engine.test.ts`; bump `RULES_VERSION` |
 | Project kind | `ProjectKind`/`PROJECTS`, `projectEligibility`, `FEATURE_ICON` in `app/src/map/CityMap.tsx`, `finalResult` bonuses |
 | Geography threshold | `GEO_RULES` in `game/districts.ts`; the table in `coastal-clash.md` §3 |
@@ -62,7 +62,7 @@ The contracts are `shared/src/room.ts`, the exported types in `engine.ts` and `r
 4. Verify:
    - `npm run typecheck`
    - `npm test`
-   - UI: run `npm run dev`, host a room, fill seats with bots, use the Demo pace and the host's skip button, and check at 1440×900 and 1280×720 (desktop only).
+   - UI: run `npm run dev`, host a room, fill seats with bots, click through each step (turn-based, no clock; the host can move on without absent players), and check at 1440×900 and 1280×720 (desktop only).
 5. Update the docs when rules, areas, setup or rule ids change (`docs/coastal-clash.md`, `docs/contributing.md`, this skill).
 6. Commit small on your branch. Do not push or merge unless asked.
 

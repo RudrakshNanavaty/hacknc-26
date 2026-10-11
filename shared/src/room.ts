@@ -1,7 +1,6 @@
 // Coastal Clash rooms: four stakeholders, one real city, three rounds. The player who opens the
 // room hosts it (starts the match, can skip a phase, can fill empty seats with bots).
 // Wire protocol for /ws/rooms/:code. JSON messages, one per WebSocket frame.
-import type { PaceId } from './config';
 import type { CardId, NegotiationMove, PersonaId } from './game/content';
 import type { Crisis, LiveConditions } from './game/scenario';
 import type { Board, CityState, FinalResult, NegotiationAction, Resolution } from './game/engine';
@@ -10,8 +9,6 @@ import type { Bubble } from './game/living';
 import type { SessionKind } from './game/record';
 
 export const MAX_PLAYERS = 4;
-/** After a clock runs out, clients get this long to send what they picked. */
-export const LOCK_GRACE_MS = 1_500;
 
 export type RoomPhase = 'lobby' | 'crisis' | 'select' | 'reveal' | 'negotiate' | 'resolve' | 'final';
 
@@ -62,12 +59,11 @@ export interface RoomState {
   phase: RoomPhase;
   round: number;
   totalRounds: number;
-  /** The current phase ends (ms since epoch, server clock). */
+  /** Only the opening live-desk wait has a deadline (ms since epoch, server clock). Play is turn-based: phases end when everyone is ready. */
   endsAt: number | null;
   serverNow: number;
   you: number | null;
   hostSeat: number;
-  pace: PaceId;
   sessionKind: SessionKind;
   matchId: string | null;
   players: RoomPlayer[];
@@ -108,10 +104,9 @@ export type ClientMsg =
   | { t: 'persona'; persona: PersonaId }
   /** Host: fill an empty persona with a bot, or remove one. */
   | { t: 'bot'; persona: PersonaId; on: boolean }
-  | { t: 'pace'; pace: PaceId }
   | { t: 'session'; kind: SessionKind }
   | { t: 'start' }
-  /** Host: end the current phase now. */
+  /** Host: move on without waiting for whoever is not ready. */
   | { t: 'skip' }
   | { t: 'select'; card: CardId; district: string }
   | { t: 'move'; move: NegotiationMove; proposalId: string }
