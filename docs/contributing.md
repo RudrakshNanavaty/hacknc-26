@@ -113,7 +113,8 @@ app/src/
   characters/render.ts, portraits.ts   the GLB figures in app/public/characters rendered once into transparent portraits (three.js, lazy)
   atlas/                    Civic Atlas sections, parts and the match timeline; routes/Atlas.tsx is the page
   routes/Verify.tsx         the public check of a match: fingerprint, Merkle proof, memos read from a devnet RPC node
-  ui/                       sound (Web Audio), voice (one speech queue, calls /api/tts), spoken (what the anchor reads), Bubbles
+  ui/                       sound (Web Audio), voice (one speech queue, calls /api/tts), spoken (what the anchor reads), Bubbles,
+                            FloatingBubbles + Seascape (the underwater scene behind the join, loading and lobby screens; docs/assets.md)
   styles.css, tokens.ts     Frutiger Aero theme (Tailwind v4 tokens live in styles.css)
 ```
 

@@ -1,5 +1,7 @@
 # `rdx/map-board`: where things stand
 
+> History for this folder. The current handoff for `simple-clash/` is [`simple-clash.md`](simple-clash.md).
+
 The working notes for this branch. Read this after `AGENTS.md` and before you change anything; update it at the end of each piece
 of work. The older notes for milestones M1-M5 are in [`coastal-clash-evolution.md`](coastal-clash-evolution.md) (history only).
 

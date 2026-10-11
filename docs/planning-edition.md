@@ -55,6 +55,12 @@ Kept. The Coastal Clash anchor, the crawl and the map speech bubbles run in the 
 
 `MatchRecord.plan` (`PlanRecord`): rounds (picks, leading proposal, stances before and after, offers, accepted amendment, votes, verdict, adopted plan, cost, scores with reasons), voluntary `personal` answers (before and after, reason, moved by amendment), the final plan and totals, and the simulated outcome. `rulesVersion` is `coastal-clash-rules/planning-1.0.0`; legacy fields stay empty. Tiger Data stores the record unchanged, plus `cc_decisions` rows (cards, stances, offers, votes, outcomes, personal answers) and a match summary. Civic Atlas: `/atlas` → Planning Edition, four views (A real issues, B human decisions, C plan explorer, D planning insights); `GET /api/atlas/plan`, `GET /api/atlas/plan/export.csv`.
 
+## Onboarding and lobby look
+
+The join, loading and lobby screens sit on an underwater scene (`Seascape`, `app/src/ui/FloatingBubbles.tsx`): the still
+`background_seascape.png`, softened, with small floating bubble sprites cut from `bubbles.png` (see `docs/assets.md`). The join panel
+is a wide two-column liquid-glass panel on desktop. Visual only: no rules or records changed (branch `pratham/seascape-bubbles`).
+
 ## Verified and not verified
 
 Verified: `vitest run` (all suites), typecheck of `shared`, `server`, `app`; a three-round match with one person and three bots played headlessly in Chrome at 1440×900 through the finale and the Atlas.
