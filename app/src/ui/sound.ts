@@ -3,7 +3,7 @@
 // sound is off or the browser has no Web Audio.
 import { create } from 'zustand';
 
-const KEY = 'ready-raleigh-sound';
+const KEY = 'coastal-clash-sound';
 
 function initialOn(): boolean {
   try {
@@ -385,3 +385,53 @@ export function stopRain(fadeMs = 1200) {
   g.gain.exponentialRampToValueAtTime(0.0001, t + Math.max(0.01, fadeMs / 1000));
   src.stop(t + fadeMs / 1000 + 0.05);
 }
+
+/** A card leaving the hand: a quick airy whoosh. */
+export function playDeal() {
+  const a = audio();
+  if (!a) return;
+  const { c, out } = a;
+  const t = c.currentTime;
+  const src = c.createBufferSource();
+  src.buffer = noiseBuffer(c);
+  const bp = c.createBiquadFilter();
+  bp.type = 'bandpass';
+  bp.Q.value = 1.4;
+  bp.frequency.setValueAtTime(600, t);
+  bp.frequency.exponentialRampToValueAtTime(3200, t + 0.22);
+  const g = c.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(0.22, t + 0.05);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.28);
+  src.connect(bp).connect(g).connect(out);
+  src.start(t, Math.random() * 2, 0.3);
+}
+
+/** Notes in sequence: [frequency, start s, length s]. */
+function notes(seq: [number, number, number][], type: OscillatorType, level: number) {
+  const a = audio();
+  if (!a) return;
+  const { c, out } = a;
+  for (const [f, start, len] of seq) {
+    const t = c.currentTime + start;
+    const osc = c.createOscillator();
+    const g = c.createGain();
+    osc.type = type;
+    osc.frequency.value = f;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(level, t + 0.015);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+    osc.connect(g).connect(out);
+    osc.start(t);
+    osc.stop(t + len + 0.05);
+  }
+}
+
+/** Approved: a bright, bubbly arpeggio (Aero optimism). */
+export const playApproved = () => notes([[523, 0, 0.18], [659, 0.08, 0.18], [784, 0.16, 0.22], [1047, 0.26, 0.4]], 'triangle', 0.12);
+/** Blocked or voted down: two falling notes. */
+export const playBlocked = () => notes([[392, 0, 0.22], [262, 0.18, 0.4]], 'square', 0.05);
+/** The reveal: a glassy chord swell. */
+export const playReveal = () => notes([[659, 0, 0.9], [831, 0.03, 0.9], [988, 0.06, 0.9]], 'sine', 0.07);
+/** The last seconds of a clock. */
+export const playTick = () => notes([[1320, 0, 0.05]], 'square', 0.025);

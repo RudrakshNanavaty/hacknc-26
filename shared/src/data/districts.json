@@ -1,6 +1,6 @@
 {
   "city": "Miami Beach, Florida",
-  "builtAt": "2026-10-11T01:51:31.922Z",
+  "builtAt": "2026-10-11T02:17:19.395Z",
   "method": "Area = union of the zoning polygons whose centroid lies in a focus box. Shares are the fraction of a 20 m point grid over the area. VE band = share of a 100 m band outside the area that lies in FEMA VE.",
   "sources": [
     {

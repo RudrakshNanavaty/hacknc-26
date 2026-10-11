@@ -1,35 +1,26 @@
-# ReefForge
+# Coastal Clash
 
-**Build for fun. Discover for real.** A multiplayer underwater construction game where every structure a player builds is evaluated as a coral settlement experiment on real reef data. HackNC 2026.
+**Clash Royale meets real-world coastal planning.** Four players take the roles of Mayor, Environmental Activist, Resort Owner and Resident, deploy cards on a real map of Miami Beach, watch their proposals collide, negotiate, and see the city change. Every match is saved as geographically linked planning feedback that planners can explore in **Planning Studio**. HackNC 2026.
 
-Product vision: [`docs/reefforge-one-pager.md`](docs/reefforge-one-pager.md). Data sources and what is verified: [`docs/scientific-data-audit.md`](docs/scientific-data-audit.md).
+## How a match works
 
-## How it works
+1. **Lobby.** Open a room and share the code or QR. Four stakeholders; empty seats can be bots. The host picks the pace (standard about 4 minutes, demo about 2) and whether this is a demo session or a community session.
+2. **Three rounds** (king tide, oceanfront hotel boom, storm season). Each round has five phases: **Crisis** (spotlight on real places), **Play a card** (hidden, one per player, influence permitting, only where the real zoning and FEMA layers allow it), **Reveal** (cards fly to their targets), **Negotiate** (back, oppose, fund, or accept a compromise; a live preview runs the rules engine), **Resolve** (a deterministic engine decides and shows every rule it applied; the map and indicators change).
+3. **End.** Scores per persona and city viability. Then one optional question: *"Outside your assigned character, which proposal would you personally support?"*
+4. **Planning Studio** (`/studio`). Hotspots on the real map, card distribution, the most common objections, compromises accepted, in-role versus personal preferences, a replay of every match, provenance, and JSON, CSV and GeoJSON exports with coordinates and source feature ids.
 
-1. **Pick a real reef** on the globe. Kāneʻohe Bay, Oʻahu opens the game: it is where researchers tested 3D-printed helix-recess settlement modules.
-2. **Build a settlement tile** in the underwater workshop, within a material budget.
-3. **Test it.** The server evaluates the design under the reef's water conditions and stores the experiment with its seed and model version, so anyone can re-run it.
-4. **Compete** in Reef Rivals rooms: 2–4 players, same reef, same water, same seed.
-5. **Research Mode** lists every experiment as an exportable record.
+## Real data
 
-Every environmental value is tagged with where it comes from: measured, published, ocean model, or game-defined.
+| Layer | Source |
+|---|---|
+| Zoning | [City of Miami Beach GIS, gc_Zoning/0](https://gis.miamibeachfl.gov/public/rest/services/gc/gc_Zoning/MapServer/0) |
+| Planning districts | [City of Miami Beach GIS, gc_Cadastral/10](https://gis.miamibeachfl.gov/public/rest/services/gc/gc_Cadastral/MapServer/10) |
+| FEMA flood zones | [Miami-Dade County GIS, MD_LandMgtViewer/63](https://gisweb.miamidade.gov/ArcGIS/rest/services/EnerGov/MD_LandMgtViewer/MapServer/63) |
+| Imagery | Esri World Imagery |
 
-## Architecture
+`npm run data` rebuilds `app/public/data/miami-beach/` and `shared/src/data/districts.json` (raw answers cached in `pipeline/cache/`; `--refresh` refetches). Card effects are illustrative scenario values and budgets are hypothetical; the game says so wherever it shows them.
 
-Built on the Mayday Mayor (WolfHacks 2026) structure:
-
-```
-shared/   TypeScript used by app and server: reef packs, design format, room protocol,
-          reference tiles, and the evaluation engine (the flow and larvae model plugs in here).
-app/      Vite, React, MapLibre globe, Tailwind. Landing globe, workshop, rooms, Research Mode.
-server/   Fastify and WebSockets: rooms, experiment store (Tiger Data or memory),
-          NOAA heat stress, Gemini, ElevenLabs.
-docs/     One-pager and data audit.
-```
-
-The server re-evaluates every design, so results cannot be faked. Every integration fails soft: without a database, AI key or voice key the game still runs.
-
-## Run it locally
+## Run it
 
 Requires Node 20+.
 
@@ -37,14 +28,8 @@ Requires Node 20+.
 npm install
 cp .env.example .env   # everything is optional
 npm run dev            # app on :5173, server on :8787
-```
-
-```bash
-npm test
+npm test               # engine, rooms, a four-client WebSocket match, studio exports
 npm run typecheck
 ```
 
-## Status
-
-- Done: globe with reef packs, reef cards with live NOAA heat stress, solo tests, rooms end to end, experiment records (memory or Tiger Data), Research Mode list and JSON export.
-- Next: the 3D voxel workshop (React Three Fiber), the flow and larval settlement engine, and validation against Levenstein et al. 2022. Until the engine lands, the settlement rate shows as "engine pending" rather than a made-up number.
+Architecture, the audit of the code this was built from (Pocket Rivals, Mayday Mayor), the rules and the demo script: [`docs/coastal-clash.md`](docs/coastal-clash.md).

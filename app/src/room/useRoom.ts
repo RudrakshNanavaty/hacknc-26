@@ -1,9 +1,9 @@
 // One WebSocket per page to /ws/rooms/:code (proxied to the server by Vite). Reconnects on its own;
-// a page that joined keeps its secret id in localStorage, so a reload resumes the same player.
+// a player who joined keeps their secret id in localStorage, so a reload resumes the same seat.
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { AvatarId, ClientMsg, Design, ReefId, RoomState, ServerMsg } from '@shared';
+import type { CardId, ClientMsg, NegotiationMove, PaceId, PersonaId, RoomState, ServerMsg, SessionKind } from '@shared';
 
-const key = (code: string) => `reefforge.room.${code}`;
+const key = (code: string) => `coastal-clash.room.${code}`;
 export const savedPlayer = (code: string): string | null => {
   try {
     return localStorage.getItem(key(code));
@@ -25,14 +25,19 @@ export interface Room {
   clearError: () => void;
   /** Server clock minus ours (ms): add to Date.now() to compare with server times. */
   offset: number;
-  /** `create`: open the room (the player hosting it). */
-  join: (name: string, avatar: AvatarId, create?: boolean) => void;
-  pick: (avatar: AvatarId) => void;
+  join: (name: string, persona: PersonaId, create?: boolean) => void;
+  persona: (persona: PersonaId) => void;
+  bot: (persona: PersonaId, on: boolean) => void;
+  pace: (pace: PaceId) => void;
+  session: (kind: SessionKind) => void;
   start: () => void;
-  lock: (design: Design) => void;
+  skip: () => void;
+  select: (card: CardId, district: string) => void;
+  move: (move: NegotiationMove, proposalId: string) => void;
+  accept: (compromiseId: string) => void;
+  done: () => void;
+  respond: (choice: string) => void;
   again: () => void;
-  /** Host, in the lobby: the reef of the next round. */
-  reef: (reef: ReefId) => void;
 }
 
 export function useRoom(code: string): Room {
@@ -97,11 +102,18 @@ export function useRoom(code: string): Room {
     error,
     clearError: useCallback(() => setError(null), []),
     offset,
-    join: useCallback((name, avatar, create) => send({ t: 'join', name, avatar, create }), [send]),
-    pick: useCallback((avatar) => send({ t: 'pick', avatar }), [send]),
+    join: useCallback((name, persona, create) => send({ t: 'join', name, persona, create }), [send]),
+    persona: useCallback((persona) => send({ t: 'persona', persona }), [send]),
+    bot: useCallback((persona, on) => send({ t: 'bot', persona, on }), [send]),
+    pace: useCallback((pace) => send({ t: 'pace', pace }), [send]),
+    session: useCallback((kind) => send({ t: 'session', kind }), [send]),
     start: useCallback(() => send({ t: 'start' }), [send]),
-    lock: useCallback((design) => send({ t: 'lock', design }), [send]),
+    skip: useCallback(() => send({ t: 'skip' }), [send]),
+    select: useCallback((card, district) => send({ t: 'select', card, district }), [send]),
+    move: useCallback((move, proposalId) => send({ t: 'move', move, proposalId }), [send]),
+    accept: useCallback((compromiseId) => send({ t: 'accept', compromiseId }), [send]),
+    done: useCallback(() => send({ t: 'done' }), [send]),
+    respond: useCallback((choice) => send({ t: 'respond', choice }), [send]),
     again: useCallback(() => send({ t: 'again' }), [send]),
-    reef: useCallback((reef: ReefId) => send({ t: 'reef', reef }), [send]),
   };
 }

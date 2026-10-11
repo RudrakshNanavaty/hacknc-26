@@ -1,244 +1,105 @@
-// Screen 1, the Living Ocean: a satellite globe with real reefs pinned on it. Pick a reef to see its
-// mission card and data, toggle the data layers (Sources), then dive in, open a room or join one.
-import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { GeoJSONSource, Map as MapLibreMap, Marker } from 'maplibre-gl';
-import { REEFS, reefById, type ReefId } from '@shared';
-import { reefHeatGrid } from '../api';
-import { HEAT_COLOR, globeStyle, setLayer, type DataLayer } from '../map/globe';
+// The front door: real Miami Beach with its real flood zones behind glass, the four stakeholders,
+// and three ways in (host a match, join one, open Planning Studio).
+import { useState, type FormEvent } from 'react';
+import { CARDS, DATA_SOURCES, DISTRICTS, PERSONAS, PERSONA_INFO, districtFacts, startCity } from '@shared';
+import { CityMap, type Overlays } from '../map/CityMap';
 import { Link, navigate } from '../router';
 import { Bubbles } from '../ui/Bubbles';
-import { ReefCard } from '../ui/ReefCard';
+import { PersonaOrb } from '../game/Players';
+import { GameCard } from '../game/GameCard';
+import { Legend } from './Play';
+import { unlockAudio } from '../ui/sound';
 
 // No I or O, so codes read cleanly off a projector.
 const LETTERS = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
 const newRoomCode = () => Array.from({ length: 4 }, () => LETTERS[Math.floor(Math.random() * LETTERS.length)]).join('');
-
-/** The globe at rest: the Pacific, with Hawaiʻi and the Great Barrier Reef in view. */
-const HOME = { center: [-175, 2] as [number, number], zoom: 1.5 };
-const LAYERS: { id: DataLayer; label: string; note: string }[] = [
-  { id: 'satellite', label: 'Satellite imagery', note: 'Esri World Imagery' },
-  { id: 'relief', label: 'Seafloor relief', note: 'NOAA NCEI global DEM hillshade' },
-  { id: 'heat', label: 'Heat stress', note: 'NOAA Coral Reef Watch, latest day, around the reef' },
-  { id: 'sites', label: 'Data sites', note: 'Where each reef’s measurements come from' },
-];
-const reduceMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const CITY = startCity();
 
 export function Landing() {
-  const container = useRef<HTMLDivElement>(null);
-  const [map, setMap] = useState<MapLibreMap | null>(null);
-  // Start on the headline world: the real scanned reef at Eastern Dry Rocks.
-  const [focus, setFocus] = useState<ReefId>('florida-keys');
-  /** Once the player picks a reef, the intro never overrides it. */
-  const picked = useRef(false);
-  const pick = (id: ReefId) => {
-    picked.current = true;
-    setFocus(id);
-  };
   const [code, setCode] = useState('');
-  const [layers, setLayers] = useState<Record<DataLayer, boolean>>({ satellite: true, relief: false, heat: false, sites: true });
-  const [heatDate, setHeatDate] = useState<string | null | 'loading'>(null);
-  const [panel, setPanel] = useState(false);
-  const [diving, setDiving] = useState(false);
-  const pins = useRef(new Map<ReefId, HTMLButtonElement>());
-
-  useEffect(() => {
-    if (!container.current) return;
-    const m = new MapLibreMap({
-      container: container.current,
-      style: globeStyle(layers),
-      center: HOME.center,
-      zoom: window.innerWidth < 640 ? 1.0 : HOME.zoom,
-      attributionControl: { compact: true },
-      maxPitch: 75,
-    });
-    for (const reef of REEFS) {
-      const el = document.createElement('button');
-      el.type = 'button';
-      el.setAttribute('aria-label', `${reef.name}${reef.ready ? '' : ', coming next'}`);
-      el.className = 'group flex flex-col items-center gap-1 focus:outline-none';
-      el.innerHTML = `
-        <span class="glass px-3 py-1 text-[13px] font-extrabold whitespace-nowrap" style="border-radius:999px;font-family:var(--font-display)">${reef.name}${reef.ready ? '' : ' <span style="color:#0a7bb8;font-weight:700">· next</span>'}</span>
-        <span class="orb ${reef.ready ? 'orb-sun pulse' : ''}" style="width:${reef.ready ? 22 : 16}px;height:${reef.ready ? 22 : 16}px;${reef.ready ? '' : 'opacity:.85'}"></span>`;
-      el.addEventListener('click', () => {
-        picked.current = true;
-        setFocus(reef.id);
-      });
-      pins.current.set(reef.id, el);
-      new Marker({ element: el, anchor: 'bottom', opacityWhenCovered: '0' }).setLngLat([reef.lon, reef.lat]).addTo(m);
-    }
-    // A slow idle spin until someone touches the globe.
-    let spinning = !reduceMotion();
-    const stop = () => (spinning = false);
-    m.on('mousedown', stop);
-    m.on('touchstart', stop);
-    m.on('wheel', stop);
-    const spin = () => {
-      if (!spinning || m.getZoom() > 3) return;
-      const c = m.getCenter();
-      m.easeTo({ center: [c.lng + 6, c.lat], duration: 1000, easing: (t) => t });
-    };
-    m.on('moveend', spin);
-    m.once('load', () => {
-      setMap(m);
-      // After a short look at the whole ocean, fly to the chosen reef (unless the player already picked one).
-      setTimeout(() => {
-        spinning = false;
-        if (!picked.current) flyToReef(m, 'florida-keys');
-      }, reduceMotion() ? 0 : 1800);
-    });
-    return () => m.remove();
-    // The globe is made once; layer changes go through setLayer.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    if (!map) return;
-    flyToReef(map, focus);
-    // Highlight the chosen pin's orb. Never set transform on the marker element itself:
-    // MapLibre positions markers with it.
-    for (const [id, el] of pins.current) {
-      const orb = el.querySelector<HTMLElement>('.orb');
-      if (orb) orb.style.transform = id === focus ? 'scale(1.35)' : '';
-    }
-  }, [map, focus]);
-
-  // The heat layer follows the chosen reef.
-  useEffect(() => {
-    if (!map || !layers.heat) return;
-    let live = true;
-    setHeatDate('loading');
-    reefHeatGrid(focus).then((grid) => {
-      if (!live) return;
-      setHeatDate(grid?.date ?? null);
-      (map.getSource('heat') as GeoJSONSource | undefined)?.setData(grid ?? { type: 'FeatureCollection', features: [] });
-    });
-    return () => {
-      live = false;
-    };
-  }, [map, focus, layers.heat]);
-
-  const toggle = (id: DataLayer) => {
-    const next = { ...layers, [id]: !layers[id] };
-    setLayers(next);
-    if (map) setLayer(map, id, next[id]);
-  };
-
-  const reef = reefById(focus);
-  const dive = () => {
-    // Reefs with a real-terrain world open it; the others go straight to the workshop.
-    const to = reef.world ? `/explore/${reef.id}` : `/dive/${reef.id}`;
-    if (!map || reduceMotion()) return navigate(to);
-    const [w, s, e, n] = reef.bbox;
-    const center = reef.world?.center ?? [(w + e) / 2, (s + n) / 2];
-    map.flyTo({ center, zoom: reef.world ? 17.2 : 13.6, pitch: 64, bearing: 25, duration: 3600, curve: 1.7, essential: true });
-    setTimeout(() => setDiving(true), 2800);
-    setTimeout(() => navigate(to), 3800);
-  };
-  const joinRoom = (e: FormEvent) => {
+  const [overlays, setOverlays] = useState<Overlays>({ flood: true, zoning: false });
+  const [area, setArea] = useState<string | null>(null);
+  const join = (e: FormEvent) => {
     e.preventDefault();
     const c = code.trim().toUpperCase();
     if (/^[A-HJ-NP-Z]{4}$/.test(c)) navigate(`/play/${c}`);
   };
-
+  const d = area ? DISTRICTS.find((x) => x.id === area) : null;
   return (
-    <main className="relative h-full overflow-hidden">
-      {/* maplibre-gl.css makes the map element position: relative (unlayered, so it beats Tailwind's
-          absolute): the map fills a positioned wrapper instead. */}
-      <div className="absolute inset-0">
-        <div ref={container} className="h-full w-full" />
-      </div>
-      <Bubbles count={14} className="opacity-60" />
-
-      <div className="pointer-events-none absolute inset-0 flex flex-col justify-between gap-3 p-3 sm:p-6">
-        <header className="pointer-events-auto flex flex-wrap items-start justify-between gap-2">
-          <div className="glass flex items-center gap-3 px-4 py-2.5">
-            <span className="orb h-10 w-10 shrink-0" aria-hidden />
-            <div>
-              <h1 className="font-display text-32 leading-none font-black text-ink">
-                Reef<span className="text-aqua-deep">Forge</span>
-              </h1>
-              <p className="text-13 font-semibold text-ink/80">Build for fun. Discover for real.</p>
+    <main className="relative min-h-full">
+      <section className="relative h-[100svh] min-h-[640px] overflow-hidden">
+        <div className="absolute inset-0">
+          <CityMap city={CITY} overlays={overlays} onPick={setArea} target={area} padding={window.innerWidth >= 1024 ? { top: 400, bottom: 110, left: 60, right: 60 } : { top: 380, bottom: 160, left: 20, right: 20 }} />
+        </div>
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/10 via-transparent to-abyss/30" />
+        <div className="pointer-events-none relative flex h-full flex-col justify-between gap-4 p-4 sm:p-8">
+          <div className="pointer-events-auto glass max-w-xl p-5 sm:p-7">
+            <p className="chip mb-2 w-fit bg-white/70 text-aqua-deep">Miami Beach, Florida · real GIS data</p>
+            <h1 className="hero-title font-display text-48 font-black sm:text-72">Coastal Clash</h1>
+            <p className="mt-2 text-18 font-semibold">Clash Royale meets real-world coastal planning. Four stakeholders deploy cards on a real city, their proposals collide, and every match becomes geographically linked feedback for planners.</p>
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              <button type="button" className="aero-btn aero-btn-go aero-btn-lg pulse" onClick={() => { unlockAudio(); navigate(`/play/${newRoomCode()}`); }}>Host a match ▶</button>
+              <form onSubmit={join} className="flex items-center gap-2">
+                <input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} maxLength={4} placeholder="CODE" aria-label="Room code" className="aero-input w-28 text-center tracking-widest uppercase" />
+                <button className="aero-btn aero-btn-aqua">Join</button>
+              </form>
+              <Link to="/studio" className="aero-btn">Planning Studio</Link>
             </div>
           </div>
-          <nav className="flex flex-wrap gap-2">
-            <button className="aero-btn" aria-expanded={panel} onClick={() => setPanel((p) => !p)}>Sources</button>
-            <Link to="/research" className="aero-btn">Research Mode</Link>
-          </nav>
-        </header>
-
-        {panel && (
-          <section className="glass pointer-events-auto absolute top-24 right-3 w-72 max-w-[calc(100%-1.5rem)] p-4 sm:right-6" aria-label="Map data layers">
-            <h2 className="font-display text-18 font-black">Map sources</h2>
-            <ul className="mt-2 space-y-2">
-              {LAYERS.map((l) => (
-                <li key={l.id}>
-                  <label className="flex cursor-pointer items-start gap-2">
-                    <input type="checkbox" className="mt-1 h-4 w-4 accent-aqua-deep" checked={layers[l.id]} onChange={() => toggle(l.id)} />
-                    <span>
-                      <span className="block font-bold">{l.label}</span>
-                      <span className="block text-13 text-ink/75">{l.note}</span>
-                    </span>
-                  </label>
-                </li>
-              ))}
-            </ul>
-            {layers.heat && (
-              <div className="mt-3 text-13">
-                <div className="h-2.5 rounded-full" style={{ background: `linear-gradient(90deg, ${(HEAT_COLOR.slice(3) as (number | string)[]).filter((v) => typeof v === 'string').join(',')})` }} />
-                <div className="mt-0.5 flex justify-between"><span>0</span><span>4</span><span>8+ °C-weeks</span></div>
-                <p className="mt-1">{heatDate === 'loading' ? 'Loading NOAA grid…' : heatDate ? `NOAA Coral Reef Watch, ${heatDate}` : 'Heat grid unavailable right now'}</p>
+          <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div className="pointer-events-auto"><Legend overlays={overlays} setOverlays={setOverlays} /></div>
+            {d ? (
+              <div className="pointer-events-auto glass max-w-sm p-4">
+                <p className="font-display text-24 font-black">{d.name}</p>
+                <p className="text-13">{d.blurb}</p>
+                <ul className="mt-2 list-disc pl-5 text-13">{districtFacts(d).map((f) => <li key={f}>{f}</li>)}</ul>
+                <p className="mt-2 text-[11px] opacity-70">Built from {d.sources.zoningIds.length} City zoning polygons · {d.planningDistrict} planning district</p>
               </div>
-            )}
-          </section>
-        )}
-
-        <div className="pointer-events-auto flex max-h-[62vh] flex-col items-start gap-3 overflow-y-auto pb-1 sm:max-h-none">
-          <nav className="glass flex max-w-full flex-wrap items-center gap-1.5 p-2" aria-label="Choose a reef">
-            <span className="px-2 font-display text-15 font-black">Choose a reef</span>
-            {REEFS.map((r) => (
-              <button key={r.id} className="aero-btn" aria-pressed={r.id === focus} onClick={() => pick(r.id)} disabled={!r.ready}>
-                {r.name}
-                {r.world && <span className="chip bg-white/70 text-leaf-deep">3D seabed</span>}
-                {!r.ready && <span className="chip bg-white/70 text-aqua-deep">next</span>}
-              </button>
-            ))}
-          </nav>
-          <ReefCard reef={reef}>
-            {reef.ready ? (
-              <>
-                <button className="aero-btn aero-btn-go aero-btn-lg" onClick={dive}>{reef.world ? 'Dive into the real reef' : 'Dive in'}</button>
-                <button className="aero-btn aero-btn-aqua" onClick={() => navigate(`/play/${newRoomCode()}`)}>Start a room</button>
-              </>
             ) : (
-              <button className="aero-btn" onClick={() => pick('florida-keys')}>Explore Eastern Dry Rocks</button>
+              <p className="pointer-events-auto glass p-3 text-13 font-bold">Tap a playable area to see its real flood and zoning profile.</p>
             )}
-          </ReefCard>
-          <form onSubmit={joinRoom} className="glass flex items-center gap-2 p-2">
-            <label className="sr-only" htmlFor="code">Room code</label>
-            <input
-              id="code"
-              value={code}
-              onChange={(e) => setCode(e.target.value.toUpperCase().slice(0, 4))}
-              placeholder="CODE"
-              autoComplete="off"
-              className="tabular w-24 rounded-full border border-aqua/50 bg-white/80 px-3 py-1.5 text-18 font-bold tracking-widest"
-            />
-            <button className="aero-btn">Join room</button>
-          </form>
+          </div>
         </div>
-      </div>
+      </section>
 
-      {diving && (
-        <div className="dive-veil fixed inset-0 z-50 flex items-center justify-center">
-          <Bubbles count={40} seed={3} />
-          <p className="font-display text-32 font-black text-white drop-shadow">Diving to {reef.name}…</p>
+      <section className="relative mx-auto flex max-w-6xl flex-col gap-6 px-4 py-10">
+        <Bubbles count={14} seed={3} />
+        <h2 className="relative font-display text-48 font-black text-white drop-shadow">Four stakeholders. One shoreline.</h2>
+        <div className="relative grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {PERSONAS.map((id) => {
+            const p = PERSONA_INFO[id];
+            return (
+              <article key={id} className="glass flex flex-col gap-2 p-4" style={{ ['--tint' as string]: p.color }}>
+                <PersonaOrb persona={id} size={56} />
+                <h3 className="font-display text-24 font-black">{p.name}</h3>
+                <p className="text-13 font-bold opacity-80">{p.title}</p>
+                <p className="text-15">{p.goal}</p>
+                <p className="text-13 italic opacity-80">{p.voice}</p>
+              </article>
+            );
+          })}
         </div>
-      )}
+        <div className="relative glass flex flex-col gap-3 p-5">
+          <h3 className="font-display text-32 font-black">How a round plays</h3>
+          <ol className="grid grid-cols-1 gap-2 text-15 sm:grid-cols-2 lg:grid-cols-4">
+            <li><b>1. Crisis.</b> A scenario spotlights real places: a king tide, a hotel boom, storm season.</li>
+            <li><b>2. Deploy.</b> Each stakeholder plays one card on a playable area. The real zoning and FEMA layers decide where each card is allowed.</li>
+            <li><b>3. Clash & negotiate.</b> Cards are revealed together. Back, oppose, fund, or accept a compromise.</li>
+            <li><b>4. Resolve.</b> A deterministic rules engine decides, shows every rule it applied, and the city changes.</li>
+          </ol>
+          <div className="flex gap-2 overflow-x-auto pb-2">
+            {(['hotel-development', 'environmental-challenge', 'public-access-guarantee', 'emergency-funding', 'living-shoreline'] as const).map((c) => <GameCard key={c} id={c} />)}
+          </div>
+          <p className="text-13 opacity-80">{Object.keys(CARDS).length} cards with authored, tested rules. Effects are illustrative scenario values; geography is real.</p>
+        </div>
+        <footer className="relative glass p-4 text-13">
+          <p className="font-bold">Data sources</p>
+          <ul className="mt-1 list-disc pl-5">
+            {DATA_SOURCES.map((s) => <li key={s.id}><a className="underline" href={s.layer} target="_blank" rel="noreferrer">{s.name}</a> · fetched {s.fetchedAt.slice(0, 10)}</li>)}
+          </ul>
+          <p className="mt-2 opacity-80">Budgets in the game are hypothetical. Role-play choices are not public opinion; the end-of-match question asks players for their own view, recorded separately.</p>
+        </footer>
+      </section>
     </main>
   );
-}
-
-function flyToReef(map: MapLibreMap, id: ReefId) {
-  const reef = reefById(id);
-  map.flyTo({ center: [reef.lon, reef.lat], zoom: window.innerWidth < 640 ? 4.2 : 5.2, pitch: 30, bearing: 0, duration: 2200, essential: true });
 }

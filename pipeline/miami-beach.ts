@@ -22,6 +22,8 @@ const refresh = process.argv.includes('--refresh');
 
 /** Miami Beach city limits, with a margin (lon/lat). */
 const CITY_BBOX: [number, number, number, number] = [-80.17, 25.76, -80.112, 25.874];
+/** The flood overlay is clipped wider than the query, so its edge stays off screen. */
+const FLOOD_CLIP: [number, number, number, number] = [-80.24, 25.70, -80.05, 25.93];
 
 export const LAYERS = {
   zoning: {
@@ -149,7 +151,7 @@ async function main() {
   writeFileSync(join(WEB, 'planning-districts.geojson'), JSON.stringify(districtOut));
   const floodOut = turf.featureCollection(
     polys(flood.fc).flatMap((f) => {
-      const clipped = turf.bboxClip(f, CITY_BBOX);
+      const clipped = turf.bboxClip(f, FLOOD_CLIP);
       const simple = turf.simplify(clipped, { tolerance: 0.00003, highQuality: false });
       if (!simple.geometry.coordinates.length) return [];
       return [turf.feature(roundCoords(simple.geometry), { id: f.properties!.OBJECTID, zone: f.properties!.FZONE, elev: f.properties!.ELEV > 0 ? f.properties!.ELEV : null })];

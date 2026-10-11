@@ -24,7 +24,8 @@ const QUIPS: Record<CardId, string> = {
 const name = (p: PersonaId) => PERSONA_INFO[p].name.replace('Environmental ', '').toLowerCase();
 
 export function crisisHeadline(crisis: Crisis, round: number): string {
-  return `Round ${round}: ${crisis.title}. ${crisis.text.replace(/^Scenario: /, '')}`;
+  const text = crisis.text.replace(/^Scenario: /, '');
+  return `Round ${round}: ${crisis.title}. ${text.charAt(0).toUpperCase()}${text.slice(1)}`;
 }
 
 export function revealHeadline(board: Board): string {

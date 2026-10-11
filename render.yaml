@@ -2,7 +2,7 @@
 # Keys are never in git: Render asks for each `sync: false` value when the Blueprint is created.
 services:
   - type: web
-    name: reefforge
+    name: coastal-clash
     runtime: docker
     plan: free
     dockerfilePath: ./Dockerfile
