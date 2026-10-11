@@ -29,7 +29,7 @@ export function Landing() {
     <main className="relative min-h-full">
       <section className="relative h-[100svh] min-h-[640px] overflow-hidden">
         <div className="absolute inset-0">
-          <CityMap city={CITY} overlays={overlays} onPick={setArea} target={area} padding={window.innerWidth >= 1024 ? { top: 400, bottom: 110, left: 60, right: 60 } : { top: 380, bottom: 160, left: 20, right: 20 }} />
+          <CityMap city={CITY} overlays={overlays} onPick={setArea} target={area} padding={window.innerWidth >= 1024 ? { top: 60, bottom: 40, left: 520, right: 40 } : { top: 300, bottom: 120, left: 20, right: 20 }} />
         </div>
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/10 via-transparent to-abyss/30" />
         <div className="pointer-events-none relative flex h-full flex-col justify-between gap-4 p-4 sm:p-8">

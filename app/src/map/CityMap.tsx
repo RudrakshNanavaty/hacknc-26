@@ -1,21 +1,19 @@
-// The game board: Miami Beach on satellite imagery, with the real FEMA flood zones and City zoning
-// as overlays, and the four playable areas (unions of real zoning polygons) drawn on top. Areas are
-// tinted by their resilience meter; built projects appear as glossy markers; the crisis spotlight
-// pulses. Labels are HTML chips, so they stay tappable on a phone and need no font server.
+// The game board, drawn like Mayday Mayor's city: a tilted printed street map of Miami Beach with
+// 3D buildings, real street and place names, and the real FEMA flood zones as water (map/basemap.ts).
+// City zoning and satellite imagery are toggles. The four playable areas (unions of real zoning
+// polygons) are tinted on the ground by their resilience meter; built projects appear as glossy
+// pins; the crisis spotlight pulses. Area labels are HTML chips, so they stay tappable on a phone.
 import { useEffect, useRef, useState } from 'react';
-import { Map as MapLibreMap, Marker, type LngLatBoundsLike, type StyleSpecification } from 'maplibre-gl';
+import { Map as MapLibreMap, Marker, type StyleSpecification } from 'maplibre-gl';
 import { DISTRICTS, PROJECTS, type CityState, type MapFeatureKind } from '@shared';
+import { ATTRIBUTION, GLYPHS, INK, PRINT_FADE, SATELLITE_ATTRIBUTION, SATELLITE_TILES, TILES, buildings3dLayer, groundLayers, labelLayers, streetLayers } from './basemap';
 
 const DATA = '/data/miami-beach';
-const SATELLITE = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
-const ATTRIBUTION =
-  'Imagery <a href="https://www.esri.com" target="_blank">&copy; Esri</a>, Maxar, Earthstar Geographics · ' +
-  'Zoning and planning districts: <a href="https://gis.miamibeachfl.gov/public/rest/services" target="_blank">City of Miami Beach GIS</a> · ' +
-  'FEMA flood zones: <a href="https://gisweb.miamidade.gov/ArcGIS/rest/services" target="_blank">Miami-Dade County GIS</a>';
 
 export interface Overlays {
   flood: boolean;
   zoning: boolean;
+  satellite?: boolean;
 }
 
 /** Zoning families, for the overlay's colors and legend. */
@@ -25,7 +23,8 @@ export const ZONING_FAMILIES = [
   { label: 'Government use (parks, public land)', color: '#6fd13a', match: ['GU'] },
   { label: 'Other', color: '#b79cff', match: [] },
 ];
-export const FLOOD_COLORS = { VE: '#ff4fa3', AE: '#19b6e6', X: '#cfefff' } as const;
+/** FEMA zones drawn as water, in Mayday Mayor's flood blues. */
+export const FLOOD_COLORS = { VE: INK.deep, AE: INK.water, X: '#cfefff' } as const;
 
 const FEATURE_ICON: Record<MapFeatureKind, string> = {
   drainage: PROJECTS.drainage.marker,
@@ -40,8 +39,10 @@ function style(): StyleSpecification {
   const zoningColor = ['match', ['get', 'code'], ...ZONING_FAMILIES.slice(0, 3).flatMap((f) => [f.match, f.color]), ZONING_FAMILIES[3]!.color];
   return {
     version: 8,
+    glyphs: GLYPHS,
     sources: {
-      satellite: { type: 'raster', tiles: [SATELLITE], tileSize: 256, maxzoom: 19, attribution: ATTRIBUTION },
+      omt: { type: 'vector', url: TILES, attribution: ATTRIBUTION },
+      satellite: { type: 'raster', tiles: [SATELLITE_TILES], tileSize: 256, maxzoom: 19, attribution: SATELLITE_ATTRIBUTION },
       flood: { type: 'geojson', data: `${DATA}/flood-zones.geojson` },
       zoning: { type: 'geojson', data: `${DATA}/zoning.geojson` },
       areas: { type: 'geojson', data: `${DATA}/areas.geojson`, promoteId: 'id' },
@@ -52,25 +53,25 @@ function style(): StyleSpecification {
       },
     },
     layers: [
-      { id: 'sky', type: 'background', paint: { 'background-color': '#7fd3f5' } },
-      { id: 'satellite', type: 'raster', source: 'satellite', paint: { 'raster-saturation': 0.25, 'raster-contrast': 0.08, 'raster-brightness-min': 0.04 } },
+      ...groundLayers(),
       {
         id: 'flood-fill', type: 'fill', source: 'flood', layout: { visibility: 'none' },
         filter: ['in', ['get', 'zone'], ['literal', ['VE', 'AE']]],
-        paint: { 'fill-color': ['match', ['get', 'zone'], 'VE', FLOOD_COLORS.VE, FLOOD_COLORS.AE], 'fill-opacity': ['match', ['get', 'zone'], 'VE', 0.42, 0.28] },
+        paint: { 'fill-color': ['match', ['get', 'zone'], 'VE', FLOOD_COLORS.VE, FLOOD_COLORS.AE], 'fill-opacity': ['match', ['get', 'zone'], 'VE', 0.55, 0.38] },
       },
       {
         id: 'flood-line', type: 'line', source: 'flood', layout: { visibility: 'none' },
         filter: ['==', ['get', 'zone'], 'VE'],
-        paint: { 'line-color': FLOOD_COLORS.VE, 'line-width': 1.5 },
+        paint: { 'line-color': FLOOD_COLORS.VE, 'line-width': 1.2, 'line-opacity': 0.7 },
       },
       { id: 'zoning-fill', type: 'fill', source: 'zoning', layout: { visibility: 'none' }, paint: { 'fill-color': zoningColor as never, 'fill-opacity': 0.3 } },
       { id: 'zoning-line', type: 'line', source: 'zoning', layout: { visibility: 'none' }, paint: { 'line-color': '#ffffff', 'line-opacity': 0.55, 'line-width': 0.6 } },
+      ...streetLayers(),
       {
         id: 'areas-fill', type: 'fill', source: 'areas',
         paint: {
           'fill-color': ['interpolate', ['linear'], ['coalesce', ['feature-state', 'resilience'], 40], 0, '#ff4f6d', 35, '#ffb020', 60, '#9be85a', 100, '#19e6c1'],
-          'fill-opacity': ['case', ['==', ['feature-state', 'eligible'], false], 0.08, ['boolean', ['feature-state', 'target'], false], 0.75, 0.58],
+          'fill-opacity': ['case', ['==', ['feature-state', 'eligible'], false], 0.08, ['boolean', ['feature-state', 'target'], false], 0.8, 0.62],
         },
       },
       {
@@ -82,9 +83,10 @@ function style(): StyleSpecification {
           'circle-opacity': ['case', ['==', ['feature-state', 'eligible'], false], 0.1, ['boolean', ['feature-state', 'target'], false], 0.85, 0.6],
         },
       },
+      buildings3dLayer(),
       {
         id: 'areas-glow', type: 'line', source: 'areas',
-        paint: { 'line-color': '#ffffff', 'line-width': 9, 'line-blur': 7, 'line-opacity': ['case', ['==', ['feature-state', 'eligible'], false], 0.1, 0.75] },
+        paint: { 'line-color': '#ffffff', 'line-width': 7, 'line-blur': 5, 'line-opacity': ['case', ['==', ['feature-state', 'eligible'], false], 0.1, 0.75] },
       },
       {
         id: 'areas-line', type: 'line', source: 'areas',
@@ -98,16 +100,22 @@ function style(): StyleSpecification {
         id: 'areas-spot', type: 'line', source: 'areas',
         paint: { 'line-color': '#ffe066', 'line-width': 3, 'line-blur': 2, 'line-opacity': ['case', ['boolean', ['feature-state', 'spotlight'], false], 1, 0] },
       },
+      ...labelLayers(),
     ],
   };
 }
 
-/** All four areas, with a little room. */
-const AREA_BOUNDS = (() => {
-  const xs = DISTRICTS.flatMap((d) => [d.bbox[0], d.bbox[2]]);
-  const ys = DISTRICTS.flatMap((d) => [d.bbox[1], d.bbox[3]]);
-  return [[Math.min(...xs), Math.min(...ys)], [Math.max(...xs), Math.max(...ys)]] as LngLatBoundsLike;
-})();
+
+const OVERVIEW_PITCH = 66;
+const FOCUS_PITCH = 62;
+/**
+ * The overview: low over Biscayne Bay at South Beach, looking up the island (North Beach on the
+ * horizon), close enough for the 3D city, like Mayday Mayor's view of Brickell.
+ */
+const overview = () => {
+  const small = Math.min(window.innerWidth, window.innerHeight) < 700;
+  return { center: [-80.1355, 25.7835] as [number, number], zoom: small ? 13.6 : 14.15, pitch: OVERVIEW_PITCH, bearing: 14 };
+};
 
 export interface CityMapProps {
   city: CityState;
@@ -141,23 +149,20 @@ export function CityMap({ city, spotlight = [], target = null, eligible = null, 
   const padRef = useRef(pad);
   padRef.current = pad;
 
-  // Landscape screens turn the barrier island sideways (north to the left) so all four areas fit.
-  const bearing = () => (container.current && container.current.clientWidth > container.current.clientHeight * 1.15 ? -90 : 0);
+  // A tilted view up the barrier island, like Mayday Mayor's city: South Beach in front, North Beach behind.
+  const bearing = () => (container.current && container.current.clientWidth > container.current.clientHeight * 1.15 ? 18 : 8);
 
   useEffect(() => {
     if (!container.current) return;
     const m = new MapLibreMap({
       container: container.current,
       style: style(),
-      bounds: AREA_BOUNDS,
-      fitBoundsOptions: { padding: padRef.current, bearing: bearing() },
+      ...overview(),
+      maxPitch: 75,
       attributionControl: { compact: true },
       maxZoom: 18,
       minZoom: 11,
-      dragRotate: false,
-      pitchWithRotate: false,
     });
-    m.touchZoomRotate.disableRotation();
     m.on('load', () => setLoaded(true));
     m.on('click', 'areas-fill', (e) => {
       const id = e.features?.[0]?.properties?.id;
@@ -205,7 +210,11 @@ export function CityMap({ city, spotlight = [], target = null, eligible = null, 
     if (!map || !loaded) return;
     for (const id of ['flood-fill', 'flood-line']) map.setLayoutProperty(id, 'visibility', overlays.flood ? 'visible' : 'none');
     for (const id of ['zoning-fill', 'zoning-line']) map.setLayoutProperty(id, 'visibility', overlays.zoning ? 'visible' : 'none');
-  }, [map, loaded, overlays.flood, overlays.zoning]);
+    const sat = !!overlays.satellite;
+    map.setLayoutProperty('satellite', 'visibility', sat ? 'visible' : 'none');
+    for (const [id, prop, full] of PRINT_FADE) map.setPaintProperty(id, prop, sat ? 0 : full);
+    map.setPaintProperty('buildings-3d', 'fill-extrusion-opacity', sat ? 0.55 : 0.92);
+  }, [map, loaded, overlays.flood, overlays.zoning, overlays.satellite]);
 
   // Area states: resilience tint, spotlight, target, eligibility.
   useEffect(() => {
@@ -280,16 +289,15 @@ export function CityMap({ city, spotlight = [], target = null, eligible = null, 
       const d = DISTRICTS.find((x) => x.id === focus);
       if (!d) return;
       const cam = map.cameraForBounds([[d.bbox[0], d.bbox[1]], [d.bbox[2], d.bbox[3]]], { padding: p, bearing: bearing() });
-      if (cam) map.flyTo({ ...cam, zoom: Math.min(cam.zoom ?? 15, 16.2), duration: 1400, essential: true });
+      if (cam) map.flyTo({ ...cam, zoom: Math.min((cam.zoom ?? 15) - 0.2, 16), pitch: FOCUS_PITCH, duration: 1600, essential: true });
     } else {
-      map.fitBounds(AREA_BOUNDS, { padding: p, bearing: bearing(), duration: 1200 });
+      map.flyTo({ ...overview(), padding: p, duration: 1400, essential: true });
     }
   }, [map, focus, pad.top, pad.bottom, pad.left, pad.right]);
 
   return (
     <div className={`relative h-full w-full overflow-hidden ${className}`}>
       <div ref={container} style={{ position: "absolute", inset: 0 }} />
-      <div aria-hidden className="water-shimmer pointer-events-none absolute inset-0" />
     </div>
   );
 }

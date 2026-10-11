@@ -52,6 +52,10 @@ export function Legend({ overlays, setOverlays }: { overlays: Overlays; setOverl
           {ZONING_FAMILIES.map((f) => <span key={f.label}><i className="swatch" style={{ background: f.color }} />{f.label}</span>)}
         </p>
       )}
+      <label className="flex items-center gap-2 text-13 font-bold">
+        <input type="checkbox" checked={!!overlays.satellite} onChange={(e) => setOverlays({ ...overlays, satellite: e.target.checked })} />
+        Satellite imagery
+      </label>
     </div>
   );
 }
