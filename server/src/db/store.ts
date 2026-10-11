@@ -1,9 +1,12 @@
 // Where match records go: Tiger Data when DATABASE_URL is set (db/tiger.ts), memory otherwise.
 // Both stores have the same interface; failSoft() wraps Tiger so a database outage never breaks a game.
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type { MatchRecord } from '@shared';
 
 export interface MatchStore {
-  readonly kind: 'tiger' | 'memory';
+  readonly kind: 'tiger' | 'memory' | 'file';
   /** Insert or replace the whole record (called after each round, at the end and on each response). */
   save(match: MatchRecord): Promise<void>;
   get(id: string): Promise<MatchRecord | null>;
@@ -29,6 +32,45 @@ export class MemoryStore implements MatchStore {
   }
 
   async close() {}
+}
+
+/**
+ * Without a database: memory plus a JSON file under server/.cache, so records (and the public
+ * record's verify page, which rebuilds fingerprints from them) survive a restart.
+ */
+export class FileStore implements MatchStore {
+  readonly kind = 'file';
+  private readonly rows = new Map<string, MatchRecord>();
+  private readonly loaded: Promise<void>;
+  private writing: Promise<void> = Promise.resolve();
+
+  constructor(private readonly file = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '.cache', 'matches.json')) {
+    this.loaded = readFile(file, 'utf8')
+      .then((t) => (JSON.parse(t) as MatchRecord[]).forEach((m) => this.rows.set(m.id, m)))
+      .catch(() => {});
+  }
+
+  async save(match: MatchRecord) {
+    await this.loaded;
+    this.rows.set(match.id, structuredClone(match));
+    const body = JSON.stringify([...this.rows.values()]);
+    this.writing = this.writing.then(() => mkdir(dirname(this.file), { recursive: true })).then(() => writeFile(this.file, body)).catch(() => {});
+    await this.writing;
+  }
+
+  async get(id: string) {
+    await this.loaded;
+    return this.rows.get(id) ?? null;
+  }
+
+  async list(limit: number) {
+    await this.loaded;
+    return [...this.rows.values()].sort((a, b) => b.startedAt.localeCompare(a.startedAt)).slice(0, limit);
+  }
+
+  async close() {
+    await this.writing;
+  }
 }
 
 type Log = { warn: (obj: unknown, msg: string) => void };

@@ -9,6 +9,7 @@ import { EVENT_RULES, TOTAL_ROUNDS, authoredScenario, combosInReach, crisisFor, 
 import type { MatchStore } from './db/store';
 import type { Narrator } from './ai/narrator';
 import type { ScenarioWriter } from './ai/scenario';
+import type { CivicRecord } from './solana/civic';
 import { directorFacts, type Director } from './ai/director';
 import {
   RoomError, accept, again, applyDialogue, applyHints, applyScenario, choosePersona, done, findPlayer, getOrCreateRoom, getRoom, join, mapRoles, move,
@@ -30,10 +31,12 @@ export interface RoomServerOptions {
   scenario: { live: () => Promise<LiveConditions | null>; write: ScenarioWriter };
   /** The Gemini Game Director (null: templates only). */
   director?: Director | null;
+  /** The civic record on Solana: every finished match is fingerprinted and anchored (null: off). */
+  civic?: CivicRecord | null;
   log: { warn: (obj: unknown, msg: string) => void; info?: (msg: string) => void };
 }
 
-export function roomServer({ store, narrator, scenario, director = null, log }: RoomServerOptions) {
+export function roomServer({ store, narrator, scenario, director = null, civic = null, log }: RoomServerOptions) {
   const wss = new WebSocketServer({ noServer: true });
   const conns = new Map<string, Set<Conn>>();
 
@@ -136,6 +139,8 @@ export function roomServer({ store, narrator, scenario, director = null, log }: 
     if (save && room.record) {
       const snapshot = structuredClone(room.record);
       store.save(snapshot).catch((err) => log.warn({ err, room: room.code }, 'match record not saved'));
+      // A finished match goes on the public record once (later preference answers do not change its fingerprint).
+      if (snapshot.final && civic) civic.recordMatch(snapshot).catch((err) => log.warn({ err, room: room.code }, 'civic record failed'));
     }
   }
 

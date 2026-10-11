@@ -1,14 +1,14 @@
 import pg from 'pg';
 import { buildServer } from './app';
 import { APP_DIST, registerWeb } from './web';
-import { type MatchStore, MemoryStore, failSoft } from './db/store';
+import { type MatchStore, FileStore, failSoft } from './db/store';
 import { TigerStore, poolConfig, prepareTiger } from './db/tiger';
 
 const port = Number(process.env.PORT || 8787);
 
 // Tiger Data when DATABASE_URL is set and the schema applies; memory otherwise.
-let store: MatchStore = new MemoryStore();
-let storeNote = 'DATABASE_URL not set; matches are kept in memory';
+let store: MatchStore = new FileStore();
+let storeNote = 'DATABASE_URL not set; matches are kept in server/.cache/matches.json';
 if (process.env.DATABASE_URL) {
   const pool = new pg.Pool(poolConfig(process.env.DATABASE_URL));
   pool.on('error', () => {}); // idle client errors; queries report their own

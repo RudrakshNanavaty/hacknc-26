@@ -11,6 +11,18 @@ import { registerStudio } from './studio';
 import { liveConditions, registerLive } from './live';
 import { type ScenarioWriter, geminiScenarioWriter, storyScenarioWriter } from './ai/scenario';
 import { loadStories } from './stories';
+import { devnetChain, loadAuthority } from './solana/chain';
+import { type CivicRecord, civicRecord } from './solana/civic';
+import { registerCivic } from './solana/routes';
+import { FileCivicStore, MemoryCivicStore } from './solana/store';
+
+/** The civic record from .env: on Solana devnet with SOLANA_PAYER_SECRET_KEY, local fingerprints only without. */
+function defaultCivic(log: { info: (m: string) => void; warn: (o: unknown, m: string) => void }): CivicRecord {
+  const authority = loadAuthority();
+  const chain = authority.key ? devnetChain(authority.key) : null;
+  log.info(chain ? `Solana civic record on (devnet), authority ${chain.address}` : `Solana civic record off: ${authority.reason}`);
+  return civicRecord({ store: process.env.VITEST ? new MemoryCivicStore() : new FileCivicStore(), chain, log: { info: (m) => log.info(m), warn: (o, m) => log.warn(o, m) } });
+}
 import { registerVoice, voiceReady } from './voice';
 
 export interface ServerOptions {
@@ -23,10 +35,12 @@ export interface ServerOptions {
   scenario?: { live: () => Promise<import('@shared').LiveConditions | null>; write: ScenarioWriter };
   /** Overrides the Gemini Game Director (tests); null means templates only. */
   director?: Director | null;
+  /** Overrides the civic record (tests); null turns it off. */
+  civic?: CivicRecord | null;
 }
 
 /** Builds the server without listening, so tests can inject requests. */
-export function buildServer({ store = new MemoryStore(), gemini = defaultGemini, narrator, scenario, director }: ServerOptions = {}) {
+export function buildServer({ store = new MemoryStore(), gemini = defaultGemini, narrator, scenario, director, civic }: ServerOptions = {}) {
   const app = Fastify({ logger: { level: process.env.LOG_LEVEL ?? 'info' } });
 
   app.get('/api/health', async () => ({ ok: true, voice: voiceReady(), ai: gemini.ready(), director: director === undefined ? gemini.ready() : director !== null, store: store.kind }));
@@ -74,6 +88,10 @@ export function buildServer({ store = new MemoryStore(), gemini = defaultGemini,
   registerStudio(app, store, gemini);
   registerLive(app);
 
+  // The civic record on Solana devnet (ported from Mayday Mayor): the team key is the demo authority.
+  const theCivic = civic === undefined ? defaultCivic(app.log) : civic;
+  if (theCivic) registerCivic(app, theCivic);
+
   // The reviewed civic stories a match can draw from (Snowflake, or its cache), with sources and casts.
   app.get('/api/stories', async () => {
     const feed = await loadStories(app.log);
@@ -89,11 +107,13 @@ export function buildServer({ store = new MemoryStore(), gemini = defaultGemini,
       write: storyScenarioWriter(gemini, async () => (await loadStories(app.log)).stories, geminiScenarioWriter(gemini)),
     },
     director: theDirector,
+    civic: theCivic,
     log: app.log,
   });
   app.server.on('upgrade', rooms.onUpgrade);
   app.addHook('onClose', async () => {
     await rooms.close();
+    theCivic?.close();
     await store.close();
   });
 
