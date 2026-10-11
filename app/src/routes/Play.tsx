@@ -1,21 +1,20 @@
-// A Coastal Clash room: lobby, then three rounds on the real Miami Beach map, then the end screen
-// with the personal-preference question. The server runs the clock and every rule; this page shows
-// the state it is sent and sends what the player picks.
+// A Coastal Clash room. Lobby, then the stage: the real Miami Beach map as the arena (city meters,
+// clock and stakeholders over it) and the lagoon column beside it (or below, on a phone) with one
+// screen per phase. The server runs the clock and every rule; this page shows what it is sent.
 import { useEffect, useMemo, useState } from 'react';
 import type { Map as MapLibreMap } from 'maplibre-gl';
 import { DISTRICT_IDS, cardEligibility, type CardId } from '@shared';
 import { CityMap, FLOOD_COLORS, ZONING_FAMILIES, type Overlays } from '../map/CityMap';
 import { savedPlayer, useRoom } from '../room/useRoom';
 import { Link } from '../router';
-import { Bubbles } from '../ui/Bubbles';
 import { useSound } from '../ui/sound';
 import { say, hush } from '../ui/voice';
 import { Flights, Stamps } from '../game/Flights';
 import { LivingLayer } from '../map/LivingLayer';
-import { Hud } from '../game/Hud';
+import { Meters, PlayerBubbles, TimerOrb } from '../game/Hud';
 import { JoinForm, Lobby } from '../game/Lobby';
-import { Players } from '../game/Players';
-import { CrisisPanel, FinalPanel, HandPanel, NegotiationPanel, ResolvePanel, RevealPanel } from '../game/panels';
+import { CardScreen, CrisisScreen, DuelScreen, FinalScreen, ResultScreen } from '../game/screens';
+import { LagoonBubbles } from '../game/ui';
 import { useCountdown } from '../game/format';
 
 function useWide() {
@@ -32,27 +31,13 @@ function useWide() {
 
 export function Legend({ overlays, setOverlays }: { overlays: Overlays; setOverlays: (o: Overlays) => void }) {
   return (
-    <div className="legend glass">
-      <p className="text-[11px] font-black tracking-wide uppercase opacity-70">Real data layers</p>
-      <label className="flex items-center gap-2 text-13 font-bold">
-        <input type="checkbox" checked={overlays.flood} onChange={(e) => setOverlays({ ...overlays, flood: e.target.checked })} />
-        FEMA flood zones
-      </label>
-      {overlays.flood && (
-        <p className="flex flex-wrap gap-2 pl-6 text-[11px]">
-          <span><i className="swatch" style={{ background: FLOOD_COLORS.VE }} />VE coastal high hazard</span>
-          <span><i className="swatch" style={{ background: FLOOD_COLORS.AE }} />AE 1% annual chance</span>
-        </p>
-      )}
-      <label className="flex items-center gap-2 text-13 font-bold">
-        <input type="checkbox" checked={overlays.zoning} onChange={(e) => setOverlays({ ...overlays, zoning: e.target.checked })} />
-        City zoning
-      </label>
-      {overlays.zoning && (
-        <p className="flex flex-wrap gap-2 pl-6 text-[11px]">
-          {ZONING_FAMILIES.map((f) => <span key={f.label}><i className="swatch" style={{ background: f.color }} />{f.label}</span>)}
-        </p>
-      )}
+    <div className="layer-pop wet">
+      <p className="vr text-13 opacity-80">Real data layers</p>
+      <label className="flex items-center gap-2 font-bold"><input type="checkbox" checked={overlays.flood} onChange={(e) => setOverlays({ ...overlays, flood: e.target.checked })} />FEMA flood zones</label>
+      {overlays.flood && <p className="flex flex-wrap gap-2 pl-6 text-[11px]"><span><i className="swatch" style={{ background: FLOOD_COLORS.VE }} />VE coastal high hazard</span><span><i className="swatch" style={{ background: FLOOD_COLORS.AE }} />AE 1% annual chance</span></p>}
+      <label className="flex items-center gap-2 font-bold"><input type="checkbox" checked={overlays.zoning} onChange={(e) => setOverlays({ ...overlays, zoning: e.target.checked })} />City zoning</label>
+      {overlays.zoning && <p className="flex flex-wrap gap-2 pl-6 text-[11px]">{ZONING_FAMILIES.map((f) => <span key={f.label}><i className="swatch" style={{ background: f.color }} />{f.label}</span>)}</p>}
+      <label className="flex items-center gap-2 font-bold"><input type="checkbox" checked={!!overlays.satellite} onChange={(e) => setOverlays({ ...overlays, satellite: e.target.checked })} />Satellite imagery</label>
     </div>
   );
 }
@@ -67,7 +52,9 @@ export function Play({ code }: { code: string }) {
   /** The card under the pointer: its legal targets light up before you pick it. */
   const [hoverCard, setHoverCard] = useState<CardId | null>(null);
   const [target, setTarget] = useState<string | null>(null);
+  const [focus, setFocus] = useState<string | null>(null);
   const [overlays, setOverlays] = useState<Overlays>({ flood: true, zoning: false });
+  const [layers, setLayers] = useState(false);
   const sound = useSound();
   const [voiceOn, setVoiceOn] = useState(false);
 
@@ -79,90 +66,87 @@ export function Play({ code }: { code: string }) {
     setTarget(null);
   }, [state?.round, phase === 'select']);
 
-  // Read the news aloud (optional; captions always show).
   useEffect(() => {
     if (!voiceOn || !state?.headline) return;
     void say(state.headline.text, 'broadcast');
     return () => hush();
   }, [voiceOn, state?.headline?.key, state?.headline?.source]);
 
-  const shown = card ?? hoverCard;
+  const shownCard = card ?? hoverCard;
   const eligible = useMemo(
-    () => (phase === 'select' && shown && !state?.mine?.selection ? Object.fromEntries(DISTRICT_IDS.map((d) => [d, cardEligibility(shown, d).ok])) : null),
-    [phase, shown, state?.mine?.selection],
+    () => (phase === 'select' && shownCard && !state?.mine?.selection ? Object.fromEntries(DISTRICT_IDS.map((d) => [d, cardEligibility(shownCard, d).ok])) : null),
+    [phase, shownCard, state?.mine?.selection],
   );
-  const hottest = useMemo(() => {
-    if (!state?.board) return null;
-    const count = new Map<string, number>();
-    for (const p of state.board.proposals) count.set(p.district, (count.get(p.district) ?? 0) + 2);
-    for (const a of state.board.attachments) count.set(a.district, (count.get(a.district) ?? 0) + 1);
-    return [...count.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
-  }, [state?.board]);
+  const focusDistrict = useMemo(() => state?.board?.proposals.find((p) => p.id === focus)?.district ?? state?.board?.proposals[0]?.district ?? null, [state?.board, focus]);
 
   const missing = !state && /not found/i.test(room.error ?? '');
   const joined = me !== null || !!savedPlayer(code);
 
   if (!state || state.phase === 'lobby' || me === null) {
     return (
-      <main className="relative flex min-h-full flex-col items-center gap-4 p-4 sm:p-6">
-        <Bubbles count={20} />
-        <header className="relative flex w-full max-w-5xl items-center justify-between">
-          <Link to="/" className="font-display text-24 font-black text-white drop-shadow">🌊 Coastal Clash</Link>
-          <span className="chip bg-white/70 text-ink">Room {code}</span>
+      <main className="lagoon relative flex min-h-full flex-col items-center gap-4 p-4 sm:p-6">
+        <LagoonBubbles count={18} />
+        <header className="flex w-full max-w-5xl items-center justify-between">
+          <Link to="/" className="vr text-24 text-white drop-shadow">🌊 Coastal Clash</Link>
+          <span className="lchip">Room {code}</span>
         </header>
-        {room.error && !missing && <p role="alert" className="glass relative max-w-2xl p-3 text-15 text-coral">{room.error}</p>}
-        <div className="relative flex w-full justify-center">
-          {!state && !missing && <p className="glass p-6 text-18">Connecting to room {code}…</p>}
+        {room.error && !missing && <p role="alert" className="wet max-w-2xl p-3 text-15 text-[#c0392b]">{room.error}</p>}
+        <div className="flex w-full justify-center">
+          {!state && !missing && <p className="wet p-6 text-18">Connecting to room {code}…</p>}
           {(missing || (state && me === null && !joined) || (state && me === null && state.phase === 'lobby')) && (state?.phase ?? 'lobby') === 'lobby' && <JoinForm room={room} create={missing} />}
-          {state && me === null && state.phase !== 'lobby' && <p className="glass max-w-xl p-6 text-18">This match is under way. You can join the next one from this page, or watch the result in <Link to="/studio" className="font-bold underline">Planning Studio</Link>.</p>}
+          {state && me === null && state.phase !== 'lobby' && <p className="wet max-w-xl p-6 text-18">This match is under way. Join the next one from this page, or watch the result in <Link to="/studio" className="font-bold underline">Planning Studio</Link>.</p>}
           {state && me !== null && state.phase === 'lobby' && <Lobby state={state} room={room} />}
         </div>
       </main>
     );
   }
 
-  const focus = phase === 'crisis' ? state.crisis?.spotlight[0] ?? null : phase === 'select' ? target : phase === 'negotiate' ? hottest : null;
+  const camera =
+    phase === 'crisis' ? state.crisis?.spotlight[0] ?? null
+      : phase === 'select' ? target
+        : phase === 'reveal' || phase === 'negotiate' ? focusDistrict
+          : null;
   const pickArea = phase === 'select' && card && !state.mine?.selection ? (id: string) => cardEligibility(card, id).ok && setTarget(id) : undefined;
-  const panel =
-    phase === 'crisis' ? <CrisisPanel state={state} />
-      : phase === 'select' ? <HandPanel state={state} room={room} card={card} setCard={setCard} target={target} setTarget={setTarget} onHover={setHoverCard} />
-        : phase === 'reveal' ? <RevealPanel state={state} />
-          : phase === 'negotiate' ? <NegotiationPanel state={state} room={room} />
-            : phase === 'resolve' ? <ResolvePanel state={state} />
-              : <FinalPanel state={state} room={room} />;
+  const screen =
+    phase === 'crisis' ? <CrisisScreen state={state} />
+      : phase === 'select' ? <CardScreen state={state} room={room} card={card} setCard={setCard} target={target} setTarget={setTarget} map={map} onHover={setHoverCard} />
+        : phase === 'reveal' || phase === 'negotiate' ? <DuelScreen state={state} room={room} focus={focus} setFocus={setFocus} />
+          : phase === 'resolve' ? <ResultScreen state={state} host={host} onNext={room.skip} />
+            : <FinalScreen state={state} room={room} />;
 
   return (
-    <main className="game-screen">
-      <div className="absolute inset-0">
+    <main className="stage">
+      <section className="stage-map">
         <CityMap
           city={state.city}
           spotlight={phase === 'final' ? [] : state.crisis?.spotlight ?? []}
-          target={phase === 'select' ? target ?? state.mine?.selection?.district ?? null : null}
+          target={phase === 'select' ? target ?? state.mine?.selection?.district ?? null : phase === 'reveal' || phase === 'negotiate' ? focusDistrict : null}
           eligible={eligible}
           overlays={overlays}
           onPick={pickArea}
-          focus={focus}
-          padding={wide ? { top: 150, bottom: 40, left: 270, right: 460 } : { top: 170, bottom: Math.round(window.innerHeight * 0.48), left: 20, right: 20 }}
+          focus={camera}
+          padding={wide ? { top: 110, bottom: 40, left: 250, right: 40 } : { top: 70, bottom: 60, left: 10, right: 10 }}
           onReady={setMap}
         />
-      </div>
-      <Hud state={state} left={left} onSkip={room.skip} host={host} />
-      <aside className="side-left">
-        <Players state={state} />
-        {wide && <Legend overlays={overlays} setOverlays={setOverlays} />}
-      </aside>
-      <section className={`phase-panel glass ${phase === 'select' ? 'is-hand' : ''}`} aria-live="polite">
-        {room.error && <p role="alert" className="mb-2 rounded-xl bg-coral/20 p-2 text-13 font-bold text-coral">{room.error}</p>}
-        {panel}
+        <LivingLayer map={map} state={state} />
+        <div className="map-top">
+          <Meters state={state} />
+          <TimerOrb state={state} left={left} />
+        </div>
+        <PlayerBubbles state={state} />
+        <div className="map-tools">
+          <button type="button" className="gel gel-icon" onClick={sound.toggle} aria-pressed={sound.on} title="Sound">{sound.on ? '🔊' : '🔇'}</button>
+          <button type="button" className={`gel gel-icon ${voiceOn ? 'gel-lime' : ''}`} onClick={() => setVoiceOn((v) => !v)} aria-pressed={voiceOn} title="Read the news aloud">🎙️</button>
+          <button type="button" className={`gel gel-icon ${layers ? 'gel-sun' : ''}`} onClick={() => setLayers((v) => !v)} aria-pressed={layers} title="Real data layers">🗺️</button>
+          {host && state.endsAt !== null && <button type="button" className="gel" onClick={room.skip} title="Host: end this phase now">Skip ⏭</button>}
+          {layers && <Legend overlays={overlays} setOverlays={setOverlays} />}
+        </div>
       </section>
-      <div className="corner-tools">
-        <button type="button" className="aero-btn aero-btn-icon" onClick={sound.toggle} aria-pressed={sound.on} title="Sound">{sound.on ? '🔊' : '🔇'}</button>
-        <button type="button" className="aero-btn aero-btn-icon" onClick={() => setVoiceOn((v) => !v)} aria-pressed={voiceOn} title="Read the news aloud">🎙️</button>
-        {!wide && (
-          <button type="button" className="aero-btn aero-btn-icon" onClick={() => setOverlays({ ...overlays, flood: !overlays.flood })} aria-pressed={overlays.flood} title="FEMA flood zones">🌊</button>
-        )}
-      </div>
-      <LivingLayer map={map} state={state} />
+      <aside className="stage-side lagoon">
+        <LagoonBubbles count={12} seed={phase?.length ?? 3} />
+        {room.error && <p role="alert" className="wet p-2 text-13 font-black text-[#c0392b]">{room.error}</p>}
+        {screen}
+      </aside>
       <Flights map={map} state={state} />
       <Stamps map={map} state={state} />
     </main>

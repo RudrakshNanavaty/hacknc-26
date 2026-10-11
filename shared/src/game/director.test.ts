@@ -8,7 +8,7 @@ import {
 } from './director';
 import { buildBoard, startCity, type Play } from './engine';
 import { crisisBubbles } from './living';
-import { CRISES } from './content';
+import { authoredScenario } from './scenario';
 
 const seat: Record<PersonaId, number> = { mayor: 0, activist: 1, resort: 2, resident: 3 };
 const play = (persona: PersonaId, card: CardId, district: string): Play => ({ seat: seat[persona], persona, card, district });
@@ -59,6 +59,16 @@ describe('event proposals', () => {
     expect(validateEventProposal(good, { ...crisisCtx, count: EVENT_RULES.perMatch }, 'gemini').ok).toBe(false);
   });
 
+  it('the fallback twist fits the crisis the match wrote, in its spotlight where the facts allow', () => {
+    const erosion = templateEventProposal(2, [], { kind: 'erosion', spotlight: ['north-beach-oceanside'] })!;
+    expect(erosion).toMatchObject({ type: 'beach-erosion', district: 'north-beach-oceanside' });
+    // A bay-side spotlight cannot have beach erosion: the next fitting twist, still in the spotlight.
+    const bay = templateEventProposal(3, [], { kind: 'erosion', spotlight: ['west-avenue'] })!;
+    expect(bay).toMatchObject({ type: 'access-march', district: 'west-avenue' });
+    expect(templateEventProposal(2, ['investor-interest', 'access-march'], { kind: 'development', spotlight: ['collins-mid-beach'] })!.type).not.toMatch(/investor-interest|access-march/);
+    expect(templateEventProposal(1, [], { kind: 'flood', spotlight: ['west-avenue'] })).toBeNull(); // no twists in round 1
+  });
+
   it('has a deterministic template fallback for every twist round, and applying is pure', () => {
     for (const r of EVENT_RULES.rounds) {
       const p = templateEventProposal(r, []);
@@ -104,7 +114,7 @@ describe('dialogue and reactions', () => {
     expect(validateReaction({ speaker: 'activist', reaction: 'riot' }, { speakers: [...speakers], board }).ok).toBe(false);
   });
   it('validated lines replace template bubbles; the rest stay', () => {
-    const t = crisisBubbles(CRISES[1]!, ['mayor', 'activist', 'resort', 'resident']);
+    const t = crisisBubbles(authoredScenario(null).crises[1]!, ['mayor', 'activist', 'resort', 'resident']);
     const merged = mergeDialogue(t, [{ speaker: 'mayor', line: 'Three disasters and one budget. Lovely.', reaction: 'worry', district: null }]);
     expect(merged.find((b) => b.speaker === 'mayor')).toMatchObject({ source: 'gemini', text: 'Three disasters and one budget. Lovely.' });
     expect(merged.filter((b) => b.source === 'template')).toHaveLength(t.length - 1);

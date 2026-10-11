@@ -3,6 +3,7 @@ import { CARDS, CARD_IDS, TOTAL_ROUNDS, type PersonaId } from './content';
 import { DISTRICT_IDS, cardEligibility } from './districts';
 import { buildBoard, resolveRound, startCity } from './engine';
 import { projectPreview, upcomingCosts } from './economy';
+import { makeCrisis } from './scenario';
 
 const seat: Record<PersonaId, number> = { mayor: 0, activist: 1, resort: 2, resident: 3 };
 
@@ -23,6 +24,16 @@ describe('previews agree with the engine', () => {
       }
     }
     expect(checked).toBeGreaterThan(20);
+  });
+
+  it('uses the crisis the match wrote (its kind sets the bonus, its spotlight where it applies)', () => {
+    const crisis = makeCrisis(1, 'budget', 'Budget crunch', 'The city is short of money this week, again.', ['collins-mid-beach'], [], 'gemini');
+    const there = projectPreview('drainage-upgrade', 'collins-mid-beach', 1, startCity(), crisis)!;
+    expect(there.spotlight).toBe(true);
+    expect(there.delta).toEqual({ flood: 6, budget: 3 });
+    const r = resolveRound(buildBoard(1, [{ seat: 0, persona: 'mayor', card: 'drainage-upgrade', district: 'collins-mid-beach' }], [], crisis), [], startCity());
+    expect(there.after).toEqual(r.after);
+    expect(projectPreview('drainage-upgrade', 'west-avenue', 1, startCity(), crisis)!.spotlight).toBe(false);
   });
 
   it('warns when the budget cannot pay, and about upkeep and the spotlight', () => {

@@ -54,7 +54,7 @@ function Timeline({ m }: { m: MatchRecord }) {
       </li>
       {m.rounds.map((r) => (
         <li key={r.round} className="rounded-2xl bg-white/60 p-3">
-          <p className="font-display text-18 font-black">Round {r.round} · {r.crisis.replace('-', ' ')}</p>
+          <p className="font-display text-18 font-black">Round {r.round} · {typeof r.crisis === 'string' ? (r.crisis as string).replace('-', ' ') : r.crisis.title}</p>
           <p className="text-13 italic">“{r.headline}”</p>
           {r.director?.event && (
             <p className="mt-1 rounded-xl bg-lilac/20 p-2 text-13">

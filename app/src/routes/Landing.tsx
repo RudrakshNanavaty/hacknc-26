@@ -29,7 +29,7 @@ export function Landing() {
     <main className="relative min-h-full">
       <section className="relative h-[100svh] min-h-[640px] overflow-hidden">
         <div className="absolute inset-0">
-          <CityMap city={CITY} overlays={overlays} onPick={setArea} target={area} padding={window.innerWidth >= 1024 ? { top: 400, bottom: 110, left: 60, right: 60 } : { top: 380, bottom: 160, left: 20, right: 20 }} />
+          <CityMap city={CITY} overlays={overlays} onPick={setArea} target={area} padding={window.innerWidth >= 1024 ? { top: 60, bottom: 40, left: 520, right: 40 } : { top: 300, bottom: 120, left: 20, right: 20 }} />
         </div>
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/10 via-transparent to-abyss/30" />
         <div className="pointer-events-none relative flex h-full flex-col justify-between gap-4 p-4 sm:p-8">
@@ -82,8 +82,8 @@ export function Landing() {
         <div className="relative glass flex flex-col gap-3 p-5">
           <h3 className="font-display text-32 font-black">How a round plays</h3>
           <ol className="grid grid-cols-1 gap-2 text-15 sm:grid-cols-2 lg:grid-cols-4">
-            <li><b>1. Crisis.</b> A scenario spotlights real places: a king tide, a hotel boom, storm season.</li>
-            <li><b>2. Deploy.</b> Each stakeholder plays one card on a playable area. The real zoning and FEMA layers decide where each card is allowed.</li>
+            <li><b>1. Crisis.</b> Gemini writes each match’s crises live from NOAA’s Virginia Key tide gauge, the NWS forecast and each area’s real flood and zoning profile.</li>
+            <li><b>2. Deploy.</b> Each stakeholder drags one card onto a playable area. The real zoning and FEMA layers decide where each card is allowed.</li>
             <li><b>3. Clash & negotiate.</b> Cards are revealed together. Back, oppose, fund, or accept a compromise.</li>
             <li><b>4. Resolve.</b> A deterministic rules engine decides, shows every rule it applied, and the city changes.</li>
           </ol>

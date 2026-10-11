@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import type { Map as MapLibreMap } from 'maplibre-gl';
-import { CARDS, PROJECTS, districtById, type CardId, type RoomState } from '@shared';
+import { CARDS, INDICATORS, INDICATOR_INFO, PROJECTS, districtById, type CardId, type RoomState } from '@shared';
 import { GameCard } from './GameCard';
 import { STATUS_STYLE } from './format';
 import { playApproved, playBlocked, playReveal, playStamp } from '../ui/sound';
@@ -120,18 +120,30 @@ export function Stamps({ map, state }: { map: MapLibreMap | null; state: RoomSta
         const n = perDistrict.get(o.district) ?? 0;
         perDistrict.set(o.district, n + 1);
         const p = screenPoint(map, districtById(o.district).center);
-        const st = STATUS_STYLE[o.status];
+        const main = INDICATORS.filter((k) => o.delta[k]).sort((a, b) => Math.abs(o.delta[b]!) - Math.abs(o.delta[a]!))[0];
         return (
-          <motion.div
-            key={`${key}-${o.proposalId}`}
-            className="verdict"
-            style={{ left: p.x, top: p.y + 26 + n * 34, background: st.bg, color: st.color }}
-            initial={{ scale: 2.4, opacity: 0, rotate: -14 }}
-            animate={{ scale: 1, opacity: 1, rotate: -6 }}
-            transition={{ delay: 0.25 + i * 0.35, type: 'spring', stiffness: 380, damping: 18 }}
-          >
-            {PROJECTS[o.kind].marker} {st.label}
-          </motion.div>
+          <div key={`${key}-${o.proposalId}`}>
+            <motion.span
+              className={`map-verdict verdict-pill ${o.status} ${o.status === 'approved' ? 'sparkle' : ''}`}
+              style={{ left: p.x, top: p.y + 30 + n * 44 }}
+              initial={{ scale: 2.4, opacity: 0, rotate: -14 }}
+              animate={{ scale: 1, opacity: 1, rotate: -5 }}
+              transition={{ delay: 0.25 + i * 0.35, type: 'spring', stiffness: 380, damping: 18 }}
+            >
+              {PROJECTS[o.kind].marker} {STATUS_STYLE[o.status].label}{o.status === 'approved' ? '!' : ''}
+            </motion.span>
+            {o.status === 'approved' && main && (
+              <motion.span
+                className="map-delta"
+                style={{ left: p.x, top: p.y - 70 - n * 40 }}
+                initial={{ opacity: 0, y: 20, scale: 0.5 }}
+                animate={{ opacity: [0, 1, 1, 0], y: [20, 0, -10, -40], scale: [0.5, 1.2, 1, 1] }}
+                transition={{ delay: 0.6 + i * 0.35, duration: 2.6, times: [0, 0.2, 0.7, 1] }}
+              >
+                {o.delta[main]! > 0 ? '+' : '−'}{Math.abs(o.delta[main]!)} {INDICATOR_INFO[main].icon}
+              </motion.span>
+            )}
+          </div>
         );
       })}
     </div>

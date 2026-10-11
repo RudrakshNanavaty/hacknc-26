@@ -9,6 +9,7 @@ import { CARDS, COMBOS, INDICATORS, NEGOTIATION_COST, PERSONA_INFO, PROJECTS, TO
 import { DISTRICT_IDS, coastalHighHazard, districtById, isDistrictId, projectEligibility, type District } from './districts';
 import { checkAccept, checkMove, resolveRound, type Board, type CityState, type NegotiationAction, type OutcomeStatus, type RuleEvent } from './engine';
 import { BUBBLE_WORDS, isReaction, isRoleId, roleInfo, wordCount, type Bubble, type Reaction, type RoleId } from './living';
+import type { Crisis, CrisisKind } from './scenario';
 
 // ---------- Shared checks ----------
 
@@ -235,12 +236,30 @@ export function validateEventProposal(raw: unknown, ctx: EventContext, source: A
 }
 
 /** The deterministic twist when Gemini is off, slow or wrong: one fixed choice per round, on real facts. */
-export function templateEventProposal(round: number, fired: EventType[]): EventProposal | null {
-  const plan: Record<number, EventType[]> = { 2: ['investor-interest', 'access-march'], 3: ['surge-warning', 'sunny-day-flooding'] };
-  for (const type of plan[round] ?? []) {
-    if (fired.includes(type)) continue;
-    const d = DISTRICT_IDS.map(districtById).find((x) => DIRECTOR_EVENTS[type].where(x).ok);
-    if (d) return { type, district: d.id, magnitude: 2, narrative: DIRECTOR_EVENTS[type].narrative(d), tension: 'medium' };
+/** Which twists fit each kind of crisis, best first (the match's scenario chooses the kinds). */
+const TWISTS_FOR: Record<CrisisKind, EventType[]> = {
+  flood: ['sunny-day-flooding', 'federal-grant'],
+  development: ['investor-interest', 'access-march'],
+  storm: ['surge-warning', 'sunny-day-flooding'],
+  erosion: ['beach-erosion', 'access-march'],
+  budget: ['federal-grant', 'investor-interest'],
+};
+const ROUND_PLAN: Record<number, EventType[]> = { 2: ['investor-interest', 'access-march'], 3: ['surge-warning', 'sunny-day-flooding'] };
+
+/**
+ * The deterministic twist when Gemini is off, slow or wrong: one that fits the round's crisis, in a
+ * spotlight area where the real facts allow it (else any area that does).
+ */
+export function templateEventProposal(round: number, fired: EventType[], crisis?: Pick<Crisis, 'kind' | 'spotlight'> | null): EventProposal | null {
+  if (!(EVENT_RULES.rounds as readonly number[]).includes(round)) return null;
+  const types = [...new Set([...(crisis ? TWISTS_FOR[crisis.kind] : []), ...(ROUND_PLAN[round] ?? []), ...EVENT_TYPES])].filter((t) => !fired.includes(t));
+  // Stay in the crisis's spotlight if any fitting twist can happen there; only then look elsewhere.
+  const spotlight = (crisis?.spotlight ?? []).map(districtById);
+  for (const areas of [spotlight, DISTRICT_IDS.map(districtById)]) {
+    for (const type of types) {
+      const d = areas.find((x) => DIRECTOR_EVENTS[type].where(x).ok);
+      if (d) return { type, district: d.id, magnitude: 2, narrative: DIRECTOR_EVENTS[type].narrative(d), tension: 'medium' };
+    }
   }
   return null;
 }

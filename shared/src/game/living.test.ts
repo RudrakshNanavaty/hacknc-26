@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { CRISES, PERSONAS, type CardId, type PersonaId } from './content';
+import { PERSONAS, type CardId, type PersonaId } from './content';
+import { CRISIS_KINDS, authoredScenario, makeCrisis } from './scenario';
 import { isDistrictId } from './districts';
 import { buildBoard, finalResult, resolveRound, startCity, type Play } from './engine';
 import { BUBBLE_WORDS, REACTIONS, REACTION_MOOD, crisisBubbles, finalBubbles, isRoleId, resolutionBubbles, revealBubbles, wordCount, type Bubble } from './living';
@@ -27,7 +28,9 @@ describe('living city templates', () => {
   });
 
   it('crisis bubbles: every stakeholder and the fisherman, short and well formed', () => {
-    for (const c of CRISES) {
+    // Every kind of crisis a match's scenario can choose, not just the authored three.
+    const crises = [...authoredScenario(null).crises, ...CRISIS_KINDS.map((k, i) => makeCrisis((i % 3) + 1, k, 'Test crisis', 'A crisis of this kind, for the test.', ['south-pointe'], [], 'authored'))];
+    for (const c of crises) {
       const bs = crisisBubbles(c, [...PERSONAS]);
       expect(bs.map((b) => b.speaker).sort()).toEqual(['activist', 'fisherman', 'mayor', 'resident', 'resort']);
       wellFormed(bs);

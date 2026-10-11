@@ -1,10 +1,10 @@
 // The Game Director end to end, with Gemini mocked: fallbacks (no key, timeout, malformed JSON),
 // validation inside the room, public hints, the review queue, and deterministic replays.
 import { describe, expect, it } from 'vitest';
-import { replayMatch, studioSummary, type CardId, type PersonaId } from '@shared';
+import { authoredScenario, replayMatch, studioSummary, type CardId, type PersonaId } from '@shared';
 import { Gemini, type GenerateClient } from './ai/gemini';
 import { directorFacts, geminiDirector } from './ai/director';
-import { accept, applyDialogue, applyHints, done, getOrCreateRoom, join, proposeEarlyEvent, proposeEvent, publicState, rooms, select, setBot, skip, start, type Player, type Room } from './rooms';
+import { accept, applyDialogue, applyHints, applyScenario, done, getOrCreateRoom, join, proposeEarlyEvent, proposeEvent, publicState, rooms, select, setBot, skip, start, type Player, type Room } from './rooms';
 
 const answer = (text: string): GenerateClient => ({ models: { generateContent: async () => ({ text }) as never } });
 /** A Gemini that never answers: only the abort signal (the timeout) ends the call. */
@@ -97,6 +97,21 @@ describe('the Director inside a room', () => {
     const tampered = structuredClone(record);
     tampered.rounds[1]!.director!.event = { ...tampered.rounds[1]!.director!.event!, delta: { access: -3 } };
     expect(replayMatch(tampered).matches).toBe(false);
+  });
+
+  it('while the scenario desk is still writing, the crisis moment waits; it starts when the scenario arrives', () => {
+    rooms.delete('WAZT');
+    const room = getOrCreateRoom('WAZT', 0);
+    const host = join(room, 'Ana', 'mayor');
+    start(room, host, tick());
+    expect(room.crisis).toBeNull();
+    expect(room.bubbles).toBeNull();
+    expect(room.effects.some((e) => e.t === 'crisis')).toBe(false);
+    applyScenario(room, authoredScenario(null), tick());
+    expect(room.crisis?.round).toBe(1);
+    expect(room.bubbles?.key).toBe('crisis-1');
+    expect(room.effects.some((e) => e.t === 'crisis')).toBe(true);
+    expect(room.event).toBeNull(); // twists start in round 2
   });
 
   it('a twist prefetched during the previous resolution is validated when its crisis starts', () => {

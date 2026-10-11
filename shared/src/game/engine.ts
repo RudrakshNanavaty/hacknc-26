@@ -5,11 +5,12 @@
 //           compromises on the table)  ->  negotiation (back / oppose / fund, accept compromises)
 //           ->  resolveRound (support vs opposition, geography, funding, effects)  ->  next round.
 import {
-  CARDS, COMBOS, CRISES, INDICATORS, INFLUENCE_PER_ROUND, MAX_INFLUENCE, NEGOTIATION_COST, PERSONAS, PERSONA_INFO, PROJECTS,
+  CARDS, COMBOS, INDICATORS, INFLUENCE_PER_ROUND, MAX_INFLUENCE, NEGOTIATION_COST, PERSONAS, PERSONA_INFO, PROJECTS,
   START_INDICATORS, STORM_TEST, TOTAL_ROUNDS, VIABILITY_FLOOR, handFor, handOf,
-  type CardId, type ComboId, type Crisis, type Delta, type Indicator, type Indicators, type NegotiationMove, type PersonaId, type ProjectKind,
+  type CardId, type ComboId, type Delta, type Indicator, type Indicators, type NegotiationMove, type PersonaId, type ProjectKind,
 } from './content';
 import { DISTRICTS, DISTRICT_IDS, cardEligibility, coastalHighHazard, districtById, startResilience } from './districts';
+import { authoredScenario, type Crisis } from './scenario';
 
 export interface Play {
   seat: number;
@@ -167,7 +168,9 @@ export function startCity(): CityState {
   };
 }
 
-export const crisisFor = (round: number): Crisis => CRISES[clamp(round, 1, CRISES.length) - 1]!;
+const AUTHORED = authoredScenario(null).crises;
+/** The authored crisis for a round (a match normally brings its own scenario). */
+export const crisisFor = (round: number): Crisis => AUTHORED[clamp(round, 1, AUTHORED.length) - 1]!;
 
 /** Influence at the start of a round (round 1: the starting amount was already given). */
 export const nextInfluence = (current: number) => Math.min(MAX_INFLUENCE, current + INFLUENCE_PER_ROUND);
@@ -189,8 +192,7 @@ const proposalOrder = (a: Proposal, b: Proposal) =>
   districtOrder(a.district) - districtOrder(b.district) || Number(b.carried) - Number(a.carried) || personaOrder(a.persona) - personaOrder(b.persona);
 
 /** The reveal: turn the round's plays (and proposals carried over) into the board everyone negotiates on. */
-export function buildBoard(round: number, plays: Play[], carried: Proposal[] = []): Board {
-  const crisis = crisisFor(round);
+export function buildBoard(round: number, plays: Play[], carried: Proposal[] = [], crisis: Crisis = crisisFor(round)): Board {
   const sorted = [...plays].sort((a, b) => personaOrder(a.persona) - personaOrder(b.persona));
   const proposals: Proposal[] = [
     ...carried.map((p) => ({ ...p, carried: true })),
@@ -625,8 +627,7 @@ export function finalResult(start: Indicators, end: Indicators, rounds: Resoluti
 }
 
 /** A simple, deterministic stand-in player for empty seats (demo and tests). */
-export function botPlay(persona: PersonaId, influence: number, round: number): { card: CardId; district: string } | null {
-  const crisis = crisisFor(round);
+export function botPlay(persona: PersonaId, influence: number, round: number, crisis: Crisis = crisisFor(round)): { card: CardId; district: string } | null {
   const order = [...crisis.spotlight, ...DISTRICT_IDS.filter((d) => !crisis.spotlight.includes(d))];
   for (const card of BOT_PREFS[persona][Math.min(round, 3) - 1]!) {
     for (const district of order) if (!checkPlay(persona, influence, card, district, round)) return { card, district };

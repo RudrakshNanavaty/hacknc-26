@@ -4,6 +4,7 @@
 import { CARDS, INDICATORS, PROJECTS, type CardId, type Delta, type Indicators } from './content';
 import { districtById } from './districts';
 import { crisisFor, type CityState, type PendingEffect } from './engine';
+import type { Crisis } from './scenario';
 
 export interface ProjectPreview {
   /** Effect on the city if approved as it stands (project + crisis bonus), before conditions or combos. */
@@ -33,12 +34,14 @@ function applied(ind: Indicators, d: Delta): Indicators {
   return out;
 }
 
-/** What playing this project card here would do if it passed unopposed and unassisted. Null for non-project cards. */
-export function projectPreview(card: CardId, district: string, round: number, city: CityState): ProjectPreview | null {
+/**
+ * What playing this project card here would do if it passed unopposed and unassisted. Null for
+ * non-project cards. `crisis` is the round's crisis as the match wrote it (the authored one if absent).
+ */
+export function projectPreview(card: CardId, district: string, round: number, city: CityState, crisis: Crisis = crisisFor(round)): ProjectPreview | null {
   const kind = CARDS[card].project;
   if (!kind) return null;
   const p = PROJECTS[kind];
-  const crisis = crisisFor(round);
   const spotlight = crisis.spotlight.includes(district);
   const delta = spotlight ? add(p.delta, crisis.bonus) : { ...p.delta };
   const before = city.indicators;

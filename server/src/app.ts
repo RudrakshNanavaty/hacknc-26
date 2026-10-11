@@ -1,5 +1,5 @@
 import Fastify from 'fastify';
-import { CARDS, COMBOS, CRISES, DATA_METHOD, DATA_SOURCES, DATA_VERSION, DIRECTOR_EVENTS, DISTRICTS, HANDS, PERSONA_INFO, RULES_VERSION, explainEligibility, explainOutcome, strayNumbers, type Explanation } from '@shared';
+import { CARDS, COMBOS, CRISIS_KIND_INFO, DATA_METHOD, DATA_SOURCES, DATA_VERSION, DIRECTOR_EVENTS, DISTRICTS, HANDS, PERSONA_INFO, RULES_VERSION, explainEligibility, explainOutcome, strayNumbers, type Explanation } from '@shared';
 import { type MatchStore, MemoryStore } from './db/store';
 import { lanAddresses } from './net';
 import { roomServer } from './roomSocket';
@@ -8,6 +8,8 @@ import { type Narrator, geminiNarrator } from './ai/narrator';
 import { type Director, geminiDirector } from './ai/director';
 import { getRoom } from './rooms';
 import { registerStudio } from './studio';
+import { liveConditions, registerLive } from './live';
+import { type ScenarioWriter, geminiScenarioWriter } from './ai/scenario';
 import { registerVoice, voiceReady } from './voice';
 
 export interface ServerOptions {
@@ -16,12 +18,14 @@ export interface ServerOptions {
   gemini?: Gemini;
   /** Overrides the Gemini narrator (tests); null turns narration off. */
   narrator?: Narrator | null;
+  /** Overrides the scenario desk (tests). */
+  scenario?: { live: () => Promise<import('@shared').LiveConditions | null>; write: ScenarioWriter };
   /** Overrides the Gemini Game Director (tests); null means templates only. */
   director?: Director | null;
 }
 
 /** Builds the server without listening, so tests can inject requests. */
-export function buildServer({ store = new MemoryStore(), gemini = defaultGemini, narrator, director }: ServerOptions = {}) {
+export function buildServer({ store = new MemoryStore(), gemini = defaultGemini, narrator, scenario, director }: ServerOptions = {}) {
   const app = Fastify({ logger: { level: process.env.LOG_LEVEL ?? 'info' } });
 
   app.get('/api/health', async () => ({ ok: true, voice: voiceReady(), ai: gemini.ready(), director: director === undefined ? gemini.ready() : director !== null, store: store.kind }));
@@ -32,7 +36,11 @@ export function buildServer({ store = new MemoryStore(), gemini = defaultGemini,
   app.get('/api/join-base', async () => ({ publicUrl: process.env.PUBLIC_URL || null, lan: lanAddresses()[0] ?? null }));
 
   // The rules and the data, as the engine uses them (the "how it works" page and audits).
-  app.get('/api/rules', async () => ({ rulesVersion: RULES_VERSION, dataVersion: DATA_VERSION, dataMethod: DATA_METHOD, sources: DATA_SOURCES, districts: DISTRICTS, personas: PERSONA_INFO, cards: CARDS, hands: HANDS, combos: COMBOS, twists: Object.values(DIRECTOR_EVENTS).map((e) => ({ type: e.type, title: e.title, perMagnitude: e.perMagnitude })), crises: CRISES }));
+  app.get('/api/rules', async () => ({
+    rulesVersion: RULES_VERSION, dataVersion: DATA_VERSION, dataMethod: DATA_METHOD, sources: DATA_SOURCES, districts: DISTRICTS, personas: PERSONA_INFO,
+    cards: CARDS, hands: HANDS, combos: COMBOS, crisisKinds: CRISIS_KIND_INFO,
+    twists: Object.values(DIRECTOR_EVENTS).map((e) => ({ type: e.type, title: e.title, perMagnitude: e.perMagnitude })),
+  }));
 
   const theDirector = director === undefined ? geminiDirector(gemini) : director;
 
@@ -62,8 +70,15 @@ export function buildServer({ store = new MemoryStore(), gemini = defaultGemini,
   });
 
   registerStudio(app, store, gemini);
+  registerLive(app);
 
-  const rooms = roomServer({ store, narrator: narrator === undefined ? geminiNarrator(gemini) : narrator, director: theDirector, log: app.log });
+  const rooms = roomServer({
+    store,
+    narrator: narrator === undefined ? geminiNarrator(gemini) : narrator,
+    scenario: scenario ?? { live: () => liveConditions(), write: geminiScenarioWriter(gemini) },
+    director: theDirector,
+    log: app.log,
+  });
   app.server.on('upgrade', rooms.onUpgrade);
   app.addHook('onClose', async () => {
     await rooms.close();

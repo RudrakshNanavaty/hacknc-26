@@ -2,7 +2,8 @@
 // presentation, never rules: speech bubbles and moods are derived from what the engine already
 // decided. Template lines are always ready (no network); the server may swap in Gemini lines that
 // pass validation (server/src/ai/director.ts), but only from this fixed reaction vocabulary.
-import { CARDS, PERSONA_INFO, PERSONAS, PROJECTS, type CardId, type Crisis, type CrisisId, type PersonaId, type ProjectKind } from './content';
+import { CARDS, PERSONA_INFO, PERSONAS, PROJECTS, type CardId, type PersonaId, type ProjectKind } from './content';
+import type { Crisis, CrisisKind } from './scenario';
 import type { Board, FinalResult, OutcomeStatus, Resolution } from './engine';
 
 /** A non-player role a scenario puts on the map. It talks and reacts; it never plays cards. */
@@ -75,27 +76,42 @@ const bubble = (moment: string, speaker: RoleId, text: string, reaction: Reactio
 
 // ---------- Template lines (authored; 8-15 words each) ----------
 
-const CRISIS_LINES: Record<CrisisId, Record<RoleId, [string, Reaction]>> = {
-  'king-tide': {
+/** One line per character for each kind of crisis (a match's scenario picks the kinds). */
+const CRISIS_LINES: Record<CrisisKind, Record<RoleId, [string, Reaction]>> = {
+  flood: {
     mayor: ['We have three disasters and one budget. Fantastic. Somebody find a pump.', 'worry'],
     activist: ['The bay is telling us something. Maybe this time we listen.', 'worry'],
     resort: ['Seawater in the lobby is terrible for reviews. Let us fix this fast.', 'worry'],
-    resident: ['Rubber boots by the door again. West Avenue floods every high tide.', 'protest'],
+    resident: ['Rubber boots by the door again. My street floods every high tide.', 'protest'],
     fisherman: ['Tide is up to the dock rail. Fish do not mind; my truck does.', 'mock'],
   },
-  'hotel-boom': {
+  development: {
     mayor: ['Developers are lining up. So are the lawyers. Delightful.', 'worry'],
     activist: ['Every tower wants a dune view. Nobody wants to keep the dune.', 'protest'],
     resort: ['Occupancy is booming! This is a synergy moment, people.', 'celebrate'],
     resident: ['More hotels, more traffic on my street. Is anyone asking us?', 'worry'],
     fisherman: ['Great, another luxury marina. Guess my boat is a tourist attraction now.', 'mock'],
   },
-  'storm-season': {
+  storm: {
     mayor: ['A storm offshore and projects half finished. Wonderful timing, as always.', 'worry'],
     activist: ['Dunes and mangroves are free storm armor. Please, let them work.', 'negotiate'],
     resort: ['Storm season means cancellations. Protect the guests, protect the economy.', 'worry'],
     resident: ['I have sandbags, a flashlight and zero faith in the drains.', 'worry'],
     fisherman: ['Boats are tied double. When the sea talks, I listen.', 'worry'],
+  },
+  erosion: {
+    mayor: ['The beach is shrinking, and so is my approval rating. Lovely.', 'worry'],
+    activist: ['Sand moves with the sea. Hard walls only push the problem along.', 'negotiate'],
+    resort: ['Guests come for the beach. No beach, no guests. Simple math.', 'worry'],
+    resident: ['Every winter the walk to the water gets a little shorter.', 'worry'],
+    fisherman: ['Surf took half the beach again. The pier still stands, barely.', 'mock'],
+  },
+  budget: {
+    mayor: ['The budget is thinner than a beach towel. Choose wisely, everyone.', 'worry'],
+    activist: ['Nature-based fixes cost less. I am just saying it out loud.', 'negotiate'],
+    resort: ['Private money is ready to help, for the right return, naturally.', 'conditional-support'],
+    resident: ['Cut anything you like, but please do not cut the drains.', 'protest'],
+    fisherman: ['City is broke again. Bait still costs what bait costs.', 'mock'],
   },
 };
 
@@ -146,7 +162,7 @@ const FISHER_ON: Partial<Record<ProjectKind, [string, Reaction]>> = {
 
 /** Crisis: everyone gathers at the spotlight and says what worries them. */
 export function crisisBubbles(crisis: Crisis, personas: PersonaId[]): Bubble[] {
-  const lines = CRISIS_LINES[crisis.id];
+  const lines = CRISIS_LINES[crisis.kind];
   const moment = `crisis-${crisis.round}`;
   const at = (i: number) => crisis.spotlight[i % crisis.spotlight.length] ?? null;
   return [

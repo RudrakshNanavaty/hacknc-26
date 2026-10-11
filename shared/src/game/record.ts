@@ -1,9 +1,10 @@
 // The planning-feedback record a match leaves behind, and what Planning Studio computes from them.
 // Role-play choices and personal preferences are kept apart, and so are demo sessions, bots and
 // community sessions: role-play is not public opinion.
-import { CARDS, PERSONA_INFO, PROJECTS, RULES_VERSION, START_INDICATORS, type CardId, type ComboId, type CrisisId, type Indicators, type PersonaId, type ProjectKind } from './content';
+import { CARDS, PERSONA_INFO, PROJECTS, RULES_VERSION, START_INDICATORS, type CardId, type ComboId, type Indicators, type PersonaId, type ProjectKind } from './content';
 import { applyDirectorEvent, type AcceptedEvent, type TableHint } from './director';
 import { DATA_SOURCES, DATA_VERSION, DISTRICTS, districtById, type DataSource } from './districts';
+import type { Crisis, LiveConditions } from './scenario';
 import { crisisFor, finalResult, resolveRound, startCity, type Attachment, type Compromise, type FinalResult, type NegotiationAction, type Outcome, type Proposal, type Resolution, type RuleEvent } from './engine';
 
 export type SessionKind = 'demo' | 'community';
@@ -18,7 +19,7 @@ export interface MatchPlayer {
 
 export interface RoundRecord {
   round: number;
-  crisis: CrisisId;
+  crisis: Crisis;
   proposals: Proposal[];
   attachments: Attachment[];
   compromises: Compromise[];
@@ -94,6 +95,9 @@ export interface MatchRecord {
   responses: PreferenceResponse[];
   /** Novel AI ideas for designers (rules 2.x). Not rules, not evidence. */
   reviewQueue?: ReviewItem[];
+  /** Where this match's crises came from, and the live readings they were written from. */
+  scenarioSource?: 'gemini' | 'authored';
+  live?: LiveConditions | null;
 }
 
 export const SCENARIO_ID = 'miami-beach-coastal-2026';
@@ -126,7 +130,11 @@ export function replayMatch(m: MatchRecord): Replay {
   for (const r of m.rounds) {
     const ev = r.director?.event;
     if (ev) city = applyDirectorEvent(city, ev).city;
-    const board = { round: r.round, crisis: crisisFor(r.round), proposals: r.proposals, attachments: r.attachments, compromises: r.compromises };
+    // Each match brings its own scenario: replay with the crisis the round was played under (older
+    // records stored only the authored crisis's id).
+    const recorded = r.crisis as Crisis | string | undefined;
+    const crisis = recorded && typeof recorded === 'object' ? recorded : crisisFor(r.round);
+    const board = { round: r.round, crisis, proposals: r.proposals, attachments: r.attachments, compromises: r.compromises };
     const res = resolveRound(board, r.actions, city);
     if (JSON.stringify(res.before) !== JSON.stringify(r.before)) mismatches.push(`round ${r.round}: indicators before`);
     if (JSON.stringify(res.after) !== JSON.stringify(r.after)) mismatches.push(`round ${r.round}: indicators after`);

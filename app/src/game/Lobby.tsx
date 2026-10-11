@@ -43,7 +43,7 @@ export function JoinForm({ room, create }: { room: Room; create: boolean }) {
     if (persona) room.join(name, persona, create);
   };
   return (
-    <form onSubmit={submit} className="glass flex w-full max-w-2xl flex-col gap-4 p-5">
+    <form onSubmit={submit} className="wet flex w-full max-w-2xl flex-col gap-4 p-5">
       <h2 className="font-display text-32 font-black">{create ? 'Open the council chamber' : 'Take a seat at the table'}</h2>
       <label className="flex flex-col gap-1 font-bold">
         Your name
@@ -71,14 +71,14 @@ export function Lobby({ state, room }: { state: RoomState; room: Room }) {
   const taken = new Map(state.players.map((p) => [p.persona, p]));
   return (
     <div className="flex w-full max-w-5xl flex-col gap-4 lg:flex-row">
-      <section className="glass flex flex-1 flex-col gap-4 p-5">
+      <section className="wet flex flex-1 flex-col gap-4 p-5">
         <h2 className="font-display text-32 font-black">The council is assembling</h2>
         <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           {PERSONAS.map((id) => {
             const p = taken.get(id);
             const info = PERSONA_INFO[id];
             return (
-              <li key={id} className="persona-slot glass" style={{ ['--tint' as string]: info.color }}>
+              <li key={id} className="persona-slot" style={{ ['--tint' as string]: info.color }}>
                 <PersonaOrb persona={id} size={44} dim={!p} />
                 <div className="min-w-0 flex-1">
                   <p className="font-display text-18 leading-tight font-black">{info.name}</p>
@@ -127,7 +127,7 @@ export function Lobby({ state, room }: { state: RoomState; room: Room }) {
           <p className="text-15">Waiting for the host to start. Empty seats can be filled by bots.</p>
         )}
       </section>
-      <aside className="glass flex flex-col gap-3 p-5 lg:w-[22rem]">
+      <aside className="wet flex flex-col gap-3 p-5 lg:w-[22rem]">
         <Invite code={state.code} />
         <p className="text-13 opacity-80">Four stakeholders, three rounds, one real city. Every card you play is recorded as geographically linked planning feedback.</p>
       </aside>

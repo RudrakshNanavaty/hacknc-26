@@ -267,8 +267,12 @@ export function LivingLayer({ map, state }: { map: MapLibreMap | null; state: Ro
     if (!map) return;
     const fx: { district: string; kind: FxKind; delay: number }[] = [];
     if (state.phase === 'crisis' && state.crisis) {
-      if (state.crisis.id === 'king-tide') for (const d of state.crisis.spotlight) fx.push({ district: d, kind: 'flood', delay: 300 });
-      if (state.crisis.id === 'storm-season') setStorm(`crisis-${state.round}`);
+      // Each match's scenario picks the kind of crisis; the map shows it on the spotlight areas.
+      const k = state.crisis.kind;
+      const kindFx: Partial<Record<typeof k, FxKind>> = { flood: 'flood', erosion: 'flood', development: 'invest', budget: 'invest' };
+      const fxKind = kindFx[k];
+      if (fxKind) for (const d of state.crisis.spotlight) fx.push({ district: d, kind: fxKind, delay: 300 });
+      if (k === 'storm') setStorm(`crisis-${state.round}`);
     }
     // The twist lands when play starts.
     if (state.phase === 'select' && state.event?.round === state.round) fx.push({ district: state.event.district, kind: DIRECTOR_EVENTS[state.event.type].fx, delay: 200 });

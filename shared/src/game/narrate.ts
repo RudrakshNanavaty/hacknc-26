@@ -1,9 +1,10 @@
 // The news desk's template lines. They are always ready (no network), so a match never waits on
 // Gemini. The server may swap in a Gemini line built from the same facts (narrationFacts) if it
 // passes the number check; otherwise these stand.
-import { CARDS, INDICATORS, INDICATOR_INFO, PERSONA_INFO, PROJECTS, type CardId, type Crisis, type Indicators, type PersonaId } from './content';
+import { CARDS, INDICATORS, INDICATOR_INFO, PERSONA_INFO, PROJECTS, type CardId, type Indicators, type PersonaId } from './content';
 import { districtById } from './districts';
 import type { Board, FinalResult, Resolution } from './engine';
+import type { Crisis } from './scenario';
 
 /** What each card says about its player, for "Breaking news" lines. */
 const QUIPS: Record<CardId, string> = {
