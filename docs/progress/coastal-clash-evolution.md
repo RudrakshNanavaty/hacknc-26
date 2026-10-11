@@ -76,8 +76,15 @@ The fix was environmental: `fnm install 22` and a `.node-version` file. No code 
   Gemini scenario desk) and Aero Lagoon UI on branch `pratham/integrate-aum` (merge commit 3e5db65), made from `pratham/living-city`.
   Our panels.tsx (deleted upstream) was ported into his screens through `app/src/game/insights.tsx`. Crisis lines, twists, previews
   and replays now follow each match's crisis (kinds). Checked a full bot match at 1440 and 390 on the merged build (no console errors).
-- [ ] Review findings: a 5-dimension review with adversarial verification ran on the pre-merge code (c83ba05); apply the confirmed
-  ones to the merged code.
+- [x] **Review fixes (commit c87f2f7)**: a 5-dimension review (engine authority, AI safety/fairness, research integrity, rules/cards,
+  UI) with one adversarial skeptic per dimension ran on c83ba05; 40 findings, all fixed on the merged code with 12 regression tests.
+  The highest-impact ones: the replay check compared JSON text (every Tiger Data/jsonb record would show "Replay differs"); AI text
+  checks missed spelled-out numbers ("seventy-five percent"), inflected unsafe words, unsafe novel ideas and combo explanations; hints
+  were capped in seat order (unfair); C3 was logged even when the shoreline failed; previews ignored this round's bill; "Explain"
+  explained a delayed proposal's first verdict; card flights mis-landed while the camera moved; avatars took taps on phones.
+  Design calls made while fixing (worth a human look): delayed consequences (bond payment, lobbying backlash) now come due only if
+  the backed proposal is approved; a hint pitch must use a verb for its own move; twist narratives with real-news words fall back
+  to the template; replays of rules-1.x records are reported as "not comparable".
 
 ## Open questions for humans
 - The Gemini key in `.env` returns HTTP 402 ("prepayment credits are depleted", 2026-10-11). Everything runs on templates until the
