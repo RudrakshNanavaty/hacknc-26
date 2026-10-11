@@ -192,3 +192,14 @@ unrigged figures, so the game renders each once, off screen (`app/src/characters
 portraits (full body, face, and a bust for the anchor) that the map avatars, player bubbles, lobby seats and the news desk use as plain images
 (`portraits.ts`). The drawn sprites in `app/src/map/sprites.ts` remain as the fallback until a portrait is ready, or when WebGL is unavailable.
 Moods are CSS motion on the figure (jump, shake, lean), and the anchor nods while talking. `/glb-lab` (dev only) shows every portrait.
+
+## Voice (ElevenLabs)
+`POST /api/tts` (`server/src/voice.ts`) turns a line into speech with ElevenLabs and caches the clip on disk by voice, model and text, so a repeated
+line costs nothing and still plays when the API is down. Voices: the female news anchor (`broadcast`), the narrator, and one per stakeholder
+(mayor, activist, resort owner, resident); override any with `ELEVENLABS_VOICE_<NAME>`. A refused voice id falls back to a premade default, and
+each address may ask for at most 40 new clips a minute.
+
+In the game (`app/src/ui/voice.ts`) there is one speech queue, so voices never talk over each other. The anchor reads each headline (its first
+sentence or two, `spoken.ts`) after a short wait for the AI's wording, and nods for exactly as long as her clip plays. Characters speak their
+speech bubble as it appears: always your own character, plus one other. Waiting lines are dropped when the moment changes. The player's Voice
+button (remembered, on by default) mutes it; with no key, no server or sound off, nothing breaks and the captions and bubbles carry the words.

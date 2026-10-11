@@ -3,9 +3,9 @@
 // to see the cards you can play there, the table negotiates on a case file pinned to the proposal's
 // area, and the round's result floats beside the map. The server runs the clock and every rule; this
 // page shows what it is sent.
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Map as MapLibreMap } from 'maplibre-gl';
-import { CRISIS_KIND_INFO, DISTRICT_IDS, cardEligibility, cardName, districtById, type CardId } from '@shared';
+import { CRISIS_KIND_INFO, DISTRICT_IDS, cardEligibility, cardName, districtById, type Bubble, type CardId } from '@shared';
 import { CityMap, FLOOD_COLORS, ZONING_FAMILIES, type Overlays } from '../map/CityMap';
 import { CrisisAlert } from '../map/CrisisAlert';
 import { CrisisFx, type CrisisStage } from '../map/CrisisFx';
@@ -13,7 +13,8 @@ import { crisisIntensity } from '../map/intensity';
 import { savedPlayer, useRoom } from '../room/useRoom';
 import { Link } from '../router';
 import { useSound } from '../ui/sound';
-import { say, hush } from '../ui/voice';
+import { dropWaitingSpeech, enqueueSpeech, hush, useVoicePref, type VoiceName } from '../ui/voice';
+import { spokenForm } from '../ui/spoken';
 import { Flights, Stamps } from '../game/Flights';
 import { HandDeck } from '../game/HandDeck';
 import { LivingLayer } from '../map/LivingLayer';
@@ -58,7 +59,8 @@ export function Play({ code }: { code: string }) {
   const [newsOpen, setNewsOpen] = useState(false);
   const [recenter, setRecenter] = useState(0);
   const sound = useSound();
-  const [voiceOn, setVoiceOn] = useState(false);
+  const voiceOn = useVoicePref((s) => s.on);
+  const toggleVoice = useVoicePref((s) => s.toggle);
 
   const me = state?.you ?? null;
   const host = me !== null && state?.hostSeat === me;
@@ -77,11 +79,33 @@ export function Play({ code }: { code: string }) {
     }
   }, [locked]);
 
+  // The anchor reads each headline. The template line waits a moment so the AI's wording, which
+  // usually follows within a second or two, is the one that is spoken.
+  const headlineKey = state?.headline?.key;
+  const headlineText = state?.headline?.text;
   useEffect(() => {
-    if (!voiceOn || !state?.headline) return;
-    void say(state.headline.text, 'broadcast');
-    return () => hush();
-  }, [voiceOn, state?.headline?.key, state?.headline?.source]);
+    if (!headlineKey || !headlineText) return;
+    const t = setTimeout(() => enqueueSpeech(`headline:${headlineKey}`, spokenForm(headlineText), 'broadcast'), 1200);
+    return () => clearTimeout(t);
+  }, [headlineKey, headlineText]);
+  // What was waiting to be said belongs to a moment that is over; the line being spoken finishes.
+  useEffect(() => dropWaitingSpeech(), [state?.round, phase]);
+  useEffect(() => () => hush(), []);
+
+  // Characters speak as their bubble pops: always your own, and one other voice, so a moment is a
+  // couple of lines and never a wall of audio.
+  const heard = useRef({ moment: '', others: 0 });
+  const myPersona = state?.players.find((p) => p.seat === state.you)?.persona ?? null;
+  const onBubble = useCallback((b: Bubble) => {
+    if (b.speaker === 'fisherman') return;
+    const moment = b.id.split(':')[0] ?? '';
+    if (heard.current.moment !== moment) heard.current = { moment, others: 0 };
+    if (b.speaker !== myPersona) {
+      if (heard.current.others >= 1) return;
+      heard.current.others += 1;
+    }
+    enqueueSpeech(`bubble:${b.id}`, b.text, b.speaker as VoiceName);
+  }, [myPersona]);
 
   const picking = phase === 'select' && !locked && me !== null;
   const eligible = useMemo(
@@ -180,7 +204,7 @@ export function Play({ code }: { code: string }) {
         map={map} id={crisis ? `${crisis.id}-${state.round}` : null} kind={crisis?.kind ?? null} spotlight={crisis?.spotlight ?? []}
         intensity={crisis ? crisisIntensity(crisis.kind, state.live) : 2} stage={stage}
       />
-      <LivingLayer map={map} state={state} onFocusProposal={setFocus} />
+      <LivingLayer map={map} state={state} onFocusProposal={setFocus} onBubble={onBubble} />
       <CrisisAlert map={map} state={state} />
       <div className="hud">
         <div className="hud-row hud-block">
@@ -207,7 +231,7 @@ export function Play({ code }: { code: string }) {
       <PlayerBubbles state={state} />
       <div className="map-tools">
         <button type="button" className="gel gel-icon" onClick={sound.toggle} aria-pressed={sound.on} title="Sound">{sound.on ? '🔊' : '🔇'}</button>
-        <button type="button" className={`gel gel-icon ${voiceOn ? 'gel-lime' : ''}`} onClick={() => setVoiceOn((v) => !v)} aria-pressed={voiceOn} title="Read the news aloud">🎙️</button>
+        <button type="button" className={`gel gel-sm ${voiceOn ? 'gel-lime' : ''}`} onClick={toggleVoice} aria-pressed={voiceOn} title="The anchor and the characters speak">Voice</button>
         <button type="button" className={`gel gel-icon ${layers ? 'gel-sun' : ''}`} onClick={() => setLayers((v) => !v)} aria-pressed={layers} title="Real data layers">🗺️</button>
         {free && <button type="button" className="gel gel-icon" onClick={() => setRecenter((n) => n + 1)} title="Recenter the map">🎯</button>}
                 {layers && <Legend overlays={overlays} setOverlays={setOverlays} />}

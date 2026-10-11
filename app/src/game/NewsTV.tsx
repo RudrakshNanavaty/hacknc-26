@@ -8,6 +8,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { CRISIS_KIND_INFO, INDICATOR_INFO, PERSONA_INFO, districtById, districtFacts, type RoomState } from '@shared';
 import { spriteSvg } from '../map/sprites';
 import { usePortrait } from '../characters/portraits';
+import { useVoice } from '../ui/voice';
 import { TwistCard } from './insights';
 import { EvidenceStrip, StoryPanel } from './story';
 
@@ -165,12 +166,16 @@ export function NewsTV({ state, open, setOpen }: { state: RoomState; open: boole
   const label = crisisPhase ? 'Breaking' : kind ? `${kind.label} alert` : 'Live desk';
 
   // The anchor talks for about as long as the line takes to read.
-  const [talking, setTalking] = useState(false);
+  const [reading, setReading] = useState(false);
   useEffect(() => {
-    setTalking(true);
-    const t = setTimeout(() => setTalking(false), Math.min(9000, 700 + text.length * 55));
+    setReading(true);
+    const t = setTimeout(() => setReading(false), Math.min(9000, 700 + text.length * 55));
     return () => clearTimeout(t);
   }, [text]);
+  // With a voice, she nods for exactly as long as her clip plays; without one, for about as long as it takes to read.
+  const voiced = useVoice((s) => s.voice === 'broadcast' && !!s.clip);
+  const anyVoice = useVoice((s) => !!s.clip);
+  const talking = voiced || (reading && !anyVoice);
 
   // A line longer than the card pans up like a teleprompter (never with reduced motion: the drawer has it all).
   const inner = useRef<HTMLSpanElement>(null);

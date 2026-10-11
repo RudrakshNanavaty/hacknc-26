@@ -7,9 +7,9 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { FastifyInstance } from 'fastify';
 
-/** The briefing narrator, the original anchor, and the two news channels (app/src/news.ts). */
-export type Voice = 'broadcast' | 'narrator' | 'america' | 'bharat';
-const VOICES: readonly Voice[] = ['broadcast', 'narrator', 'america', 'bharat'];
+/** The news anchor (broadcast), the briefing narrator, the two news channels, and the four stakeholders. */
+export type Voice = 'broadcast' | 'narrator' | 'america' | 'bharat' | 'mayor' | 'activist' | 'resort' | 'resident';
+const VOICES: readonly Voice[] = ['broadcast', 'narrator', 'america', 'bharat', 'mayor', 'activist', 'resort', 'resident'];
 
 /**
  * Premade ElevenLabs voices: used when the .env names none, or when ElevenLabs refuses the one it
@@ -21,6 +21,12 @@ const DEFAULT_VOICES: Record<Voice, string> = {
   narrator: 'JBFqnCBsd6RMkjVDRZzb', // George: a warm narrator
   america: 'EXAVITQu4vr4xnSDxMaL', // Sarah (female), for America News
   bharat: 'JBFqnCBsd6RMkjVDRZzb', // George (male), speaking Hindi, for Bharat News
+  // The stakeholders, chosen to fit their figures: an older statesman, a bright young advocate, a smooth
+  // developer, an upbeat neighbour.
+  mayor: 'pqHfZKP75CvOlQylNhV4', // Bill: wise, mature, balanced
+  activist: 'cgSgspJ2msm6clMCkdW9', // Jessica: playful, bright, warm
+  resort: 'cjVigY5qzO86Huf0OWal', // Eric: smooth, trustworthy
+  resident: 'FGY2WhTYpPnrIDTdsKH5', // Laura: an enthusiastic neighbour
 };
 /** Where each voice's id comes from. Only its own variable, so no other voice stands in for an anchor. */
 const ENV: Record<Voice, string[]> = {
@@ -28,14 +34,30 @@ const ENV: Record<Voice, string[]> = {
   narrator: ['ELEVENLABS_VOICE_NARRATOR'],
   america: ['ELEVENLABS_VOICE_AMERICA'],
   bharat: ['ELEVENLABS_VOICE_BHARAT'],
+  mayor: ['ELEVENLABS_VOICE_MAYOR'],
+  activist: ['ELEVENLABS_VOICE_ACTIVIST'],
+  resort: ['ELEVENLABS_VOICE_RESORT'],
+  resident: ['ELEVENLABS_VOICE_RESIDENT'],
 };
 /** The language each voice speaks (ISO 639-1) and its pace: the news reads a little brisker. */
-const LANG: Record<Voice, string> = { broadcast: 'en', narrator: 'en', america: 'en', bharat: 'hi' };
-const SPEED: Record<Voice, number> = { broadcast: 1, narrator: 1, america: 1.1, bharat: 1.1 };
+const LANG: Record<Voice, string> = { broadcast: 'en', narrator: 'en', america: 'en', bharat: 'hi', mayor: 'en', activist: 'en', resort: 'en', resident: 'en' };
+const SPEED: Record<Voice, number> = { broadcast: 1, narrator: 1, america: 1.1, bharat: 1.1, mayor: 1, activist: 1.05, resort: 1, resident: 1.05 };
 
 const MAX_CHARS = 600;
+/** Speech that is not already cached costs credits: each address may ask for this many new clips a minute. */
+const MISSES_PER_MINUTE = 40;
+const misses = new Map<string, number[]>();
+function overBudget(ip: string, now = Date.now()) {
+  const recent = (misses.get(ip) ?? []).filter((t) => now - t < 60_000);
+  if (recent.length >= MISSES_PER_MINUTE) {
+    misses.set(ip, recent);
+    return true;
+  }
+  misses.set(ip, [...recent, now]);
+  return false;
+}
 const TIMEOUT_MS = 20_000;
-const CACHE = join(dirname(fileURLToPath(import.meta.url)), '..', '.cache', 'tts');
+const CACHE = process.env.TTS_CACHE_DIR || join(dirname(fileURLToPath(import.meta.url)), '..', '.cache', 'tts');
 /** Statuses that mean "not this voice" (a library voice on the free plan answers 402). */
 const REFUSED = new Set([400, 401, 402, 403, 404, 422]);
 /** Voice ids ElevenLabs refused since the server started: they go straight to the default. */
@@ -82,6 +104,7 @@ export function registerVoice(app: FastifyInstance) {
 
     const key = process.env.ELEVENLABS_API_KEY;
     if (!key) return reply.code(503).send({ error: 'Voice is off. The game still works.' });
+    if (overBudget(req.ip)) return reply.code(429).header('retry-after', '30').send({ error: 'Too many new voice lines at once. The captions carry the words.' });
     let status = 0;
     for (const id of ids) {
       try {

@@ -88,9 +88,11 @@ const ANIM_FX: Record<Card['anim'], FxKind | null> = {
   construct: null, restore: null, protest: 'protest', invest: 'invest', campaign: 'campaign', legal: 'legal', deal: 'deal', stamp: 'stamp',
 };
 
-export function LivingLayer({ map, state, onFocusProposal }: {
+export function LivingLayer({ map, state, onFocusProposal, onBubble }: {
   map: MapLibreMap | null;
   state: RoomState;
+  /** A speech bubble has just appeared (the game lets that character speak it aloud). */
+  onBubble?: (b: Bubble) => void;
   /** A click on a proposal's marker opens it on the case file. */
   onFocusProposal?: (proposalId: string) => void;
 }) {
@@ -100,6 +102,8 @@ export function LivingLayer({ map, state, onFocusProposal }: {
   const ghostMarkers = useRef(new Map<string, Marker>());
   const bubbleList = useRef<Bubble[]>([]);
   bubbleList.current = state.bubbles?.list ?? [];
+  const onBubbleRef = useRef(onBubble);
+  onBubbleRef.current = onBubble;
   const [storm, setStorm] = useState<string | null>(null);
 
   const roles = useMemo<RoleId[]>(() => state.players.map((p) => p.persona), [state.players.map((p) => p.persona).join(',')]);
@@ -201,6 +205,7 @@ export function LivingLayer({ map, state, onFocusProposal }: {
         a.el.dataset.speaking = 'true';
         a.el.style.zIndex = '6';
         setMood(speaker, REACTION_MOOD[b.reaction]);
+        onBubbleRef.current?.(b);
       }, 350 + i * BUBBLE_GAP_MS));
       timers.push(setTimeout(() => {
         const a = avatars.current.get(speaker);
