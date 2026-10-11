@@ -50,7 +50,7 @@ function Timeline({ m }: { m: MatchRecord }) {
     <ol className="flex flex-col gap-3">
       {m.rounds.map((r) => (
         <li key={r.round} className="rounded-2xl bg-white/60 p-3">
-          <p className="font-display text-18 font-black">Round {r.round} · {r.crisis.replace('-', ' ')}</p>
+          <p className="font-display text-18 font-black">Round {r.round} · {r.crisis.title}</p>
           <p className="text-13 italic">“{r.headline}”</p>
           <ul className="mt-2 flex flex-col gap-1 text-13">
             {r.proposals.filter((p) => !p.carried).map((p) => <li key={p.id}>🃏 {name(p.seat)?.name} ({PERSONA_INFO[p.persona].name}) proposed {PROJECTS[p.kind].name} in {districtById(p.district).name}</li>)}

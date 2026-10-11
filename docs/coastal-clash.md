@@ -61,27 +61,31 @@ Game rules on these numbers: a hotel needs at least 25% hotel/commercial zoning 
 
 Real layers decide context and constraints. Effect sizes are **illustrative scenario values**; budgets are **hypothetical**. Neither is a prediction, and the UI and exports say so.
 
-## 4. Rules in one page
+## 4. Live crises
+
+Every match gets a fresh scenario. At start the server reads NOAA CO-OPS Virginia Key (8723214): the latest water level, the week's predicted highs and NOAA's flood thresholds, converted to MLLW. It also reads the NWS forecast for Miami Beach. Gemini then writes three crises from those readings and the area facts. For each one it chooses a kind (flooding, development pressure, storm, beach erosion, budget crunch), one or two spotlight areas, the words, and which live readings to show. It also writes one line per card in its persona's voice. What each kind does (its K1 bonus) is authored, so outcomes stay deterministic. A scenario is thrown away if any number is not in the facts or any id is unknown, and the authored scenario, carrying the same live readings, stands in. Round 1 waits up to 10 s for the desk.
+
+## 5. Rules in one page
 
 Each round: one card per player (cost in influence; start 5, +2 per round, max 8). Project cards create proposals; support, opposition and negotiation cards act on the best-matching proposal in the same area (or fall back to a small effect or a refund). Negotiation: one move each (back 1, oppose 1, fund 2) and the proposal's owner may accept compromises offered by Public Access Guarantee (access corridor) or by an Environmental Challenge in a coastal high hazard area (dune setback). Resolution: support minus opposition decides (ties are delayed to the next round; Fast-Track breaks a tie and ignores one opposition but never overrides R1), then funding (budget, or covered by Emergency Funding, Private Investment or a fund move), then effects plus the crisis bonus. After round 3 the storm tests flood resilience. Each persona scores its own weighted indicator changes plus objective bonuses; if any of flood, economy, environment or access ends below 30, every positive score is halved.
 
 Rule ids in the event log: P1 proposal, F1-F3 funding/fast-track, S1-S2 support, O1-O3 opposition, R1 coastal high hazard block, C1-C3 compromises, N1-N3 negotiation, V1 vote, B1-B2 budget, K1 crisis bonus, E1 built, X1-X2 fallbacks, S9 storm.
 
-## 5. Records and Planning Studio
+## 6. Records and Planning Studio
 
 A match record holds the session id, scenario, rules and data versions, data sources, session kind (demo or community), players (human or bot), every round's proposals, attachments, compromises, negotiation moves, outcomes and rule events with before/after indicators, the final result, and personal preferences. It is saved after every round, at the end and on every answer (Tiger Data `cc_matches` + `cc_decisions` hypertable, or memory). Studio findings are computed from the records and each lists the record ids it comes from; Gemini may only reword them into a brief.
 
-## 6. Two-minute demo script
+## 7. Two-minute demo script
 
 | Time | On screen | Say |
 |---|---|---|
 | 0:00 | Landing: Miami Beach on satellite with FEMA VE/AE zones. Tap South Pointe: its measured profile. | "This is a real city, and these are real planning constraints." |
 | 0:15 | Host a room (Demo pace); three phones join as Activist, Resort Owner, Resident. | "Four stakeholders, four agendas." |
-| 0:30 | Round 2 (or skip to it): Resort plays Hotel on South Pointe, Activist plays Environmental Challenge, Mayor plays Fast-Track, Resident plays Public Access Guarantee. Cards fly to South Pointe. | "Everyone plays on the same neighborhood." |
+| 0:30 | Round 1 crisis, written live from today's tide gauge and forecast. Then (round 2, or skip to it) Resort drags Hotel onto South Pointe, Activist plays Environmental Challenge, Mayor plays Fast-Track, Resident plays Public Access Guarantee. Cards fly to South Pointe. | "Everyone plays on the same neighborhood." |
 | 0:55 | Negotiate: preview shows BLOCKED (R1: South Pointe borders a FEMA VE zone). Resort accepts the dune setback and the access corridor; preview flips to APPROVED. | "The geography is real; the deal is theirs." |
 | 1:20 | Resolve: APPROVED stamp, hotel, setback and access pins appear, indicators move, the Gemini news line plays. Show the rule trace. | "Every outcome shows the rules that produced it." |
 | 1:40 | Final: the honest question. Then Planning Studio: hotspot on South Pointe, compromises accepted, in-role vs personal preference, CSV with coordinates and zoning ids. | "Every match becomes geographically linked feedback planners can explore." |
 
-## 7. What is next (P3)
+## 8. What is next (P3)
 
 More cities and scenarios, a Fisherman persona for working-waterfront decisions, more cards per persona, ElevenLabs persona voices, richer layers (NOAA sea level rise), and a richer negotiation.

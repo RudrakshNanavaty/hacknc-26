@@ -182,6 +182,7 @@ export function CityMap({ city, spotlight = [], target = null, eligible = null, 
         const el = document.createElement('button');
         el.type = 'button';
         el.className = 'map-chip';
+        el.dataset.id = d.id;
         el.addEventListener('click', (ev) => {
           ev.stopPropagation();
           onPickRef.current?.(d.id);
