@@ -14,7 +14,7 @@ import type { Gemini } from './ai/gemini';
 
 const DIR = join(dirname(fileURLToPath(import.meta.url)), '..', '.cache', 'card-art');
 /** Bump to repaint every card (the look changed). */
-const STYLE_VERSION = 'v1';
+const STYLE_VERSION = 'v3';
 const CONCURRENCY = 3;
 const MEMORY_MAX = 120;
 const FAIL_TTL_MS = 45_000;
@@ -51,12 +51,12 @@ export function cardArtPrompt(card: Card, theme: ArtTheme = {}): string {
   const name = theme.skin || card.name;
   const where = theme.place && (DISTRICT_IDS as readonly string[]).includes(theme.place) ? districtById(theme.place).name : 'the Miami Beach shoreline';
   return [
-    'A collectible mobile card-game illustration, the picture window of a trading card, in the spirit of Pokemon card art.',
+    'A collectible mobile card-game illustration for the picture window of a trading card, in the spirit of Pokemon card art. Paint only the scene itself, edge to edge: no card, no frame, no border, no ornamental edge, no vignette, no drop shadow around the picture.',
     `Subject: "${name}" (${card.text}). ${SCENE[card.category]}.`,
     `Setting: ${where}, Miami Beach.${theme.story ? ` Mood of the round: ${theme.story}.` : ''}`,
     `Style: simple and uncluttered, one clear subject with a bold readable silhouette at small size, soft stylized 3D look, gentle gradient sky and water behind it, ${PALETTE[card.persona]}.`,
     'Landscape 4:3 composition with the subject centered and generous margins.',
-    'Absolutely no text, letters, numbers, captions, logos, watermarks or emoji. No real people or likenesses. Family-friendly.',
+    'Absolutely no text, letters, numbers, captions, logos, watermarks or emoji, and do not write the place name or any street name anywhere in the picture. No real people or likenesses. Family-friendly.',
   ].join(' ');
 }
 
@@ -91,18 +91,20 @@ export function registerCardArt(app: FastifyInstance, gemini: Gemini, opts: { di
     const hit = memory.get(key);
     if (hit) return hit;
     if (dir) {
-      const disk = await readFile(join(dir, `${key}.png`)).catch(() => null);
-      if (disk) {
-        const v = { data: disk, mimeType: 'image/png' };
-        remember(key, v);
-        return v;
+      for (const [ext, mimeType] of [['jpg', 'image/jpeg'], ['png', 'image/png']] as const) {
+        const disk = await readFile(join(dir, `${key}.${ext}`)).catch(() => null);
+        if (disk) {
+          const v = { data: disk, mimeType };
+          remember(key, v);
+          return v;
+        }
       }
     }
     const job = inflight.get(key) ?? slot(async () => {
       const img = await gemini.image({ prompt: cardArtPrompt(CARDS[id], theme), aspectRatio: '4:3' });
       const v = { data: img.data, mimeType: img.mimeType };
       remember(key, v);
-      if (dir) void mkdir(dir, { recursive: true }).then(() => writeFile(join(dir, `${key}.png`), img.data)).catch(() => {});
+      if (dir) void mkdir(dir, { recursive: true }).then(() => writeFile(join(dir, `${key}.${img.mimeType === 'image/jpeg' ? 'jpg' : 'png'}`), img.data)).catch(() => {});
       return v;
     });
     inflight.set(key, job);
