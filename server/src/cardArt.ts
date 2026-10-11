@@ -14,7 +14,7 @@ import type { Gemini } from './ai/gemini';
 
 const DIR = join(dirname(fileURLToPath(import.meta.url)), '..', '.cache', 'card-art');
 /** Bump to repaint every card (the look changed). */
-const STYLE_VERSION = 'v3';
+const STYLE_VERSION = 'v4';
 const CONCURRENCY = 3;
 const MEMORY_MAX = 120;
 const FAIL_TTL_MS = 45_000;
@@ -22,18 +22,28 @@ const FAIL_TTL_MS = 45_000;
 const PAUSE_MS = 5 * 60_000;
 const OUT_OF_CREDIT = /\b(402|429)\b|RESOURCE_EXHAUSTED|quota|credits/i;
 
-const PALETTE: Record<Card['persona'], string> = {
-  mayor: 'deep ocean blue with warm gold accents',
-  activist: 'fresh mangrove green and teal with sunlit white',
-  resort: 'warm coral and sunset orange with turquoise',
-  resident: 'soft sand and orange with lavender dusk',
+/** One look for every card: the same stage, light and camera, so a hand reads as one set. */
+export const HOUSE_STYLE = [
+  'Glossy 3D computer render, as if made in Cinema 4D or Blender with ray-traced reflections and soft global illumination. It must look like a rendered 3D scene, not a painting, not a drawing, not a flat vector illustration, not concept art.',
+  'Early-2000s Frutiger Aero look: bright, optimistic and clean. Materials are glossy translucent aqua glass, white gloss plastic, polished chrome and fresh lime-green and sky-blue accents, with rounded, toy-like proportions and soft highlights.',
+  'Stage: one hero object floating above a round translucent aqua glass disc, a few soft glassy soap bubbles drifting around it, a bright sky-blue to white gradient background with gentle lens flare and light rays, a strip of lush green grass and a calm aqua water horizon at the bottom.',
+  'Camera: slightly elevated three-quarter view, the hero object centered and filling about half of the frame, shallow depth of field, high-key bright lighting, no dark areas.',
+].join(' ');
+
+/** What the hero object is, by kind of card: always one simple, readable thing. */
+const HERO: Record<Card['category'], string> = {
+  project: 'a small, tidy model of the finished public project itself',
+  support: 'one simple symbol of backing and resources, such as a glossy coin stack, a glowing blueprint or a rising arrow',
+  opposition: 'one simple symbol of a firm but peaceful objection, such as a gavel, a blank stop-sign shape or a raised glossy hand',
+  negotiation: 'one simple symbol of a deal, such as two glossy hands meeting over a small model of the coast',
 };
 
-const SCENE: Record<Card['category'], string> = {
-  project: 'the finished public project itself as the single hero object, shown whole like a small model on a clean base',
-  support: 'a single clear symbol of backing and resources, such as a glowing coin stack or a hand lifting a blueprint',
-  opposition: 'a single clear symbol of a firm but peaceful objection, such as a gavel, a stop-sign shape without any writing, or a raised hand',
-  negotiation: 'a single clear symbol of a deal, such as two hands meeting over a small model of the coast',
+/** A small accent in the deck's color; the rest of the picture stays in the house palette. */
+const ACCENT: Record<Card['persona'], string> = {
+  mayor: 'gold',
+  activist: 'leaf green',
+  resort: 'coral orange',
+  resident: 'warm sunrise orange',
 };
 
 /** A short, plain phrase from something a player's browser sent: letters, digits and light punctuation only. */
@@ -51,12 +61,11 @@ export function cardArtPrompt(card: Card, theme: ArtTheme = {}): string {
   const name = theme.skin || card.name;
   const where = theme.place && (DISTRICT_IDS as readonly string[]).includes(theme.place) ? districtById(theme.place).name : 'the Miami Beach shoreline';
   return [
-    'A collectible mobile card-game illustration for the picture window of a trading card, in the spirit of Pokemon card art. Paint only the scene itself, edge to edge: no card, no frame, no border, no ornamental edge, no vignette, no drop shadow around the picture.',
-    `Subject: "${name}" (${card.text}). ${SCENE[card.category]}.`,
-    `Setting: ${where}, Miami Beach.${theme.story ? ` Mood of the round: ${theme.story}.` : ''}`,
-    `Style: simple and uncluttered, one clear subject with a bold readable silhouette at small size, soft stylized 3D look, gentle gradient sky and water behind it, ${PALETTE[card.persona]}.`,
-    'Landscape 4:3 composition with the subject centered and generous margins.',
-    'Absolutely no text, letters, numbers, captions, logos, watermarks or emoji, and do not write the place name or any street name anywhere in the picture. No real people or likenesses. Family-friendly.',
+    HOUSE_STYLE,
+    `Hero object: ${HERO[card.category]}, for the card "${name}" (${card.text}). Keep it a single clear object with a bold silhouette that reads at thumbnail size.`,
+    `Set in ${where}, Miami Beach${theme.story ? `, in the mood of: ${theme.story}` : ''}. Add one small hint of the deck's color: ${ACCENT[card.persona]}.`,
+    'Landscape 4:3, full-bleed edge to edge with no frame, no border, no card edge and no vignette.',
+    'Absolutely no text, letters, numbers, captions, logos, watermarks or emoji, and do not write any place or street name. No real people or likenesses. Family-friendly.',
   ].join(' ');
 }
 
