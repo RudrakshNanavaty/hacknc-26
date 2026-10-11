@@ -4,7 +4,7 @@
 // away, or a click on their marker on the map.
 import { useEffect, useMemo } from 'react';
 import type { Map as MapLibreMap } from 'maplibre-gl';
-import { CARDS, NEGOTIATION_COST, PERSONA_INFO, PROJECTS, districtById, resolveRound, type Attachment, type Board, type RoomState } from '@shared';
+import { CARDS, NEGOTIATION_COST, PERSONA_INFO, PING_EMOTES, PROJECTS, districtById, resolveRound, type Attachment, type Board, type RoomState } from '@shared';
 import type { Room } from '../room/useRoom';
 import { MapAnchor } from '../map/MapAnchor';
 import { STATUS_STYLE } from './format';
@@ -115,6 +115,13 @@ export function CaseFile({ state, room, map, focus, setFocus }: { state: RoomSta
             {negotiating && !c.accepted && c.owner !== state.you && <p className="mt-1 text-[12px] opacity-75">Waiting for {who(state, c.owner)?.name} to accept…</p>}
           </div>
         ))}
+
+        {negotiating && me && (
+          <div className="flex items-center justify-center gap-1.5" role="group" aria-label="React on the map">
+            <span className="text-[12px] font-black opacity-80">React on the map:</span>
+            {PING_EMOTES.map((e) => <button key={e} type="button" className="ping-btn" onClick={() => room.ping(p.district, e)} aria-label={`React ${e} on ${placeName(p.district)}`}>{e}</button>)}
+          </div>
+        )}
 
         {!negotiating && <p className="text-center text-13 font-black">Negotiation opens in a moment: back, oppose, fund, or take a deal.</p>}
 

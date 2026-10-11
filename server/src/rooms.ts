@@ -7,14 +7,14 @@
 import { randomUUID } from 'node:crypto';
 import {
   CARDS, LOCK_GRACE_MS, MAX_PLAYERS, NEGOTIATION_COST, PACES, PERSONA_INFO, START_INDICATORS, START_INFLUENCE, TOTAL_ROUNDS,
-  buildBoard, checkAccept, checkMove, checkPlay, crisisFor, crisisHeadline, finalHeadline, finalResult, isPersonaId, newMatchRecord,
+  DISTRICT_IDS, PING_EMOTES, buildBoard, checkAccept, checkMove, checkPlay, crisisFor, crisisHeadline, finalHeadline, finalResult, isPersonaId, newMatchRecord,
   nextInfluence, resolutionHeadline, resolveRound, revealHeadline, startCity, botPlay, districtById, authoredScenario,
   crisisBubbles, finalBubbles, resolutionBubbles, revealBubbles,
   EVENT_RULES, SCENARIO_ROLES, applyDirectorEvent, combosInReach, mergeDialogue, negotiationCandidates, templateEventProposal, templateHints,
   validateComboSuggestion, validateDialogue, validateEventProposal, validateSuggestion,
   type AcceptedEvent, type CharacterDialogue, type DirectorLogEntry, type EventType, type RoleId, type RuleEvent, type TableHint,
   type Board, type CardId, type CityState, type Crisis, type FinalResult, type Headline, type MatchRecord, type NegotiationAction,
-  type Bubble, type PaceId, type PersonaId, type Proposal, type Scenario, type RoomPhase, type RoomState, type RoundSummary, type SessionKind,
+  type Bubble, type PaceId, type Ping, type PingEmote, type PersonaId, type Proposal, type Scenario, type RoomPhase, type RoomState, type RoundSummary, type SessionKind,
 } from '@shared';
 
 const ROOM_TTL_MS = 3 * 60 * 60 * 1000;
@@ -39,6 +39,8 @@ export interface Player {
   moved: boolean;
   done: boolean;
   responded: string | null;
+  /** When they last pinged (rate limit). */
+  lastPing: number | null;
 }
 
 /** Side effects for the socket layer, drained after every change. */
@@ -138,7 +140,7 @@ function checkPersona(room: Room, persona: unknown, self?: Player): PersonaId {
 }
 
 const newPlayer = (seat: number, name: string, persona: PersonaId, bot: boolean): Player => ({
-  id: randomUUID(), seat, name, persona, connected: !bot, leftAt: null, bot, influence: START_INFLUENCE, selection: null, moved: false, done: false, responded: null,
+  id: randomUUID(), seat, name, persona, connected: !bot, leftAt: null, bot, influence: START_INFLUENCE, selection: null, moved: false, done: false, responded: null, lastPing: null,
 });
 
 /** A bot holding this persona gives it up to a person. */
@@ -489,6 +491,19 @@ export function accept(room: Room, player: Player, compromiseId: unknown, now: n
   room.board.compromises.find((c) => c.id === compromiseId)!.accepted = true;
   refreshHints(room);
   touch(room, now);
+}
+
+/** Pings are relayed, not stored; a player can send one every this long (faster ones are dropped). */
+export const PING_GAP_MS = 1_500;
+
+/** A reaction on an area at the negotiating table. Returns null when it is dropped by the rate limit. */
+export function ping(room: Room, player: Player, district: unknown, emote: unknown, now: number): Ping | null {
+  if (room.phase !== 'negotiate') throw new RoomError('Reactions are for the negotiating table.');
+  if (typeof district !== 'string' || !DISTRICT_IDS.includes(district)) throw new RoomError('Unknown area.');
+  if (!PING_EMOTES.includes(emote as PingEmote)) throw new RoomError('Unknown reaction.');
+  if (player.lastPing !== null && now - player.lastPing < PING_GAP_MS) return null;
+  player.lastPing = now;
+  return { seat: player.seat, district, emote: emote as PingEmote, at: now };
 }
 
 export function done(room: Room, player: Player, now: number): void {

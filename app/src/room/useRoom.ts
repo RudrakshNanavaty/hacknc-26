@@ -1,7 +1,10 @@
 // One WebSocket per page to /ws/rooms/:code (proxied to the server by Vite). Reconnects on its own;
 // a player who joined keeps their secret id in localStorage, so a reload resumes the same seat.
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { CardId, ClientMsg, NegotiationMove, PaceId, PersonaId, RoomState, ServerMsg, SessionKind } from '@shared';
+import type { CardId, ClientMsg, NegotiationMove, PaceId, PersonaId, Ping, PingEmote, RoomState, ServerMsg, SessionKind } from '@shared';
+
+/** How long a reaction stays on the map. */
+const PING_MS = 2600;
 
 const key = (code: string) => `coastal-clash.room.${code}`;
 export const savedPlayer = (code: string): string | null => {
@@ -38,6 +41,9 @@ export interface Room {
   done: () => void;
   respond: (choice: string) => void;
   again: () => void;
+  /** Reactions on the map right now (negotiation), newest last. */
+  pings: Ping[];
+  ping: (district: string, emote: PingEmote) => void;
 }
 
 export function useRoom(code: string): Room {
@@ -45,6 +51,7 @@ export function useRoom(code: string): Room {
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [offset, setOffset] = useState(0);
+  const [pings, setPings] = useState<Ping[]>([]);
   const ws = useRef<WebSocket | null>(null);
 
   useEffect(() => {
@@ -67,6 +74,10 @@ export function useRoom(code: string): Room {
         if (msg.t === 'state') {
           setOffset(msg.state.serverNow - Date.now());
           setState(msg.state);
+        } else if (msg.t === 'ping') {
+          const p = msg.ping;
+          setPings((list) => [...list.slice(-11), p]);
+          setTimeout(() => setPings((list) => list.filter((x) => x !== p)), PING_MS);
         } else if (msg.t === 'joined') savePlayer(code, msg.playerId);
         else if (msg.t === 'error') {
           // A stale id (the server restarted, or the room expired): forget it and show the join form.
@@ -115,5 +126,7 @@ export function useRoom(code: string): Room {
     done: useCallback(() => send({ t: 'done' }), [send]),
     respond: useCallback((choice) => send({ t: 'respond', choice }), [send]),
     again: useCallback(() => send({ t: 'again' }), [send]),
+    pings,
+    ping: useCallback((district, emote) => send({ t: 'ping', district, emote }), [send]),
   };
 }

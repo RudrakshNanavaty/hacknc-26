@@ -12,7 +12,7 @@ import type { ScenarioWriter } from './ai/scenario';
 import { directorFacts, type Director } from './ai/director';
 import {
   RoomError, accept, again, applyDialogue, applyHints, applyScenario, choosePersona, done, findPlayer, getOrCreateRoom, getRoom, join, mapRoles, move,
-  presence, proposeEarlyEvent, proposeEvent, publicState, respond, select, setBot, setPace, setSession, skip, start, sweep, tick, type Room,
+  ping, presence, proposeEarlyEvent, proposeEvent, publicState, respond, select, setBot, setPace, setSession, skip, start, sweep, tick, type Room,
 } from './rooms';
 
 const ROOM_PATH = /^\/ws\/rooms\/([A-Za-z]{4})$/;
@@ -184,6 +184,12 @@ export function roomServer({ store, narrator, scenario, director = null, log }: 
       case 'done': done(room, player, now); break;
       case 'respond': respond(room, player, msg.choice, now); break;
       case 'again': again(room, player); break;
+      case 'ping': {
+        // Relayed to the room as it happens; no state changes, so no state broadcast.
+        const p = ping(room, player, msg.district, msg.emote, now);
+        if (p) for (const c of conns.get(room.code) ?? []) send(c.ws, { t: 'ping', ping: p });
+        return;
+      }
       default: throw new RoomError('Unknown message.');
     }
     broadcast(room);

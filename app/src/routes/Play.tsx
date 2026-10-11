@@ -15,6 +15,7 @@ import { useSound } from '../ui/sound';
 import { say, hush } from '../ui/voice';
 import { Flights, Stamps } from '../game/Flights';
 import { LivingLayer } from '../map/LivingLayer';
+import { PingLayer } from '../map/PingLayer';
 import { Meters, PlayerBubbles, TimerOrb } from '../game/Hud';
 import { JoinForm, Lobby } from '../game/Lobby';
 import { CaseFile } from '../game/CaseFile';
@@ -194,6 +195,7 @@ export function Play({ code }: { code: string }) {
       </div>
       {picking && open && <DistrictPopover key={popKey} state={state} room={room} map={map} district={open} setDistrict={setOpen} onCard={setHoverCard} />}
       {(phase === 'reveal' || phase === 'negotiate') && <CaseFile state={state} room={room} map={map} focus={focus} setFocus={setFocus} />}
+      {phase === 'negotiate' && <PingLayer map={map} state={state} pings={room.pings} />}
       <ResultOverlay state={state} room={room} />
       <Flights map={map} state={state} />
       <Stamps map={map} state={state} />

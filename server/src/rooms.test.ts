@@ -5,7 +5,7 @@ import { authoredScenario, type PersonaId, type RoomState, type ServerMsg } from
 import { buildServer } from './app';
 import { MemoryStore } from './db/store';
 import {
-  RECONNECT_GRACE_MS, RoomError, accept, again, applyScenario, choosePersona, done, getOrCreateRoom, join, move, presence, publicState, respond, rooms, select, setBot, skip, start, tick,
+  PING_GAP_MS, RECONNECT_GRACE_MS, RoomError, accept, again, applyScenario, choosePersona, done, getOrCreateRoom, join, move, ping, presence, publicState, respond, rooms, select, setBot, skip, start, tick,
 } from './rooms';
 
 const fresh = (code = 'ABCD') => {
@@ -122,6 +122,26 @@ describe('room state machine', () => {
     expect(out.status).toBe('approved');
     expect(out.conditions).toEqual(['Public beach access corridor']);
     expect(room.city.districts['collins-mid-beach']!.features.map((f) => f.kind)).toContain('access-corridor');
+  });
+
+  it('pings: negotiation only, real areas and known reactions, rate limited, never stored', () => {
+    const room = fresh();
+    const a = join(room, 'Ana', 'mayor');
+    start(room, a, 0);
+    applyScenario(room, authoredScenario(null), 0);
+    skip(room, a, 1); // select
+    expect(() => ping(room, a, 'west-avenue', '👍', 2)).toThrow(/negotiating table/);
+    select(room, a, 'drainage-upgrade', 'west-avenue', 2);
+    skip(room, a, 3); // negotiate
+    const before = JSON.stringify(publicState(room, a, 4));
+    expect(() => ping(room, a, 'atlantis', '👍', 4)).toThrow(/area/);
+    expect(() => ping(room, a, 'west-avenue', '💣', 4)).toThrow(/reaction/);
+    expect(ping(room, a, 'west-avenue', '👍', 4)).toEqual({ seat: a.seat, district: 'west-avenue', emote: '👍', at: 4 });
+    expect(ping(room, a, 'west-avenue', '🤝', 4 + PING_GAP_MS - 1)).toBeNull();
+    expect(ping(room, a, 'south-pointe', '❓', 4 + PING_GAP_MS)).not.toBeNull();
+    // Relayed, not stored: the room's state and record are unchanged.
+    expect(JSON.stringify(publicState(room, a, 4))).toBe(before);
+    expect(JSON.stringify(room.record)).not.toContain('❓');
   });
 
   it('a phase never waits on someone who left', () => {

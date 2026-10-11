@@ -15,6 +15,20 @@ export const LOCK_GRACE_MS = 1_500;
 
 export type RoomPhase = 'lobby' | 'crisis' | 'select' | 'reveal' | 'negotiate' | 'resolve' | 'final';
 
+/**
+ * Quick reactions pinned to an area while the table negotiates. Presentation only: relayed to the
+ * room and forgotten, never stored in a record and never counted as anyone's position (rule 3).
+ */
+export const PING_EMOTES = ['👍', '👎', '🤝', '❓'] as const;
+export type PingEmote = (typeof PING_EMOTES)[number];
+export interface Ping {
+  seat: number;
+  district: string;
+  emote: PingEmote;
+  /** Server time it was sent (also tells two identical pings apart). */
+  at: number;
+}
+
 export interface RoomPlayer {
   seat: number;
   name: string;
@@ -105,9 +119,12 @@ export type ClientMsg =
   /** Negotiation: done (with or without a move). */
   | { t: 'done' }
   | { t: 'respond'; choice: string }
+  /** Negotiation only: a reaction on an area, relayed to the room (see Ping). */
+  | { t: 'ping'; district: string; emote: PingEmote }
   | { t: 'again' };
 
 export type ServerMsg =
   | { t: 'state'; state: RoomState }
   | { t: 'joined'; playerId: string; seat: number }
-  | { t: 'error'; message: string };
+  | { t: 'error'; message: string }
+  | { t: 'ping'; ping: Ping };
