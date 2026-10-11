@@ -8,6 +8,7 @@ import { GameCard } from './GameCard';
 import { STATUS_STYLE } from './format';
 import { screenPoint, useCameraTick } from '../map/MapAnchor';
 import { playReveal, playStamp } from '../ui/sound';
+import { outcomeSentence } from './Climax';
 
 interface Flight {
   key: string;
@@ -120,6 +121,15 @@ export function Stamps({ map, state }: { map: MapLibreMap | null; state: RoomSta
             >
               {PROJECTS[o.kind].marker} {STATUS_STYLE[o.status].label}{o.status === 'approved' ? '!' : ''}
             </motion.span>
+            {state.mode === 'beginner' && (
+              // Beginner Mode: the one-line reason sits on the map with the verdict, and any change that was accepted.
+              <motion.span
+                className="map-reason" style={{ left: p.x, top: Math.min(window.innerHeight - 60, p.y + 74 + n * 44) }}
+                initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 + i * 0.35 }}
+              >
+                {outcomeSentence(o).reason}{o.conditions.length ? ` · 🤝 ${o.conditions.join('; ')}` : ''}
+              </motion.span>
+            )}
             {o.status === 'approved' && main && (
               <motion.span
                 className="map-delta"

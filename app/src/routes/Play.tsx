@@ -30,6 +30,7 @@ import { ResultOverlay } from '../game/ResultOverlay';
 import { LagoonBubbles, RoundDots } from '../game/ui';
 import { CrisisProvider } from '../game/story';
 import { RoundSteps, instructionFor } from '../game/Steps';
+import { BeginnerHand, ConflictCard } from '../game/Beginner';
 import { StormFinale, stormOf, useResolveShow } from '../game/Climax';
 
 export function Legend({ overlays, setOverlays }: { overlays: Overlays; setOverlays: (o: Overlays) => void }) {
@@ -110,7 +111,9 @@ export function Play({ code }: { code: string }) {
     enqueueSpeech(`bubble:${b.id}`, b.text, b.speaker as VoiceName);
   }, [myPersona]);
 
-  const picking = phase === 'select' && !locked && me !== null;
+  const bm = state?.mode === 'beginner' && !!state.conflict;
+  // Beginner Mode: the place is the conflict's, so there is nothing to pick on the map.
+  const picking = phase === 'select' && !locked && me !== null && !bm;
   const eligible = useMemo(
     () => {
       const shown = hoverCard ?? armed;
@@ -163,16 +166,20 @@ export function Play({ code }: { code: string }) {
 
   // The camera is directed for the shared beats (the crisis, the reveal, the result) and yours to
   // drive while you choose and negotiate (Recenter brings back the overview).
-  const free = (phase === 'select' && !open) || phase === 'negotiate';
+  // Beginner Mode holds the camera on the conflict while you choose.
+  const free = (phase === 'select' && !open && !bm) || phase === 'negotiate';
   // Confirming a card flies to that area, so the card and the place are seen together.
+  const conflictArea = bm ? state.conflict!.district : null;
   const camera =
-    phase === 'select' && open ? open
+    conflictArea && (phase === 'crisis' || phase === 'select') ? conflictArea
+    : phase === 'select' && open ? open
     : phase === 'crisis' ? crisis?.spotlight[0] ?? null
       : phase === 'reveal' || phase === 'negotiate' ? focusDistrict
         : null;
   // Room for the HUD at the top, the hand at the bottom, and whatever floats beside the focused area.
   const padding =
-    phase === 'crisis' ? { top: 200, bottom: 40, left: 260, right: 80 }
+    bm && (phase === 'crisis' || phase === 'select') ? { top: 200, bottom: phase === 'select' ? 300 : 40, left: 260, right: 480 }
+    : phase === 'crisis' ? { top: 200, bottom: 40, left: 260, right: 80 }
       : phase === 'reveal' ? { top: 184, bottom: 40, left: 260, right: 470 }
         : phase === 'negotiate' ? { top: 200, bottom: 60, left: 260, right: 420 }
           : phase === 'resolve' ? { top: 184, bottom: 40, left: 260, right: 500 }
@@ -200,11 +207,11 @@ export function Play({ code }: { code: string }) {
 
   return (
     <CrisisProvider crisis={state.crisis}>
-    <main className="stage" data-quiet={quiet}>
+    <main className="stage" data-quiet={quiet} data-mode={bm ? 'beginner' : 'advanced'}>
       <section className="stage-map">
         <CityMap
           city={state.city}
-          spotlight={phase === 'final' ? [] : crisis?.spotlight ?? []}
+          spotlight={phase === 'final' ? [] : conflictArea ? [conflictArea] : crisis?.spotlight ?? []}
           target={phase === 'select' ? open ?? locked?.district ?? null : phase === 'reveal' || phase === 'negotiate' ? focusDistrict : null}
           eligible={eligible}
           overlays={overlays}
@@ -233,7 +240,7 @@ export function Play({ code }: { code: string }) {
         <div className="hud-center">
           <RoundSteps state={state} offset={room.offset} />
           {instruction && <p key={instruction} className="instruction hud-block" aria-live="polite">{instruction}</p>}
-          {phase === 'crisis' && state.crisis && (
+          {phase === 'crisis' && state.crisis && !bm && (
             <button type="button" className="story-chip hud-block" onClick={() => setNewsOpen(true)}>
               📰 {state.crisis.story ? 'Real story' : 'Scenario'}: {state.crisis.title} · <u>read it</u>
             </button>
@@ -252,10 +259,12 @@ export function Play({ code }: { code: string }) {
         {free && <button type="button" className="gel gel-icon" onClick={() => setRecenter((n) => n + 1)} title="Recenter the map">🎯</button>}
                 {layers && <Legend overlays={overlays} setOverlays={setOverlays} />}
       </div>
+      {bm && (phase === 'crisis' || phase === 'select') && <ConflictCard state={state} />}
+      {bm && <BeginnerHand state={state} room={room} />}
       {picking && open && <DistrictPopover key={popKey} state={state} room={room} map={map} district={open} setDistrict={setOpen} onCard={setHoverCard} onArm={setArmed} initialCard={armed} />}
       {(phase === 'reveal' || phase === 'negotiate') && <CaseFile state={state} room={room} map={map} focus={focus} setFocus={setFocus} />}
       {phase === 'negotiate' && <PingLayer map={map} state={state} pings={room.pings} />}
-      <HandDeck state={state} room={room} armed={armed} setArmed={setArmed} onHoverCard={setHoverCard} tucked={!!open} />
+      {!bm && <HandDeck state={state} room={room} armed={armed} setArmed={setArmed} onHoverCard={setHoverCard} tucked={!!open} />}
       <ResultOverlay state={state} room={room} hidden={show !== 'result'} />
       {phase === 'resolve' && show === 'storm' && <StormFinale state={state} onSkip={skipShow} />}
       <Flights map={map} state={state} />

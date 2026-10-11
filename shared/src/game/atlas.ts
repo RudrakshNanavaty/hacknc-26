@@ -11,7 +11,7 @@ import { CARDS, INDICATORS, PERSONA_INFO, PERSONAS, PROJECTS, START_INDICATORS, 
 import { DISTRICTS, districtById } from './districts';
 import { CRISIS_KIND_INFO, CRISIS_KINDS, type CrisisKind } from './scenario';
 import type { CompromiseKind, Outcome } from './engine';
-import { OBJECTION_RULES, type MatchRecord, type SessionKind } from './record';
+import { OBJECTION_RULES, supportsChoice, type MatchRecord, type SessionKind } from './record';
 
 // ---------- Statistics ----------
 
@@ -148,7 +148,7 @@ export function casesOf(matches: MatchRecord[], humansOnly = true): Case[] {
           if (cat === 'support') here.supportCards += 1;
           if (cat === 'opposition') here.oppositionCards += 1;
         }
-        for (const n of r.actions.filter((x) => x.proposalId === o.proposalId)) here[n.move] += 1;
+        for (const n of r.actions.filter((x) => x.proposalId === o.proposalId)) if (n.move !== 'suggest') here[n.move] += 1;
         byProposal.set(o.proposalId, here);
       }
     }
@@ -351,6 +351,7 @@ const kindName = (k: ProjectKind) => PROJECTS[k].name;
 const COMPROMISE_TITLE: Record<CompromiseKind, string> = {
   access: 'Public access guarantee',
   setback: 'Dune setback and elevated design',
+  change: 'Suggested change (Beginner Mode)',
   green: 'Eco-certification',
 };
 
@@ -392,6 +393,7 @@ export function atlasInsights(all: MatchRecord[], f: AtlasFilter = {}): AtlasIns
   for (const m of matches) {
     for (const r of m.responses) {
       if (humansOnly && r.participant !== 'human') continue;
+      if (!supportsChoice(r)) continue;
       if (r.district) prefCounts.set(r.district, (prefCounts.get(r.district) ?? 0) + 1);
     }
   }
@@ -564,6 +566,8 @@ export function atlasInsights(all: MatchRecord[], f: AtlasFilter = {}): AtlasIns
   for (const m of matches) {
     for (const r of m.responses) {
       if (humansOnly && r.participant !== 'human') continue;
+      // A Beginner "no" or "not sure" is a personal view, but not a preference for that project.
+      if (!supportsChoice(r)) continue;
       prefOf(r.kind, r.district).personal += 1;
       const proposed = m.rounds.flatMap((x) => x.proposals).filter((p) => p.seat === r.seat && !p.carried);
       const same = proposed.some((p) => p.kind === r.kind && p.district === r.district);

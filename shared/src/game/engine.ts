@@ -5,7 +5,7 @@
 //           compromises on the table)  ->  negotiation (back / oppose / fund, accept compromises)
 //           ->  resolveRound (support vs opposition, geography, funding, effects)  ->  next round.
 import {
-  CARDS, COMBOS, INDICATORS, INFLUENCE_PER_ROUND, MAX_INFLUENCE, NEGOTIATION_COST, PERSONAS, PERSONA_INFO, PROJECTS,
+  CARDS, COMBOS, INDICATORS, INFLUENCE_PER_ROUND, MAX_INFLUENCE, NEGOTIATION_COST, PERSONAS, PERSONA_INFO, PROJECTS, SUGGESTED_CHANGES, isInfluenceMove,
   START_INDICATORS, STORM_TEST, TOTAL_ROUNDS, VIABILITY_FLOOR, handFor, handOf,
   type CardId, type ComboId, type Delta, type Indicator, type Indicators, type NegotiationMove, type PersonaId, type ProjectKind,
 } from './content';
@@ -40,7 +40,8 @@ export interface Attachment {
   proposalId: string | null;
 }
 
-export type CompromiseKind = 'access' | 'setback' | 'green';
+/** 'change': a Suggest a Change offer (Beginner Mode, rules C5/O8), made in negotiation rather than by a card. */
+export type CompromiseKind = 'access' | 'setback' | 'green' | 'change';
 export interface Compromise {
   id: string;
   kind: CompromiseKind;
@@ -252,6 +253,7 @@ export function checkMove(board: Board, seat: number, influence: number, move: u
   if (move !== 'back' && move !== 'oppose' && move !== 'fund') return 'Pick back, oppose or fund.';
   const p = board.proposals.find((x) => x.id === proposalId);
   if (!p) return 'That proposal is not on the table.';
+  if (!isInfluenceMove(move)) return 'Pick back, oppose or fund.';
   const cost = NEGOTIATION_COST[move];
   if (cost > influence) return `That costs ${cost} influence; you have ${influence}.`;
   if (move === 'oppose' && p.seat === seat) return 'You cannot oppose your own proposal.';
@@ -444,6 +446,25 @@ export function resolveRound(board: Board, actions: NegotiationAction[], city: C
       } else if (n.move === 'fund') {
         covered = true;
         rules.push(log({ rule: 'N3', text: `${who} offers funding: the public cost is covered.`, seat: n.seat, proposalId: p.id }));
+      } else if (n.move === 'suggest') {
+        // Beginner Mode's Suggest a Change: the offer is on the board; its owner accepted it or not.
+        const change = SUGGESTED_CHANGES[p.kind];
+        const deal = board.compromises.find((c) => c.kind === 'change' && c.proposalId === p.id && c.offeredBy === n.seat);
+        if (deal && accepted.has(deal.id)) {
+          support += 1;
+          // The same change asked for twice is built once; each player who asked still adds their support.
+          if (conditions.includes(deal.title)) {
+            rules.push(log({ rule: 'C5', text: `Change accepted again (${change.title.toLowerCase()}): +1 support; it is built once.`, seat: n.seat, proposalId: p.id }));
+            continue;
+          }
+          addDelta(mods, change.ifBuilt);
+          conditions.push(deal.title);
+          features.push({ kind: 'eco-label', round: board.round, proposalId: p.id, label: deal.title });
+          rules.push(log({ rule: 'C5', text: `Change accepted: ${change.title.toLowerCase()}. +1 support; if built ${deltaText(change.ifBuilt)}.`, seat: n.seat, proposalId: p.id, delta: change.ifBuilt }));
+        } else {
+          opposition += 1;
+          rules.push(log({ rule: 'O8', text: `${who}'s suggested change (${change.title.toLowerCase()}) was not accepted: +1 opposition.`, seat: n.seat, proposalId: p.id }));
+        }
       }
     }
 

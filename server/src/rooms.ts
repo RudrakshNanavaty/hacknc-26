@@ -18,6 +18,8 @@ import {
   type Board, type CardId, type CityState, type Crisis, type FinalResult, type Headline, type MatchRecord, type NegotiationAction,
   type Bubble, type Ping, type PingEmote, type PersonaId, type Proposal, type Scenario, type RoomPhase, type RoomState, type RoundSummary, type SessionKind,
   SPRINT_MS, SPRINT_STORM_MS, isPace, type Pace,
+  BEGINNER_RULES_VERSION, beginnerBotMove, beginnerBotPlay, beginnerConflict, checkBeginnerMove, checkBeginnerPlay, isGameMode, suggestion,
+  type Conflict, type GameMode, type NegotiationMove,
 } from '@shared';
 
 const ROOM_TTL_MS = 3 * 60 * 60 * 1000;
@@ -65,6 +67,10 @@ export interface Room {
   hostId: string | null;
   sessionKind: SessionKind;
   pace: Pace;
+  /** Beginner or Advanced. The server default is Advanced (old clients, records and tests); the lobby opens new tables in Beginner. */
+  mode: GameMode;
+  /** Beginner Mode: this round's conflict. */
+  conflict: Conflict | null;
   touchedAt: number;
   matchId: string | null;
   record: MatchRecord | null;
@@ -100,7 +106,7 @@ export const rooms = new Map<string, Room>();
 
 export function newRoom(code: string, now = Date.now()): Room {
   return {
-    code, phase: 'lobby', round: 0, endsAt: null, players: [], hostId: null, sessionKind: 'demo', pace: 'turns', touchedAt: now,
+    code, phase: 'lobby', round: 0, endsAt: null, players: [], hostId: null, sessionKind: 'demo', pace: 'turns', mode: 'advanced', conflict: null, touchedAt: now,
     matchId: null, record: null, city: startCity(), crisis: null, scenario: null, carried: [], board: null, actions: [], history: [], resolvedRound: 0,
     headline: null, bubbles: null, final: null, effects: [],
     event: null, eventApplied: null, firedEvents: [], hints: null, hintLog: new Map(), earlyEvent: null, directorLog: [],
@@ -226,6 +232,17 @@ export function setPace(room: Room, player: Player, pace: unknown): void {
   touch(room);
 }
 
+/** Host, lobby: Beginner (one conflict a round, no influence) or Advanced (the full rules). */
+export function setMode(room: Room, player: Player, mode: unknown): void {
+  requireHost(room, player);
+  if (room.phase !== 'lobby') throw new RoomError('Set the mode before the match.');
+  if (!isGameMode(mode)) throw new RoomError('Unknown mode.');
+  room.mode = mode;
+  touch(room);
+}
+
+const beginner = (room: Room) => room.mode === 'beginner';
+
 /** A sprint's deadline for the phase just entered (turn-based: none). The last result also plays the storm. */
 function deadline(room: Room, phase: keyof typeof SPRINT_MS, now: number): number | null {
   if (room.pace !== 'sprint') return null;
@@ -255,6 +272,8 @@ export function start(room: Room, player: Player, now: number): void {
   room.round = 1;
   room.scenario = null;
   room.record.pace = room.pace;
+  room.record.mode = room.mode;
+  if (room.mode === 'beginner') room.record.rulesVersion = BEGINNER_RULES_VERSION;
   for (const p of room.players) {
     p.influence = START_INFLUENCE;
     p.responded = null;
@@ -266,6 +285,7 @@ export function start(room: Room, player: Player, now: number): void {
 function enterCrisis(room: Room, now: number): void {
   room.phase = 'crisis';
   room.crisis = room.scenario?.crises[room.round - 1] ?? null;
+  room.conflict = null;
   room.board = null;
   room.actions = [];
   if (room.round > 1) for (const p of room.players) p.influence = nextInfluence(p.influence);
@@ -289,6 +309,11 @@ function enterCrisis(room: Room, now: number): void {
 
 /** The round's crisis is on screen: headline, the characters' first lines, and this round's twist. */
 function showCrisis(room: Room, now: number): void {
+  // Beginner Mode: one conflict in one district; a story that does not fit gives way to the authored round.
+  if (beginner(room)) {
+    room.conflict = beginnerConflict(room.round, room.crisis, room.players.map((p) => p.persona));
+    room.crisis = room.conflict.crisis;
+  }
   const crisis = room.crisis!;
   room.headline = { text: crisisHeadline(crisis, room.round), source: crisis.source === 'gemini' ? 'gemini' : 'template', key: `crisis-${room.round}` };
   room.bubbles = { key: `crisis-${room.round}`, list: crisisBubbles(crisis, room.players.map((p) => p.persona)) };
@@ -375,6 +400,8 @@ export function applyDialogue(room: Room, key: string, raw: unknown[], facts: un
 /** Fresh hints from the engine; Gemini wording survives for hints that are still valid. */
 function refreshHints(room: Room): void {
   if (room.phase !== 'negotiate' || !room.board) return;
+  // Beginner Mode shows each move's effect on the table itself; influence hints do not apply.
+  if (beginner(room)) return;
   // Only players who can still act get move hints (bots and finished players are done).
   const players = room.players.map((p) => ({ seat: p.seat, persona: p.persona, influence: p.influence, moved: p.moved || p.done }));
   const list = templateHints(room.board, negotiationCandidates(room.board, room.actions, room.city, players), combosInReach(room.board));
@@ -423,7 +450,18 @@ function enterSelect(room: Room, now: number): void {
   }
   room.phase = 'select';
   room.endsAt = deadline(room, 'select', now);
-  for (const p of room.players.filter((x) => x.bot)) p.selection = botPlay(p.persona, p.influence, room.round, room.crisis ?? undefined);
+  const conflict = room.conflict;
+  if (beginner(room) && conflict) {
+    // The proposer's card is the project itself; bots pick for or against by what it does to their goals.
+    for (const p of room.players) {
+      if (p.persona === conflict.owner) p.selection = { card: conflict.card, district: conflict.district };
+      else if (p.bot) {
+        // A bot with no card that fits its agenda keeps it, and argues at the table instead.
+        const card = beginnerBotPlay(p.persona, conflict);
+        p.selection = card ? { card, district: conflict.district } : null;
+      }
+    }
+  } else for (const p of room.players.filter((x) => x.bot)) p.selection = botPlay(p.persona, p.influence, room.round, room.crisis ?? undefined);
   touch(room, now);
   maybeReveal(room, now);
 }
@@ -432,21 +470,34 @@ function enterSelect(room: Room, now: number): void {
 export function select(room: Room, player: Player, card: unknown, district: unknown, now: number): void {
   if (room.phase !== 'select') throw new RoomError('Cards are played in the selection phase.');
   if (player.selection) throw new RoomError('Your card is already locked in.');
-  const problem = checkPlay(player.persona, player.influence, card, district, room.round, room.crisis);
-  if (problem) throw new RoomError(problem);
-  player.selection = { card: card as CardId, district: String(district) };
+  if (beginner(room) && room.conflict) {
+    // Beginner Mode: every card goes to the conflict's district.
+    const problem = checkBeginnerPlay(player.persona, card, room.conflict);
+    if (problem) throw new RoomError(problem);
+    player.selection = { card: card as CardId, district: room.conflict.district };
+  } else {
+    const problem = checkPlay(player.persona, player.influence, card, district, room.round, room.crisis);
+    if (problem) throw new RoomError(problem);
+    player.selection = { card: card as CardId, district: String(district) };
+  }
   touch(room, now);
   maybeReveal(room, now);
 }
 
 function maybeReveal(room: Room, now: number): void {
   const here = present(room, now);
-  if (room.phase === 'select' && here.length && here.every((p) => p.selection || (p.bot && botPlay(p.persona, p.influence, room.round, room.crisis ?? undefined) === null))) enterReveal(room, now);
+  const passed = (p: Player) => p.bot && (beginner(room) ? !p.selection : botPlay(p.persona, p.influence, room.round, room.crisis ?? undefined) === null);
+  if (room.phase === 'select' && here.length && here.every((p) => p.selection || passed(p))) enterReveal(room, now);
 }
 
 function enterReveal(room: Room, now: number): void {
   const plays = room.players.flatMap((p) => {
     if (!p.selection) return [];
+    if (beginner(room) && room.conflict) {
+      // No influence in Beginner Mode: the card only has to be one of the round's.
+      if (checkBeginnerPlay(p.persona, p.selection.card, room.conflict)) return [];
+      return [{ seat: p.seat, persona: p.persona, card: p.selection.card, district: room.conflict.district }];
+    }
     // Re-checked at reveal: influence cannot have changed, but the rule is the rule.
     if (checkPlay(p.persona, p.influence, p.selection.card, p.selection.district, room.round, room.crisis)) return [];
     p.influence -= CARDS[p.selection.card].cost;
@@ -472,6 +523,13 @@ function enterNegotiate(room: Room, now: number): void {
     p.moved = false;
     p.done = p.bot;
   }
+  // Beginner Mode: bots make their one table move first (back what helps them, oppose what hurts, else ask for a change).
+  if (beginner(room) && room.conflict) {
+    for (const p of room.players.filter((x) => x.bot)) {
+      const m = beginnerBotMove(p.persona, p.seat, room.board, room.conflict);
+      if (m) applyMove(room, p, m.move, m.proposalId);
+    }
+  }
   // Bots take the compromise offered to them: a deal beats a fight.
   for (const c of room.board.compromises) if (room.players[c.owner]?.bot) c.accepted = true;
   const key = `negotiate-${room.round}`;
@@ -482,16 +540,33 @@ function enterNegotiate(room: Room, now: number): void {
   maybeResolve(room, now);
 }
 
-/** Negotiation: back, oppose or fund one proposal (one move per round). */
+/** Records one table move. Suggest a Change also puts its condition on the board for the owner to accept. */
+function applyMove(room: Room, player: Player, m: NegotiationMove, proposalId: string): void {
+  const board = room.board!;
+  if (m === 'suggest') {
+    const c = suggestion(board, proposalId, player.seat);
+    c.accepted = !!room.players[c.owner]?.bot; // bots take the deal, as with any other compromise
+    board.compromises.push(c);
+  }
+  player.moved = true;
+  room.actions.push({ seat: player.seat, persona: player.persona, move: m, proposalId });
+}
+
+/** Negotiation: one move a round. Advanced: back, oppose or fund, paid in influence. Beginner: support, oppose or suggest a change, free. */
 export function move(room: Room, player: Player, mv: unknown, proposalId: unknown, now: number): void {
   if (room.phase !== 'negotiate' || !room.board) throw new RoomError('Moves are made during negotiation.');
   if (player.moved) throw new RoomError('You already made your move this round.');
-  const problem = checkMove(room.board, player.seat, player.influence, mv, proposalId);
-  if (problem) throw new RoomError(problem);
-  const m = mv as keyof typeof NEGOTIATION_COST;
-  player.influence -= NEGOTIATION_COST[m];
-  player.moved = true;
-  room.actions.push({ seat: player.seat, persona: player.persona, move: m, proposalId: String(proposalId) });
+  if (beginner(room)) {
+    const problem = checkBeginnerMove(room.board, player.seat, mv, proposalId);
+    if (problem) throw new RoomError(problem);
+    applyMove(room, player, mv as NegotiationMove, String(proposalId));
+  } else {
+    const problem = checkMove(room.board, player.seat, player.influence, mv, proposalId);
+    if (problem) throw new RoomError(problem);
+    const m = mv as keyof typeof NEGOTIATION_COST;
+    player.influence -= NEGOTIATION_COST[m];
+    applyMove(room, player, m, String(proposalId));
+  }
   refreshHints(room);
   touch(room, now);
 }
@@ -638,17 +713,20 @@ function advance(room: Room, now: number): boolean {
 }
 
 /** "Outside your assigned character, which proposal would you personally support?" */
-export function respond(room: Room, player: Player, choice: unknown, now: number): void {
+export function respond(room: Room, player: Player, choice: unknown, now: number, stance?: unknown): void {
   if (room.phase !== 'final' || !room.record) throw new RoomError('The question comes at the end of the match.');
   const id = String(choice ?? '');
   const proposal = room.history.flatMap((h) => h.board.proposals).find((p) => p.id === id);
   if (id !== 'none' && !proposal) throw new RoomError('Pick one of this match\'s proposals, or none.');
+  if (stance !== undefined && stance !== 'yes' && stance !== 'no' && stance !== 'unsure') throw new RoomError('Answer yes, no or not sure.');
+  if (stance !== undefined && !proposal) throw new RoomError('That question is about one of this match\'s decisions.');
   if (proposal) districtById(proposal.district); // known place
   player.responded = id;
   room.record.responses = room.record.responses.filter((r) => r.seat !== player.seat);
   room.record.responses.push({
     seat: player.seat, persona: player.persona, participant: 'human', choice: id, kind: proposal?.kind ?? null,
     district: proposal?.district ?? null, at: new Date(now).toISOString(),
+    ...(stance !== undefined ? { stance: stance as 'yes' | 'no' | 'unsure' } : {}),
   });
   room.effects.push({ t: 'record' });
   touch(room, now);
@@ -718,6 +796,8 @@ export function publicState(room: Room, viewer: Player | null, now: number): Roo
     hostSeat: hostSeat(room),
     sessionKind: room.sessionKind,
     pace: room.pace,
+    mode: room.mode,
+    conflict: room.conflict,
     matchId: room.matchId,
     players: room.players.map((p) => ({
       seat: p.seat, name: p.name, persona: p.persona, connected: p.bot || p.connected, bot: p.bot, influence: p.influence,

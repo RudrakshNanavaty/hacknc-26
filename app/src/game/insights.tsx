@@ -103,7 +103,7 @@ export function Hints({ hints, state, room }: { hints: TableHint[]; state: RoomS
                 type="button" className="gel gel-lime gel-sm"
                 onClick={() => (h.kind === 'accept' && h.compromiseId ? room.accept(h.compromiseId) : h.move && h.move !== 'accept' ? room.move(h.move, h.proposalId) : undefined)}
               >
-                {h.kind === 'accept' ? '🤝 Accept deal' : h.move && h.move !== 'accept' ? `${MOVE_WORDS[h.move]} · ${NEGOTIATION_COST[h.move]}` : ''}
+                {h.kind === 'accept' ? '🤝 Accept deal' : h.move && h.move !== 'accept' ? `${MOVE_WORDS[h.move]}${h.move === 'suggest' ? '' : ` · ${NEGOTIATION_COST[h.move]}`}` : ''}
               </button>
             )}
             <button type="button" className="hint-x" aria-label="Dismiss hint" onClick={() => setHidden([...hidden, h.id])}>✕</button>

@@ -16,6 +16,7 @@ import { STATUS_STYLE } from './format';
 import { ReadyBar } from './Turn';
 import { EvidenceStrip, SourceChips, Verification } from './story';
 import { outcomeSentence, stormOf } from './Climax';
+import { BeginnerFinal } from './Beginner';
 import { plainText } from './format';
 
 const placeName = (id: string) => districtById(id).name;
@@ -155,7 +156,7 @@ export function ResultOverlay({ state, room, hidden = false }: { state: RoomStat
   if (state.phase === 'final') {
     return (
       <div className="final-scrim">
-        <section className="float-card final-float flex flex-col gap-3" aria-label="Match result"><FinalScreen state={state} room={room} /></section>
+        <section className="float-card final-float flex flex-col gap-3" aria-label="Match result">{state.mode === 'beginner' ? <BeginnerFinal state={state} room={room} /> : <FinalScreen state={state} room={room} />}</section>
       </div>
     );
   }

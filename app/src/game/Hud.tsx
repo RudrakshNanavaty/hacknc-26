@@ -31,6 +31,9 @@ export function Meters({ state }: { state: RoomState }) {
   const [open, setOpen] = useState(false);
   // A budget crunch lands on the money meter itself.
   const crunch = state.phase === 'crisis' && state.crisis?.kind === 'budget';
+  // Beginner Mode settles money on its own: it lives in the drawer, and the round's bill is not shown.
+  const beginner = state.mode === 'beginner';
+  const drawer: Indicator[] = beginner ? [...DRAWER, 'budget'] : DRAWER;
   const risky = DRAWER.filter((k) => v[k] < VIABILITY_FLOOR + NEAR);
   const tube = (k: Indicator, label: string, extra = '') => {
     // Money is low when it could not pay for the cheapest public project left ($3M); the others at the viability floor.
@@ -50,19 +53,19 @@ export function Meters({ state }: { state: RoomState }) {
         {tube('flood', 'Flood safety', 'tube-big')}
         <span className="storm-mark" style={{ left: `calc(12px + (100% - 24px) * ${STORM_TEST.threshold / 100})` }} title={`The storm after round ${state.totalRounds} needs ${STORM_TEST.threshold}`} />
       </div>
-      {tube('budget', 'City money', 'tube-big')}
+      {!beginner && tube('budget', 'City money', 'tube-big')}
       <div className="city-drawer">
         <button type="button" className={`gel gel-sm city-btn ${risky.length ? 'gel-coral' : ''}`} onClick={() => setOpen(!open)} aria-expanded={open}>
           🏙️ City {risky.length ? `⚠️ ${PLAIN[risky[0]!]} ${v[risky[0]!]}` : ''} <span aria-hidden>{open ? '▴' : '▾'}</span>
         </button>
         {open && (
           <div className="float-card city-pop">
-            {DRAWER.map((k) => tube(k, PLAIN[k].replace(/^./, (c) => c.toUpperCase())))}
+            {drawer.map((k) => tube(k, PLAIN[k].replace(/^./, (c) => c.toUpperCase())))}
             <p className="text-[12px] font-bold opacity-80">If any of these ends below {VIABILITY_FLOOR}, every positive score is halved.</p>
           </div>
         )}
       </div>
-      <Bill state={state} />
+      {!beginner && <Bill state={state} />}
     </div>
   );
 }
@@ -80,7 +83,7 @@ export function PlayerBubbles({ state }: { state: RoomState }) {
             <span className="who min-w-0">
               <span className="vr block truncate text-15 leading-tight">{p.name}{you ? ' (you)' : ''}</span>
               <span className="block text-[11px] leading-tight opacity-75">{you ? `🎯 ${GOAL_SHORT[p.persona]}` : info.name}</span>
-              <Pips n={p.influence} />
+              {state.mode !== 'beginner' && <Pips n={p.influence} />}
             </span>
             {waiting && <span className={`ready-tick ${p.ready ? 'on' : ''}`}>{p.ready ? '✓' : '…'}</span>}
           </div>

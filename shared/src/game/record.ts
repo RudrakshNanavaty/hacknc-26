@@ -1,7 +1,7 @@
 // The planning-feedback record a match leaves behind, and what Civic Atlas computes from them.
 // Role-play choices and personal preferences are kept apart, and so are demo sessions, bots and
 // community sessions: role-play is not public opinion.
-import { CARDS, INDICATORS, PERSONA_INFO, PROJECTS, RULES_VERSION, START_INDICATORS, type CardId, type ComboId, type Indicators, type PersonaId, type ProjectKind } from './content';
+import { BEGINNER_RULES_VERSION, CARDS, INDICATORS, PERSONA_INFO, PROJECTS, RULES_VERSION, START_INDICATORS, type CardId, type ComboId, type Indicators, type PersonaId, type ProjectKind } from './content';
 import { applyDirectorEvent, type AcceptedEvent, type TableHint } from './director';
 import { DATA_SOURCES, DATA_VERSION, DISTRICTS, districtById, type DataSource } from './districts';
 import type { Crisis, LiveConditions } from './scenario';
@@ -76,7 +76,15 @@ export interface PreferenceResponse {
   kind: ProjectKind | null;
   district: string | null;
   at: string;
+  /**
+   * Beginner Mode asks about one real decision of the match (`choice`), yes / no / not sure. Absent on the
+   * Advanced question, where picking a proposal means supporting it. Only 'yes' (or absent) counts as support.
+   */
+  stance?: 'yes' | 'no' | 'unsure';
 }
+
+/** Does this personal answer say the person would support the proposal it names? */
+export const supportsChoice = (r: PreferenceResponse) => r.stance === undefined || r.stance === 'yes';
 
 export interface MatchRecord {
   id: string;
@@ -100,6 +108,8 @@ export interface MatchRecord {
   live?: LiveConditions | null;
   /** Turn-based or sprint (absent on records made before sprints existed: turn-based). */
   pace?: 'turns' | 'sprint';
+  /** Beginner or Advanced (absent: Advanced). Beginner records carry BEGINNER_RULES_VERSION. */
+  mode?: 'beginner' | 'advanced';
 }
 
 export const SCENARIO_ID = 'miami-beach-coastal-2026';
@@ -132,8 +142,9 @@ const sameIndicators = (a: Indicators, b: Indicators | undefined) => !!b && INDI
  * the same record always gives the same city.
  */
 export function replayMatch(m: MatchRecord): Replay {
-  if (m.rulesVersion !== RULES_VERSION) {
-    return { comparable: false, reason: `Recorded under ${m.rulesVersion}; this engine runs ${RULES_VERSION}.`, rounds: [], final: m.final, matches: false, mismatches: [] };
+  // Beginner Mode runs the same engine (its own moves are rules C5/O8), so both versions replay.
+  if (m.rulesVersion !== RULES_VERSION && m.rulesVersion !== BEGINNER_RULES_VERSION) {
+    return { comparable: false, reason: `Recorded under ${m.rulesVersion}; this engine runs ${RULES_VERSION} and ${BEGINNER_RULES_VERSION}.`, rounds: [], final: m.final, matches: false, mismatches: [] };
   }
   let city = startCity();
   const rounds: Resolution[] = [];
@@ -295,6 +306,8 @@ export function studioSummary(all: MatchRecord[], f: StudioFilter = {}): StudioS
     }
     for (const resp of m.responses) {
       if (humansOnly && resp.participant !== 'human') continue;
+      // A "no" or "not sure" is not a preference for that project.
+      if (!supportsChoice(resp)) continue;
       responses += 1;
       const p = pref(resp.kind, resp.district);
       p.personal += 1;
@@ -389,6 +402,8 @@ export const CSV_COLUMNS = [
   'card', 'project', 'proposal_id', 'district_id', 'district_name', 'planning_district', 'lon', 'lat', 'status',
   'support', 'opposition', 'conditions', 'rule_ids', 'zoning_object_ids', 'flood_zone_object_ids', 'source_layers',
   'event_type', 'event_source', 'fictional', 'effect',
+  // Personal answers only: yes / no / unsure (Beginner Mode's question), or yes for a picked proposal, none for "none".
+  'stance',
 ] as const;
 
 /** One row per decision: each card played, each negotiation move, each outcome and each personal preference. */
@@ -433,7 +448,7 @@ export function toCsv(matches: MatchRecord[]): string {
         });
       }
     }
-    for (const resp of m.responses) push({ ...base('', 'personal_preference', resp.seat, resp.district), project: resp.kind ?? 'none', proposal_id: resp.choice, participant: resp.participant });
+    for (const resp of m.responses) push({ ...base('', 'personal_preference', resp.seat, resp.district), project: resp.kind ?? 'none', proposal_id: resp.choice, participant: resp.participant, stance: resp.stance ?? (resp.choice === 'none' ? 'none' : 'yes') });
   }
   return rows.map((r) => r.join(',')).join('\n') + '\n';
 }
@@ -471,7 +486,7 @@ export function toGeoJson(matches: MatchRecord[]) {
       });
     }
     for (const resp of m.responses) {
-      if (!resp.district) continue;
+      if (!resp.district || !supportsChoice(resp)) continue;
       const d = districtById(resp.district);
       features.push({
         type: 'Feature' as const,

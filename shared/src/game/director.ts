@@ -417,7 +417,7 @@ export interface TableHint {
 }
 
 const STATUS_WORD: Record<OutcomeStatus, string> = { approved: 'approved', blocked: 'blocked', rejected: 'voted down', delayed: 'delayed', unfunded: 'unfunded' };
-const MOVE_WORD: Record<NegotiationMove, string> = { back: 'backing', oppose: 'opposing', fund: 'funding' };
+const MOVE_WORD: Record<NegotiationMove, string> = { back: 'backing', oppose: 'opposing', fund: 'funding', suggest: 'asking for a change in' };
 export const HINTS_MAX = 4;
 
 /** Deterministic hints: the moves that flip an outcome, then the combos in reach. */
@@ -431,7 +431,7 @@ export function templateHints(board: Board, candidates: MoveCandidate[], reach: 
     id: `h-${c.id}-${c.from}-${c.to}`, kind: c.kind, proposalId: c.proposalId, seat: c.seat, move: c.move, compromiseId: c.compromiseId, combo: null, source: 'template',
     text: c.kind === 'accept'
       ? `If the ${PERSONA_INFO[c.persona].name} accepts "${board.compromises.find((x) => x.id === c.compromiseId)!.title}", ${label(c.proposalId)} goes from ${STATUS_WORD[c.from]} to ${STATUS_WORD[c.to]}.`
-      : `The ${PERSONA_INFO[c.persona].name} ${MOVE_WORD[c.move as NegotiationMove]} it (${NEGOTIATION_COST[c.move as NegotiationMove]} influence) turns ${label(c.proposalId)} from ${STATUS_WORD[c.from]} to ${STATUS_WORD[c.to]}.`,
+      : `The ${PERSONA_INFO[c.persona].name} ${MOVE_WORD[c.move as NegotiationMove]} it (${c.move === 'suggest' ? 0 : NEGOTIATION_COST[c.move as Exclude<NegotiationMove, 'suggest'>]} influence) turns ${label(c.proposalId)} from ${STATUS_WORD[c.from]} to ${STATUS_WORD[c.to]}.`,
   }));
   const combos: TableHint[] = reach.map((r) => ({
     id: `h-combo-${r.combo}-${r.proposalIds.join('+')}`, kind: 'combo', proposalId: r.proposalIds[0]!, seat: null, move: null, compromiseId: null, combo: r.combo, source: 'template',
@@ -457,6 +457,7 @@ const MOVE_VERBS: Record<NegotiationMove | 'accept', RegExp> = {
   back: /\b(back\w*|support\w*|vote for|yes)\b/i,
   oppose: /\b(oppos\w*|against|block\w*|vote (?:it )?down|no)\b/i,
   fund: /\b(fund\w*|pay\w*|cover\w*|money|cash|budget)\b/i,
+  suggest: /\b(chang\w*|suggest\w*|condition\w*|tweak\w*)\b/i,
   accept: /\b(accept\w*|take|takes|taking|deal|agree\w*|sign\w*|yes)\b/i,
 };
 

@@ -1,6 +1,6 @@
 // The lobby: join as a stakeholder, see who is in, and (host) fill seats with bots, pick the session
 // type, then start.
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { PERSONAS, PERSONA_INFO, SPRINT_MS, handOf, type PersonaId, type RoomState } from '@shared';
 import { Invite } from '../room/Invite';
 import type { Room } from '../room/useRoom';
@@ -101,9 +101,27 @@ export function HowToPlay() {
 
 const ROUND_S = Object.values(SPRINT_MS).reduce((a, b) => a + b, 0) / 1000;
 
+/** A table opens in Beginner Mode: the host's lobby sets it once per room (Advanced is one click away). */
+function useBeginnerByDefault(state: RoomState, room: Room, host: boolean) {
+  useEffect(() => {
+    if (!host || state.phase !== 'lobby') return;
+    const key = `coastal-clash.mode-set.${state.code}`;
+    try {
+      if (sessionStorage.getItem(key)) return;
+      sessionStorage.setItem(key, '1');
+    } catch {
+      // No storage: still default once for this page.
+    }
+    if (state.mode !== 'beginner') room.mode('beginner');
+    // Once per room.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [host, state.code]);
+}
+
 export function Lobby({ state, room }: { state: RoomState; room: Room }) {
   const me = state.you;
   const host = me !== null && me === state.hostSeat;
+  useBeginnerByDefault(state, room, host);
   const taken = new Map(state.players.map((p) => [p.persona, p]));
   return (
     <div className="flex w-full max-w-5xl flex-col gap-4 lg:flex-row">
@@ -135,6 +153,16 @@ export function Lobby({ state, room }: { state: RoomState; room: Room }) {
         {host ? (
           <div className="flex flex-col gap-3">
             <div className="flex flex-wrap items-center gap-2">
+              <span className="text-15 font-bold">Mode</span>
+              <button type="button" className="aero-btn !py-1 text-15" aria-pressed={state.mode === 'beginner'} onClick={() => room.mode('beginner')}>🌱 Beginner (recommended)</button>
+              <button type="button" className="aero-btn !py-1 text-15" aria-pressed={state.mode === 'advanced'} onClick={() => room.mode('advanced')}>Advanced</button>
+            </div>
+            <p className="text-15 opacity-85">
+              {state.mode === 'beginner'
+                ? 'Beginner: one decision a round in one place, 2–3 cards each, no points to count. Support, oppose or suggest a change. You end with a city plan.'
+                : 'Advanced: every card, influence costs, deals, combos and the full game score.'}
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
               <span className="text-13 font-bold">Session</span>
               {(['demo', 'community'] as const).map((k) => (
                 <button key={k} type="button" className="aero-btn !py-1 text-13" aria-pressed={state.sessionKind === k} onClick={() => room.session(k)}>
@@ -162,7 +190,7 @@ export function Lobby({ state, room }: { state: RoomState; room: Room }) {
             </button>
           </div>
         ) : (
-          <p className="text-15">Waiting for the host to start ({state.pace === 'sprint' ? `sprint: about ${ROUND_S} s a round` : 'turn by turn, no clock'}). Empty seats can be filled by bots.</p>
+          <p className="text-15">{state.mode === 'beginner' ? '🌱 Beginner Mode. ' : 'Advanced Mode. '}Waiting for the host to start ({state.pace === 'sprint' ? `sprint: about ${ROUND_S} s a round` : 'turn by turn, no clock'}). Empty seats can be filled by bots.</p>
         )}
         <HowToPlay />
       </section>

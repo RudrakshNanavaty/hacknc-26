@@ -6,7 +6,7 @@
 import { PROJECTS, checkMove, type Board, type NegotiationMove, type Outcome } from '@shared';
 
 /** The words for a move, wherever the table names one (the case file, hints). */
-export const MOVE_WORDS: Record<NegotiationMove, string> = { back: '👍 Support', oppose: '👎 Oppose', fund: '💲 Pay for it' };
+export const MOVE_WORDS: Record<NegotiationMove, string> = { back: '👍 Support', oppose: '👎 Oppose', fund: '💲 Pay for it', suggest: '💡 Suggest a Change' };
 export const MOVES: readonly NegotiationMove[] = ['back', 'oppose', 'fund'];
 
 /** Why a move cannot be played on this proposal right now, or null. */

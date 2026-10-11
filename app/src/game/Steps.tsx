@@ -69,6 +69,24 @@ export interface LocalUi {
 /** The one instruction for this moment (12 words or fewer). */
 export function instructionFor(state: RoomState, ui: LocalUi): string {
   const me = state.players.find((p) => p.seat === state.you);
+  const c = state.conflict;
+  if (state.mode === 'beginner' && c) {
+    const mine = me?.persona === c.owner;
+    switch (state.phase) {
+      case 'crisis': return mine ? 'You propose a project. Read it, then go on.' : 'One decision this round. Read it, then go on.';
+      case 'select':
+        if (mine) return 'Your project is on the table. The others answer it.';
+        return state.mine?.selection ? '🔒 Played. Waiting for the others…' : '👇 Pick one card to answer it.';
+      case 'reveal': return "👀 Here's what everyone played.";
+      case 'negotiate':
+        if (me?.ready) return '✓ Done. Waiting for the others…';
+        if (ui.offered) return '🤝 Someone asks for a change. Accept it?';
+        if (ui.moved) return 'Move made. Press Done.';
+        return ui.own ? 'Your project: back it, or wait for changes.' : 'Support it, oppose it, or suggest a change?';
+      case 'resolve': return state.round >= state.totalRounds ? "🌀 Here's what happened, and the storm." : "Here's what happened.";
+      default: return '';
+    }
+  }
   switch (state.phase) {
     case 'crisis':
       return state.crisis ? CRISIS_LINE[state.crisis.kind] : 'Checking the tide and the weather in Miami Beach…';

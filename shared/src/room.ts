@@ -7,6 +7,7 @@ import type { Board, CityState, FinalResult, NegotiationAction, Resolution } fro
 import type { AcceptedEvent, TableHint } from './game/director';
 import type { Bubble } from './game/living';
 import type { SessionKind } from './game/record';
+import type { Conflict, GameMode } from './game/beginner';
 
 export const MAX_PLAYERS = 4;
 
@@ -91,6 +92,10 @@ export interface RoomState {
    */
   endsAt: number | null;
   pace: Pace;
+  /** Beginner (one conflict a round, no influence) or Advanced (the full rules). */
+  mode: GameMode;
+  /** Beginner Mode: this round's conflict (null in Advanced, and before the crisis is written). */
+  conflict: Conflict | null;
   serverNow: number;
   you: number | null;
   hostSeat: number;
@@ -137,6 +142,8 @@ export type ClientMsg =
   | { t: 'session'; kind: SessionKind }
   /** Host, lobby: turn-based or sprint. */
   | { t: 'pace'; pace: Pace }
+  /** Host, lobby: Beginner or Advanced. */
+  | { t: 'mode'; mode: GameMode }
   | { t: 'start' }
   /** Host: move on without waiting for whoever is not ready. */
   | { t: 'skip' }
@@ -145,7 +152,8 @@ export type ClientMsg =
   | { t: 'accept'; compromiseId: string }
   /** Negotiation: done (with or without a move). */
   | { t: 'done' }
-  | { t: 'respond'; choice: string }
+  /** The optional personal question. Beginner Mode adds a stance on one real decision. */
+  | { t: 'respond'; choice: string; stance?: 'yes' | 'no' | 'unsure' }
   /** Negotiation only: a reaction on an area, relayed to the room (see Ping). */
   | { t: 'ping'; district: string; emote: PingEmote }
   | { t: 'again' };

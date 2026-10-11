@@ -59,6 +59,8 @@ shared/src/                 Pure TypeScript, no I/O. Imported as '@shared' by ap
   game/districts.ts         playable areas (real data) and where each card may go
   game/engine.ts            buildBoard -> resolveRound -> finalResult, dealtHand, checkPlay, bots   [contract]
   game/story.ts             CivicStory, StoryCast, validateCast, pickStories, storyCrisis, cardName  [contract]
+  game/beginner.ts          Beginner Mode (BEGINNER_RULES_VERSION): one conflict a round, 2-3 cards, Support / Oppose / Suggest a
+                            Change (engine rules C5/O8), bot agendas, the end-of-match goals and the personal question
   game/simple.ts            every card in plain words (does, good, bad, city money) for first-time players; pinned to the rules by simple.test.ts
   game/scenario.ts          crisis kinds and their authored K1 bonus, live readings, the authored scenario, checkScenario
   game/narrate.ts           template headlines + the facts handed to Gemini

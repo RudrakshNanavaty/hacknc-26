@@ -7,8 +7,9 @@
 import { useEffect, useMemo } from 'react';
 import type { Map as MapLibreMap } from 'maplibre-gl';
 import {
-  CARDS, NEGOTIATION_COST, PERSONA_INFO, PING_EMOTES, PROJECTS, cardName, districtById, resolveRound,
-  type Attachment, type Board, type NegotiationAction, type NegotiationMove, type Outcome, type OutcomeStatus, type Proposal, type RoomState,
+  CARDS, NEGOTIATION_COST, PERSONA_INFO, PING_EMOTES, PROJECTS, SUGGESTED_CHANGES, cardName, checkBeginnerMove, districtById, resolveRound, suggestion,
+  type BeginnerMove,
+  type Attachment, type Board, type InfluenceMove, type NegotiationAction, type Outcome, type OutcomeStatus, type Proposal, type RoomState,
 } from '@shared';
 import type { Room } from '../room/useRoom';
 import { MapAnchor } from '../map/MapAnchor';
@@ -53,6 +54,8 @@ interface Action {
   cost: number;
   effect: string;
   after: Outcome | undefined;
+  /** Suggest a Change: the outcome if the owner does not accept. */
+  afterNo?: Outcome | undefined;
   run: () => void;
 }
 
@@ -84,6 +87,7 @@ export function CaseFile({ state, room, map, focus, setFocus }: { state: RoomSta
   const moves = state.actions.filter((a) => a.proposalId === p.id);
   const owner = PERSONA_INFO[p.persona];
   const moved = !!state.mine?.moved;
+  const beginnerMode = state.mode === 'beginner';
   const likely = LIKELY[o.status];
   const hints = negotiating ? state.hints?.list ?? [] : [];
 
@@ -95,10 +99,36 @@ export function CaseFile({ state, room, map, focus, setFocus }: { state: RoomSta
   const actions: Action[] = [];
   if (negotiating && me && !done) {
     for (const c of board.compromises.filter((x) => x.proposalId === p.id && x.owner === me.seat && !x.accepted)) {
-      actions.push({ key: c.id, label: `🤝 Accept deal: ${c.title}`, cost: 0, effect: `Offered by ${who(state, c.offeredBy)?.name}`, after: outcomeWith(null, c.id), run: () => room.accept(c.id) });
+      actions.push({
+        key: c.id, label: c.kind === 'change' ? `🤝 Accept the change: ${c.title}` : `🤝 Accept deal: ${c.title}`, cost: 0,
+        effect: c.kind === 'change' ? `${who(state, c.offeredBy)?.name} asks. If you do not accept it counts as +1 against` : `Offered by ${who(state, c.offeredBy)?.name}`,
+        after: outcomeWith(null, c.id), run: () => room.accept(c.id),
+      });
     }
-    if (!moved) {
-      const MOVES: { move: NegotiationMove; label: string; effect: string }[] = [
+    if (!moved && beginnerMode) {
+      // Beginner Mode: three free moves, each previewed by the engine with it on the table.
+      const change = SUGGESTED_CHANGES[p.kind];
+      const wanted = suggestion(board, p.id, me.seat);
+      const withChange = (acceptedIt: boolean) => {
+        const b: Board = { ...board, compromises: [...board.compromises, { ...wanted, accepted: acceptedIt }] };
+        return resolveRound(b, [...state.actions, { seat: me.seat, persona: me.persona, move: 'suggest', proposalId: p.id }], state.city).outcomes.find((x) => x.proposalId === p.id);
+      };
+      const B: { move: BeginnerMove; label: string; effect: string }[] = [
+        { move: 'back', label: '👍 Support', effect: '+1 for' },
+        { move: 'oppose', label: '👎 Oppose', effect: '+1 against' },
+        { move: 'suggest', label: `💡 Suggest a change: ${change.title}`, effect: 'If they accept: +1 for, and the change is built in. If not: +1 against' },
+      ];
+      for (const m of B) {
+        if (checkBeginnerMove(board, me.seat, m.move, p.id)) continue;
+        actions.push({
+          key: m.move, label: m.label, cost: 0, effect: m.effect,
+          after: m.move === 'suggest' ? withChange(true) : outcomeWith({ seat: me.seat, persona: me.persona, move: m.move, proposalId: p.id }, null),
+          afterNo: m.move === 'suggest' ? withChange(false) : undefined,
+          run: () => room.move(m.move, p.id),
+        });
+      }
+    } else if (!moved) {
+      const MOVES: { move: InfluenceMove; label: string; effect: string }[] = [
         { move: 'back', label: '👍 Support', effect: '+1 support' },
         { move: 'oppose', label: '👎 Oppose', effect: '+1 opposition' },
         { move: 'fund', label: '💲 Pay for it', effect: `You cover its $${PROJECTS[p.kind].budgetCost}M bill, not the city` },
@@ -149,15 +179,15 @@ export function CaseFile({ state, room, map, focus, setFocus }: { state: RoomSta
           <button key={a.key} type="button" className="act-row" onClick={a.run}>
             <span className="act-main">
               <b>{a.label}</b>
-              <small>{a.effect}{a.after ? ` → ${afterText(a.after)}` : ''}</small>
+              <small>{a.effect}{a.afterNo ? ` → accepted: ${afterText(a.after)}; not: ${afterText(a.afterNo)}` : a.after ? ` → ${afterText(a.after)}` : ''}</small>
             </span>
-            {a.cost > 0 ? <span className="cost-dot" title={`${a.cost} influence`}>{a.cost}</span> : <span className="act-free">free</span>}
+            {beginnerMode ? null : a.cost > 0 ? <span className="cost-dot" title={`${a.cost} influence`}>{a.cost}</span> : <span className="act-free">free</span>}
           </button>
         ))}
         {negotiating && me && !done && (
           <>
             {!moved && actions.length === 0 && <p className="text-13 font-bold opacity-80">No move you can afford here. You can still finish.</p>}
-            <button type="button" className={`gel ${moved ? 'gel-lime gel-big' : ''}`} onClick={room.done}>{moved ? 'Done ▶' : 'Pass: keep my influence'}</button>
+            <button type="button" className={`gel ${moved ? 'gel-lime gel-big' : ''}`} onClick={room.done}>{moved ? 'Done ▶' : beginnerMode ? 'Skip my move' : 'Pass: keep my influence'}</button>
           </>
         )}
         <IfItPasses state={state} p={p} o={o} />

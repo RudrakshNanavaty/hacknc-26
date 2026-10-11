@@ -1,11 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { AddressInfo } from 'node:net';
 import WebSocket from 'ws';
-import { SPRINT_MS, SPRINT_STORM_MS, authoredScenario, type PersonaId, type RoomState, type ServerMsg } from '@shared';
+import { BEGINNER_RULES_VERSION, SPRINT_MS, SPRINT_STORM_MS, START_INDICATORS, authoredScenario, beginnerEnd, beginnerHand, keyDecision, replayMatch, type PersonaId, type RoomState, type ServerMsg } from '@shared';
 import { buildServer } from './app';
 import { MemoryStore } from './db/store';
 import {
-  PING_GAP_MS, RECONNECT_GRACE_MS, RoomError, accept, again, applyScenario, choosePersona, done, getOrCreateRoom, join, move, ping, presence, publicState, respond, rooms, select, setBot, setPace, skip, start, tick,
+  PING_GAP_MS, RECONNECT_GRACE_MS, RoomError, accept, again, applyScenario, choosePersona, done, getOrCreateRoom, join, move, ping, presence, publicState, respond, rooms, select, setBot, setMode, setPace, skip, start, tick,
 } from './rooms';
 
 const fresh = (code = 'ABCD') => {
@@ -432,4 +432,112 @@ describe('four browsers over WebSockets', () => {
 
     for (const x of [mayor, activist, resort, again1]) x.ws.close();
   }, 20_000);
+});
+
+describe('Beginner Mode rooms', () => {
+  const table = (code: string, human: PersonaId = 'resident') => {
+    const room = fresh(code);
+    const h = join(room, 'Ana', human);
+    setMode(room, h, 'beginner');
+    for (const p of (['mayor', 'activist', 'resort', 'resident'] as PersonaId[]).filter((x) => x !== human)) setBot(room, h, p, true);
+    start(room, h, 0);
+    applyScenario(room, authoredScenario(null), 0);
+    return { room, h };
+  };
+  /** One human turn through a round: a card (unless they own the conflict) and one table move. */
+  function playRound(room: ReturnType<typeof fresh>, h: ReturnType<typeof join>, now: number, pick: (hand: string[]) => string, mv: (own: boolean) => 'back' | 'oppose' | 'suggest') {
+    const c = room.conflict!;
+    expect(room.phase).toBe('crisis');
+    done(room, h, now++);
+    if (h.persona !== c.owner) {
+      expect(room.phase).toBe('select');
+      expect(() => select(room, h, 'hotel-development', c.district, now)).toThrow();
+      select(room, h, pick(beginnerHand(h.persona, c)), 'south-pointe', now++);
+      expect(h.selection!.district).toBe(c.district); // always the conflict's place
+    }
+    expect(room.phase).toBe('reveal');
+    done(room, h, now++);
+    expect(room.phase).toBe('negotiate');
+    const p = room.board!.proposals.find((x) => x.kind === c.project && x.district === c.district)!;
+    expect(() => move(room, h, 'fund', p.id, now)).toThrow(/Support, oppose/);
+    move(room, h, mv(p.seat === h.seat), p.id, now++);
+    expect(() => move(room, h, 'back', p.id, now)).toThrow(/already/);
+    done(room, h, now++);
+    expect(room.phase).toBe('resolve');
+    return { now, conflict: c, proposal: p };
+  }
+
+  it('a full match: one conflict a round, 2-3 cards, no influence spent, replayable, a personal "no" kept apart', () => {
+    const { room, h } = table('BGNA');
+    expect(publicState(room, h, 0).mode).toBe('beginner');
+    expect(publicState(room, h, 0).conflict).toEqual(room.conflict);
+    let now = 1;
+    for (let r = 1; r <= 3; r++) {
+      const influence = h.influence;
+      const res = playRound(room, h, now, (hand) => hand[0]!, (own) => (own ? 'back' : 'suggest'));
+      now = res.now;
+      expect(h.influence).toBe(influence); // nothing spent
+      done(room, h, now++);
+    }
+    expect(room.phase).toBe('final');
+    const rec = room.record!;
+    expect(rec.rulesVersion).toBe(BEGINNER_RULES_VERSION);
+    expect(rec.mode).toBe('beginner');
+    expect(rec.rounds.flatMap((r) => r.actions).some((a) => a.move === 'suggest')).toBe(true);
+    expect(rec.rounds.flatMap((r) => r.compromises).some((c) => c.kind === 'change')).toBe(true);
+    const rep = replayMatch(rec);
+    expect(rep.comparable).toBe(true);
+    expect(rep.mismatches).toEqual([]);
+    const k = keyDecision(room.history)!;
+    expect(() => respond(room, h, 'none', now, 'yes')).toThrow(/decisions/);
+    respond(room, h, k.proposalId, now, 'no');
+    expect(rec.responses).toEqual([expect.objectContaining({ choice: k.proposalId, stance: 'no', participant: 'human' })]);
+  });
+
+  it('a project can fail: the human campaigns against it', () => {
+    // The Resident decides the Resort's hotel (round 2 of the authored match): every card and move against it sinks it.
+    const { room, h } = table('BGNB', 'resident');
+    let now = 1;
+    let failed = false;
+    for (let r = 1; r <= 3; r++) {
+      const res = playRound(room, h, now, (hand) => hand.find((id) => /challenge|survey|petition/.test(id)) ?? hand[0]!, (own) => (own ? 'back' : 'oppose'));
+      now = res.now;
+      const o = room.history.at(-1)!.resolution.outcomes.find((x) => x.proposalId === res.proposal.id)!;
+      if (o.status !== 'approved') failed = true;
+      done(room, h, now++);
+    }
+    expect(failed).toBe(true);
+  });
+
+  it('the storm: survived with flood safety, lost with a deterministic low-flood fixture', () => {
+    for (const [flood, held] of [[80, true], [15, false]] as const) {
+      const { room, h } = table(flood > 50 ? 'BGNC' : 'BGND');
+      let now = 1;
+      for (let r = 1; r <= 3; r++) {
+        if (r === 3) room.city.indicators.flood = flood; // the fixture: the city goes into the last round at this level
+        now = playRound(room, h, now, (hand) => hand[0]!, (own) => (own ? 'back' : 'back')).now;
+        done(room, h, now++);
+      }
+      const end = beginnerEnd(START_INDICATORS, room.city.indicators, room.history.map((x) => x.resolution), room.players.map((p) => p.persona));
+      expect(end.storm!.held).toBe(held);
+      if (!held) expect(end.storm!.loss).toBeGreaterThan(0);
+    }
+  });
+
+  it('a Beginner sprint plays itself out on the clock in under four minutes', () => {
+    const room = fresh('BGNE');
+    const h = join(room, 'Ana', 'resident');
+    setMode(room, h, 'beginner');
+    setPace(room, h, 'sprint');
+    for (const p of ['mayor', 'activist', 'resort'] as PersonaId[]) setBot(room, h, p, true);
+    start(room, h, 0);
+    applyScenario(room, authoredScenario(null), 0);
+    let t = 0;
+    while (room.phase !== 'final') {
+      t = room.endsAt!;
+      tick(room, t);
+    }
+    expect(room.history).toHaveLength(3);
+    expect(t).toBeLessThan(4 * 60_000);
+  });
 });

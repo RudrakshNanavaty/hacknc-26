@@ -4,6 +4,7 @@ import { Landing } from './routes/Landing';
 import { Play } from './routes/Play';
 import { Atlas } from './routes/Atlas';
 import { Verify } from './routes/Verify';
+import { Plan } from './routes/Plan';
 import { Link, matchPath, usePath } from './router';
 import { ensurePortraits } from './characters/portraits';
 
@@ -19,6 +20,7 @@ export function App() {
   if (import.meta.env.DEV && matchPath('/fx-lab', path)) return <FxLab />;
   if (import.meta.env.DEV && matchPath('/glb-lab', path)) return <GlbLab />;
   if ((params = matchPath('/verify/:matchId', path))) return <Verify key={params.matchId} matchId={params.matchId ?? ''} />;
+  if ((params = matchPath('/plan/:matchId', path))) return <Plan key={params.matchId} matchId={params.matchId ?? ''} />;
   if ((params = matchPath('/play/:code', path))) return <Play key={params.code} code={(params.code ?? '').toUpperCase()} />;
 
   return (

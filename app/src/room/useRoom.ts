@@ -1,7 +1,7 @@
 // One WebSocket per page to /ws/rooms/:code (proxied to the server by Vite). Reconnects on its own;
 // a player who joined keeps their secret id in localStorage, so a reload resumes the same seat.
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { CardId, ClientMsg, NegotiationMove, Pace, PersonaId, Ping, PingEmote, RoomState, ServerMsg, SessionKind } from '@shared';
+import type { CardId, ClientMsg, GameMode, NegotiationMove, Pace, PersonaId, Ping, PingEmote, RoomState, ServerMsg, SessionKind } from '@shared';
 
 /** How long a reaction stays on the map. */
 const PING_MS = 2600;
@@ -33,13 +33,14 @@ export interface Room {
   bot: (persona: PersonaId, on: boolean) => void;
   session: (kind: SessionKind) => void;
   pace: (pace: Pace) => void;
+  mode: (mode: GameMode) => void;
   start: () => void;
   skip: () => void;
   select: (card: CardId, district: string) => void;
   move: (move: NegotiationMove, proposalId: string) => void;
   accept: (compromiseId: string) => void;
   done: () => void;
-  respond: (choice: string) => void;
+  respond: (choice: string, stance?: 'yes' | 'no' | 'unsure') => void;
   again: () => void;
   /** Reactions on the map right now (negotiation), newest last. */
   pings: Ping[];
@@ -118,13 +119,14 @@ export function useRoom(code: string): Room {
     bot: useCallback((persona, on) => send({ t: 'bot', persona, on }), [send]),
     session: useCallback((kind) => send({ t: 'session', kind }), [send]),
     pace: useCallback((pace) => send({ t: 'pace', pace }), [send]),
+    mode: useCallback((mode) => send({ t: 'mode', mode }), [send]),
     start: useCallback(() => send({ t: 'start' }), [send]),
     skip: useCallback(() => send({ t: 'skip' }), [send]),
     select: useCallback((card, district) => send({ t: 'select', card, district }), [send]),
     move: useCallback((move, proposalId) => send({ t: 'move', move, proposalId }), [send]),
     accept: useCallback((compromiseId) => send({ t: 'accept', compromiseId }), [send]),
     done: useCallback(() => send({ t: 'done' }), [send]),
-    respond: useCallback((choice) => send({ t: 'respond', choice }), [send]),
+    respond: useCallback((choice, stance) => send({ t: 'respond', choice, ...(stance ? { stance } : {}) }), [send]),
     again: useCallback(() => send({ t: 'again' }), [send]),
     pings,
     ping: useCallback((district, emote) => send({ t: 'ping', district, emote }), [send]),

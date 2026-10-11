@@ -3,6 +3,11 @@
 // never predictions of what a real project would do. Real-world facts live in districts.json.
 
 export const RULES_VERSION = 'coastal-clash-rules/2.0.0';
+/**
+ * Beginner Mode's rules (beginner.ts): the same engine and numbers, with one conflict a round, 2-3 cards
+ * a player, no influence, and the Suggest a Change move (rules C5/O8). Records made under it say so.
+ */
+export const BEGINNER_RULES_VERSION = 'coastal-clash-beginner/1.0.0';
 
 export type PersonaId = 'mayor' | 'activist' | 'resort' | 'resident';
 export const PERSONAS: readonly PersonaId[] = ['mayor', 'activist', 'resort', 'resident'];
@@ -535,7 +540,26 @@ export const isComboId = (v: unknown): v is ComboId => typeof v === 'string' && 
 
 /** Negotiation moves (one per player per round, plus accepting compromises offered to you). */
 export const NEGOTIATION_COST = { back: 1, oppose: 1, fund: 2 } as const;
-export type NegotiationMove = keyof typeof NEGOTIATION_COST;
+export type InfluenceMove = keyof typeof NEGOTIATION_COST;
+/** Advanced moves cost influence; 'suggest' (Suggest a Change) is Beginner Mode only and free (beginner.ts). */
+export type NegotiationMove = InfluenceMove | 'suggest';
+export const isInfluenceMove = (m: unknown): m is InfluenceMove => m === 'back' || m === 'oppose' || m === 'fund';
+
+/**
+ * Suggest a Change (Beginner Mode, rules C5/O8): a condition any other player may put on a project. If its
+ * owner accepts: +1 support and, if built, this effect (illustrative). If not accepted: +1 opposition.
+ * One per project kind, authored to fit it.
+ */
+export const SUGGESTED_CHANGES: Record<ProjectKind, { title: string; ifBuilt: Delta }> = {
+  drainage: { title: 'Green streets around the pumps', ifBuilt: { environment: 2, budget: -1 } },
+  seawall: { title: 'A living edge along the wall', ifBuilt: { environment: 3, access: 1, budget: -2 } },
+  hotel: { title: 'A public beach path through the site', ifBuilt: { access: 3, economy: -1 } },
+  marina: { title: 'Public slips for working boats', ifBuilt: { access: 2, economy: -1 } },
+  elevate: { title: 'Include rental homes, not just owners', ifBuilt: { access: 2, budget: -1 } },
+  housing: { title: 'Flood-ready ground floors', ifBuilt: { flood: 2, budget: -1 } },
+  shoreline: { title: 'A boardwalk and kayak launch', ifBuilt: { access: 2, economy: 1, environment: -1 } },
+  dune: { title: 'Dune walkovers to reach the beach', ifBuilt: { access: 2, environment: -1 } },
+};
 
 /** The storm at the end of round 3 (rule S1): weak flood resilience costs the economy. */
 export const STORM_TEST = { threshold: 50, economyLossPerPoint: 0.25 };

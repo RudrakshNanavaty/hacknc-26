@@ -15,7 +15,7 @@ import type { ArtService } from './cardArt';
 import { directorFacts, type Director } from './ai/director';
 import {
   RoomError, accept, again, applyDialogue, applyHints, applyScenario, choosePersona, done, findPlayer, getOrCreateRoom, getRoom, join, mapRoles, move,
-  ping, presence, proposeEarlyEvent, proposeEvent, publicState, respond, select, setBot, setPace, setSession, skip, start, sweep, tick, type Room,
+  ping, presence, proposeEarlyEvent, proposeEvent, publicState, respond, select, setBot, setMode, setPace, setSession, skip, start, sweep, tick, type Room,
 } from './rooms';
 
 const ROOM_PATH = /^\/ws\/rooms\/([A-Za-z]{4})$/;
@@ -26,11 +26,12 @@ function messagePayload(msg: ClientMsg): unknown {
     case 'select': return { card: msg.card, district: msg.district };
     case 'move': return { move: msg.move, proposalId: msg.proposalId };
     case 'accept': return { compromiseId: msg.compromiseId };
-    case 'respond': return { choice: msg.choice };
+    case 'respond': return { choice: msg.choice, stance: msg.stance };
     case 'bot': return { persona: msg.persona, on: msg.on };
     case 'persona': return { persona: msg.persona };
     case 'session': return { kind: msg.kind };
     case 'pace': return { pace: msg.pace };
+    case 'mode': return { mode: msg.mode };
     default: return undefined;
   }
 }
@@ -289,13 +290,14 @@ export function roomServer({ store, narrator, scenario, director = null, civic =
       case 'bot': setBot(room, player, msg.persona, !!msg.on); break;
       case 'session': setSession(room, player, msg.kind); break;
       case 'pace': setPace(room, player, msg.pace); break;
+      case 'mode': setMode(room, player, msg.mode); break;
       case 'start': start(room, player, now); break;
       case 'skip': skip(room, player, now); break;
       case 'select': select(room, player, msg.card, msg.district, now); break;
       case 'move': move(room, player, msg.move, msg.proposalId, now); break;
       case 'accept': accept(room, player, msg.compromiseId, now); break;
       case 'done': done(room, player, now); break;
-      case 'respond': respond(room, player, msg.choice, now); break;
+      case 'respond': respond(room, player, msg.choice, now, msg.stance); break;
       case 'again': again(room, player); break;
       case 'ping': {
         // Relayed to the room as it happens; no state changes, so no state broadcast.
