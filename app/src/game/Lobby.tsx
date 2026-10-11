@@ -42,23 +42,29 @@ export function JoinForm({ room, create }: { room: Room; create: boolean }) {
     if (persona) room.join(name, persona, create);
   };
   return (
-    <form onSubmit={submit} className="wet flex w-full max-w-2xl flex-col gap-4 p-5">
-      <h2 className="font-display text-32 font-black">{create ? 'Open the council chamber' : 'Take a seat at the table'}</h2>
-      <label className="flex flex-col gap-1 font-bold">
-        Your name
-        <input value={name} onChange={(e) => setName(e.target.value)} maxLength={20} autoFocus className="aero-input" placeholder="e.g. Sam" />
-      </label>
-      <fieldset>
-        <legend className="mb-2 font-bold">Pick your stakeholder</legend>
-        <PersonaPicker taken={taken} value={persona} onPick={setPersona} />
-      </fieldset>
-      {persona && (
-        <div className="flex flex-col gap-2">
-          <GoalPreview persona={persona} />
-          <p className="max-w-[28rem] text-13 opacity-80">{PERSONA_INFO[persona].voice}</p>
-        </div>
-      )}
-      <button className="aero-btn aero-btn-go aero-btn-lg self-start" disabled={!persona || !name.trim()}>{create ? 'Open room' : 'Join'}</button>
+    // Wide screens: who you are on the left, what you will be playing for on the right (join-panel in styles.css).
+    <form onSubmit={submit} className="wet join-panel">
+      <h2 className="join-title font-display font-black">{create ? 'Open the council chamber' : 'Take a seat at the table'}</h2>
+      <div className="join-main">
+        <label className="flex flex-col gap-1 font-bold">
+          Your name
+          <input value={name} onChange={(e) => setName(e.target.value)} maxLength={20} autoFocus className="aero-input" placeholder="e.g. Sam" />
+        </label>
+        <fieldset>
+          <legend className="mb-2 font-bold">Pick your stakeholder</legend>
+          <PersonaPicker taken={taken} value={persona} onPick={setPersona} />
+        </fieldset>
+      </div>
+      <div className="join-side">
+        {persona && (
+          <div className="flex flex-col gap-2">
+            <p className="join-label">Playing as the {PERSONA_INFO[persona].name}</p>
+            <GoalPreview persona={persona} />
+            <p className="text-13 opacity-80">{PERSONA_INFO[persona].voice}</p>
+          </div>
+        )}
+        <button className="aero-btn aero-btn-go aero-btn-lg join-go" disabled={!persona || !name.trim()}>{create ? 'Open room' : 'Join'}</button>
+      </div>
     </form>
   );
 }

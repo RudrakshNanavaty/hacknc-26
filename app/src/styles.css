@@ -1301,3 +1301,84 @@ button.tc:hover { transform: translateY(-4px); }
 .plan-table .plan-badge .lchip { max-width: 100%; overflow: hidden; text-overflow: ellipsis; padding: 2px 8px; }
 
 .plan-why-box { padding: 6px 10px; margin: 0; border-radius: 12px; background: rgba(255,255,255,.7); box-shadow: 0 0 0 1px var(--a-edge); }
+
+/* ---- The underwater scene (ui/FloatingBubbles.tsx): a still seascape, then three layers of bubbles ---- */
+.seascape-bg { background: #1aa8e0 url('/background_seascape.png') center / cover no-repeat; }
+.lagoon > .seascape-layer, .seascape-layer { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+.seascape { background: #1aa8e0; }
+.fb-root { overflow: hidden; contain: strict; }
+.fb-layer { position: absolute; inset: 0; }
+.fb { position: absolute; top: 100%; display: block; opacity: 0; will-change: transform, opacity;
+  animation: fb-rise var(--rise) linear var(--delay) infinite, fb-fade var(--rise) linear var(--delay) infinite; }
+.fb-sway { display: block; width: 100%; height: 100%; will-change: transform;
+  animation: fb-sway var(--sway) ease-in-out calc(var(--delay) * .37) infinite alternate; }
+.fb-img { display: block; width: 100%; height: 100%; user-select: none; -webkit-user-drag: none;
+  animation: fb-wobble var(--wob) ease-in-out calc(var(--delay) * .61) infinite alternate; }
+@keyframes fb-rise { from { transform: translate3d(0, 2vh, 0); } to { transform: translate3d(0, calc(-100vh - var(--s) - 6vh), 0); } }
+@keyframes fb-fade { 0% { opacity: 0; } 9% { opacity: var(--o); } 82% { opacity: var(--o); } 100% { opacity: 0; } }
+@keyframes fb-sway { from { transform: translate3d(calc(var(--amp) * -1), 0, 0); } to { transform: translate3d(var(--amp), 0, 0); } }
+@keyframes fb-wobble { from { transform: rotate(calc(var(--turn) * -1)) scale(1, var(--sq)); } to { transform: rotate(var(--turn)) scale(var(--sq), 1); } }
+/* Depth: far bubbles a touch softer and cooler; near ones brighter. */
+.fb-back .fb-img { filter: saturate(.85) brightness(1.05); }
+.fb-front .fb-img { filter: drop-shadow(0 10px 22px rgba(0, 60, 110, .18)); }
+.fb-root[data-paused="true"] .fb, .fb-root[data-paused="true"] .fb-sway, .fb-root[data-paused="true"] .fb-img { animation-play-state: paused; }
+@media (prefers-reduced-motion: reduce) {
+  /* A still underwater scene: fewer bubbles, resting where they are, no motion at all. */
+  .fb, .fb-sway, .fb-img { animation: none !important; }
+  .fb { top: var(--y); opacity: var(--o); }
+  .fb[data-extra] { display: none; }
+}
+
+/* Liquid glass on the underwater screens: clearer, brighter frosted panels with a soft white rim. */
+.seascape .wet {
+  background: linear-gradient(160deg, rgba(255,255,255,.62) 0%, rgba(232,248,255,.42) 55%, rgba(210,240,255,.5) 100%);
+  border: 1px solid rgba(255,255,255,.85);
+  box-shadow: 0 0 0 .5px rgba(255,255,255,.6), 0 18px 48px rgba(0, 55, 100, .26), 0 2px 6px rgba(0, 55, 100, .12),
+    inset 0 1.5px 0 rgba(255,255,255,.95), inset 0 -18px 32px rgba(120, 210, 255, .22), inset 0 0 0 1px rgba(255,255,255,.25);
+  -webkit-backdrop-filter: blur(22px) saturate(1.6);
+  backdrop-filter: blur(22px) saturate(1.6);
+  border-radius: 28px;
+}
+.seascape .wet::before { background: linear-gradient(180deg, rgba(255,255,255,.55), rgba(255,255,255,0)); }
+.seascape .persona-pick, .seascape .persona-slot { background: rgba(255,255,255,.5); border-color: rgba(255,255,255,.9);
+  box-shadow: inset 0 1px 0 #fff, 0 4px 14px rgba(0, 55, 100, .12); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+.seascape .persona-pick.is-on { background: rgba(255,255,255,.88); }
+.seascape .lchip { background: linear-gradient(180deg, rgba(255,255,255,.88), rgba(225,246,255,.72)); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+.seascape-title { color: #fff; text-shadow: 0 2px 10px rgba(0, 50, 100, .45), 0 1px 0 rgba(0, 60, 110, .35); }
+
+
+/* ---- Hierarchy on the underwater screens: a dominant glass panel, a recessed ocean, small bubbles ---- */
+/* The seascape, softened: a little less saturated and contrasty, lightly blurred (scaled so the blur never shows an
+   edge), under a translucent white-aqua veil. The image file itself is untouched. */
+.seascape-bg { filter: saturate(.78) contrast(.9) blur(2.5px); transform: scale(1.04); }
+.seascape-veil { background: linear-gradient(180deg, rgba(240, 252, 255, .42) 0%, rgba(214, 244, 255, .30) 55%, rgba(225, 250, 245, .36) 100%); }
+.fb-front .fb-img { filter: none; }
+
+.seascape-head { max-width: min(78vw, 1440px); }
+/* The join panel: about 78% of the width on desktop, in two columns so it grows wide rather than tall. */
+.join-panel { display: grid; grid-template-columns: 1fr; gap: 16px 32px; width: 100%; max-width: 42rem; padding: 20px; }
+.join-title { font-size: 32px; line-height: 1.1; }
+.join-main, .join-side { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.join-label { font: 900 13px Nunito, sans-serif; letter-spacing: .06em; text-transform: uppercase; opacity: .7; }
+.join-go { align-self: flex-start; }
+@media (min-width: 1024px) {
+  .join-panel { width: min(78vw, 1440px); max-width: none; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); padding: 32px 40px 34px; gap: 20px 40px; }
+  .join-title { grid-column: 1 / -1; font-size: 40px; }
+  .join-side { padding-left: 32px; border-left: 1px solid rgba(255, 255, 255, .7); justify-content: space-between; }
+  .join-go { align-self: stretch; }
+  .join-panel .aero-input { font-size: 20px; padding: .65rem 1.1rem; }
+  .join-panel .persona-pick { padding: 14px; }
+}
+/* More frosted and opaque than the other panels, so it reads as the focal point; still glass. */
+.seascape .join-panel.wet {
+  background: linear-gradient(160deg, rgba(255,255,255,.80) 0%, rgba(240,251,255,.68) 55%, rgba(226,246,255,.72) 100%);
+  -webkit-backdrop-filter: blur(30px) saturate(1.5);
+  backdrop-filter: blur(30px) saturate(1.5);
+  border-radius: 32px;
+  box-shadow: 0 0 0 .5px rgba(255,255,255,.7), 0 30px 70px rgba(0, 55, 100, .26), 0 4px 12px rgba(0, 55, 100, .12),
+    inset 0 2px 0 rgba(255,255,255,.98), inset 0 -22px 40px rgba(120, 210, 255, .18);
+}
+.seascape .join-panel .persona-pick { background: rgba(255,255,255,.62); }
+.seascape .join-panel .persona-pick.is-on { background: rgba(255,255,255,.95); }
+/* The wordmark over the softened, lighter water: deep ink with a white glow, so it reads at a glance. */
+.seascape-title { color: #0a4a78; text-shadow: 0 0 14px rgba(255,255,255,.9), 0 1px 0 rgba(255,255,255,.8); }

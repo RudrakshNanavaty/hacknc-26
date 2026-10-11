@@ -27,7 +27,8 @@ import { CaseFile } from '../game/CaseFile';
 import { DistrictPopover } from '../game/DistrictPopover';
 import { NewsTV } from '../game/NewsTV';
 import { ResultOverlay } from '../game/ResultOverlay';
-import { LagoonBubbles, RoundDots } from '../game/ui';
+import { RoundDots } from '../game/ui';
+import { Seascape } from '../ui/FloatingBubbles';
 import { CrisisProvider } from '../game/story';
 import { RoundSteps, instructionFor } from '../game/Steps';
 import { StormFinale, stormOf, useResolveShow } from '../game/Climax';
@@ -151,10 +152,10 @@ function LegacyPlay({ code, room }: { code: string; room: Room }) {
 
   if (!state || state.phase === 'lobby' || me === null) {
     return (
-      <main className="lagoon relative flex min-h-full flex-col items-center gap-4 p-4 sm:p-6">
-        <LagoonBubbles count={18} />
-        <header className="flex w-full max-w-5xl items-center justify-between">
-          <Link to="/" className="vr text-24 text-white drop-shadow">🌊 Coastal Clash</Link>
+      <main className="lagoon seascape relative flex min-h-full flex-col items-center gap-4 p-4 sm:p-6">
+        <Seascape />
+        <header className={`flex w-full items-center justify-between ${state && me !== null && state.phase === 'lobby' ? 'max-w-5xl' : 'seascape-head'}`}>
+          <Link to="/" className="vr seascape-title text-24">🌊 Coastal Clash</Link>
           <span className="lchip">Room {code}</span>
         </header>
         {room.error && !missing && <p role="alert" className="wet max-w-2xl p-3 text-15 text-[#c0392b]">{room.error}</p>}
