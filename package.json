@@ -14,7 +14,8 @@
     "dev": "bun run --parallel --filter @clash/app --filter @clash/server dev",
     "typecheck": "bun run --sequential --filter @clash/shared --filter @clash/app --filter @clash/server typecheck",
     "test": "vitest run",
-    "data": "tsx pipeline/miami-beach.ts"
+    "data": "tsx pipeline/miami-beach.ts && tsx pipeline/flood-by-area.ts",
+    "data:flood-areas": "tsx pipeline/flood-by-area.ts"
   },
   "engines": {
     "node": ">=20.19"
