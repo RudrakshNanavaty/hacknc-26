@@ -3,10 +3,12 @@
 // City zoning and satellite imagery are toggles. The four playable areas (unions of real zoning
 // polygons) are tinted on the ground by their resilience meter; built projects appear as glossy
 // pins; the crisis spotlight pulses. Area labels are HTML chips, so they stay tappable on a phone.
+// When anything is highlighted (the spotlight, the selected area, the areas a held card may go to)
+// the rest of the map sinks under a navy scrim, so the highlighted areas read at a glance.
 import { useEffect, useRef, useState } from 'react';
-import { Map as MapLibreMap, Marker, type StyleSpecification } from 'maplibre-gl';
+import { Map as MapLibreMap, Marker, type ExpressionSpecification, type StyleSpecification } from 'maplibre-gl';
 import { DISTRICTS, PROJECTS, type CityState, type MapFeatureKind } from '@shared';
-import { ATTRIBUTION, GLYPHS, INK, PRINT_FADE, SATELLITE_ATTRIBUTION, SATELLITE_TILES, TILES, buildings3dLayer, groundLayers, labelLayers, streetLayers } from './basemap';
+import { ATTRIBUTION, DIM, GLYPHS, INK, LABEL_IDS, PRINT_FADE, SATELLITE_ATTRIBUTION, SATELLITE_TILES, TILES, buildings3dLayer, dimScrimLayer, groundLayers, labelLayers, streetLayers } from './basemap';
 
 const DATA = '/data/miami-beach';
 
@@ -40,6 +42,22 @@ const FEATURE_ICON: Record<MapFeatureKind, string> = {
   'eco-label': '🏅',
 };
 
+const stateFlag = (name: string): ExpressionSpecification => ['boolean', ['feature-state', name], false];
+/** One value per area state, most specific first: not allowed for the held card, selected, lit, sunk, plain. */
+const byState = (v: { off: number; target: number; lit: number; dim: number; rest: number }): ExpressionSpecification =>
+  ['case', ['==', ['feature-state', 'eligible'], false], v.off, stateFlag('target'), v.target, stateFlag('lit'), v.lit, stateFlag('dim'), v.dim, v.rest];
+const RESILIENCE_RAMP: ExpressionSpecification = ['interpolate', ['linear'], ['coalesce', ['feature-state', 'resilience'], 40], 0, '#ff4f6d', 35, '#ffb020', 60, '#9be85a', 100, '#19e6c1'];
+/** Rim colors by why an area is lit: selected (white-gold), legal for the held card (lime), crisis spotlight (gold). */
+const TONE_COLOR: ExpressionSpecification = ['match', ['coalesce', ['feature-state', 'tone'], 'none'], 'target', '#fff6b8', 'eligible', '#9bf08a', 'spot', '#ffd23f', '#ffffff'];
+
+type AreaTone = 'target' | 'eligible' | 'spot' | 'none';
+/** Why an area is highlighted, if it is. Holding a card narrows the highlight to where it may go. */
+function toneOf(id: string, target: string | null, spotlight: string[], eligible: Record<string, boolean> | null): AreaTone {
+  if (target === id) return 'target';
+  if (eligible) return eligible[id] !== false ? 'eligible' : 'none';
+  return spotlight.includes(id) ? 'spot' : 'none';
+}
+
 function style(): StyleSpecification {
   const zoningColor = ['match', ['get', 'code'], ...ZONING_FAMILIES.slice(0, 3).flatMap((f) => [f.match, f.color]), ZONING_FAMILIES[3]!.color];
   return {
@@ -72,33 +90,35 @@ function style(): StyleSpecification {
       { id: 'zoning-fill', type: 'fill', source: 'zoning', layout: { visibility: 'none' }, paint: { 'fill-color': zoningColor as never, 'fill-opacity': 0.3 } },
       { id: 'zoning-line', type: 'line', source: 'zoning', layout: { visibility: 'none' }, paint: { 'line-color': '#ffffff', 'line-opacity': 0.55, 'line-width': 0.6 } },
       ...streetLayers(),
+      dimScrimLayer(),
       {
         id: 'areas-fill', type: 'fill', source: 'areas',
-        paint: {
-          'fill-color': ['interpolate', ['linear'], ['coalesce', ['feature-state', 'resilience'], 40], 0, '#ff4f6d', 35, '#ffb020', 60, '#9be85a', 100, '#19e6c1'],
-          'fill-opacity': ['case', ['==', ['feature-state', 'eligible'], false], 0.08, ['boolean', ['feature-state', 'target'], false], 0.8, 0.62],
-        },
+        paint: { 'fill-color': RESILIENCE_RAMP, 'fill-opacity': byState({ off: 0.05, target: 0.9, lit: 0.8, dim: 0.2, rest: 0.62 }) },
       },
       {
         id: 'areas-halo', type: 'circle', source: 'centers',
         paint: {
           'circle-radius': ['interpolate', ['linear'], ['zoom'], 12, 26, 14, 60, 16, 140],
           'circle-blur': 0.85,
-          'circle-color': ['interpolate', ['linear'], ['coalesce', ['feature-state', 'resilience'], 40], 0, '#ff4f6d', 35, '#ffb020', 60, '#9be85a', 100, '#19e6c1'],
-          'circle-opacity': ['case', ['==', ['feature-state', 'eligible'], false], 0.1, ['boolean', ['feature-state', 'target'], false], 0.85, 0.6],
+          'circle-color': RESILIENCE_RAMP,
+          'circle-opacity': byState({ off: 0.05, target: 0.85, lit: 0.7, dim: 0.1, rest: 0.6 }),
         },
       },
       buildings3dLayer(),
       {
         id: 'areas-glow', type: 'line', source: 'areas',
-        paint: { 'line-color': '#ffffff', 'line-width': 7, 'line-blur': 5, 'line-opacity': ['case', ['==', ['feature-state', 'eligible'], false], 0.1, 0.75] },
+        paint: {
+          'line-color': TONE_COLOR, 'line-blur': 7,
+          'line-width': ['case', ['boolean', ['feature-state', 'lit'], false], 13, 7],
+          'line-opacity': byState({ off: 0.08, target: 1, lit: 0.9, dim: 0.1, rest: 0.75 }),
+        },
       },
       {
         id: 'areas-line', type: 'line', source: 'areas',
         paint: {
-          'line-color': ['case', ['boolean', ['feature-state', 'target'], false], '#ffe066', ['boolean', ['feature-state', 'spotlight'], false], '#ffe066', '#ffffff'],
-          'line-width': ['case', ['boolean', ['feature-state', 'target'], false], 4.5, 2.2],
-          'line-opacity': ['case', ['==', ['feature-state', 'eligible'], false], 0.35, 1],
+          'line-color': TONE_COLOR,
+          'line-width': ['case', ['boolean', ['feature-state', 'target'], false], 6, ['boolean', ['feature-state', 'lit'], false], 4, ['boolean', ['feature-state', 'dim'], false], 1.4, 2.2],
+          'line-opacity': byState({ off: 0.25, target: 1, lit: 1, dim: 0.5, rest: 1 }),
         },
       },
       {
@@ -225,6 +245,9 @@ export function CityMap({ city, spotlight = [], target = null, eligible = null, 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Highlights: if any area is lit, the rest of the map sinks.
+  const anyLit = DISTRICTS.some((d) => toneOf(d.id, target, spotlight, eligible) !== 'none');
+
   // Overlays.
   useEffect(() => {
     if (!map || !loaded) return;
@@ -234,22 +257,27 @@ export function CityMap({ city, spotlight = [], target = null, eligible = null, 
     map.setLayoutProperty('satellite', 'visibility', sat ? 'visible' : 'none');
     for (const [id, prop, full] of PRINT_FADE) map.setPaintProperty(id, prop, sat ? 0 : full);
     map.setPaintProperty('buildings-3d', 'fill-extrusion-opacity', sat ? 0.55 : 0.92);
-  }, [map, loaded, overlays.flood, overlays.zoning, overlays.satellite]);
+    map.setPaintProperty('buildings-3d', 'fill-extrusion-color', anyLit ? DIM.buildings : DIM.buildingsDay);
+  }, [map, loaded, overlays.flood, overlays.zoning, overlays.satellite, anyLit]);
 
-  // Area states: resilience tint, spotlight, target, eligibility.
+  // Area states: resilience tint, spotlight, target, eligibility, and which areas are lit. If any
+  // area is lit, the rest sink (`dim`) and the scrim comes up under them.
   useEffect(() => {
     if (!map || !loaded) return;
     for (const d of DISTRICTS) {
-      map.setFeatureState(
-        { source: 'areas', id: d.id },
-        { resilience: city.districts[d.id]?.resilience ?? 40, spotlight: spotlight.includes(d.id), target: target === d.id, eligible: eligible ? eligible[d.id] !== false : true },
-      );
-      map.setFeatureState(
-        { source: 'centers', id: d.id },
-        { resilience: city.districts[d.id]?.resilience ?? 40, target: target === d.id, eligible: eligible ? eligible[d.id] !== false : true },
-      );
+      const tone = toneOf(d.id, target, spotlight, eligible);
+      const lit = tone !== 'none';
+      const resilience = city.districts[d.id]?.resilience ?? 40;
+      const ok = eligible ? eligible[d.id] !== false : true;
+      map.setFeatureState({ source: 'areas', id: d.id }, { resilience, spotlight: spotlight.includes(d.id), target: target === d.id, eligible: ok, lit, dim: anyLit && !lit, tone });
+      map.setFeatureState({ source: 'centers', id: d.id }, { resilience, target: target === d.id, eligible: ok, lit, dim: anyLit && !lit, tone });
     }
-  }, [map, loaded, city, spotlight, target, eligible]);
+    map.setPaintProperty('dim-scrim', 'background-opacity', anyLit ? DIM.scrimOpacity : 0);
+    for (const id of LABEL_IDS) {
+      map.setPaintProperty(id, 'text-color', anyLit ? DIM.labelText : INK.ink);
+      map.setPaintProperty(id, 'text-halo-color', anyLit ? DIM.labelHalo : INK.land);
+    }
+  }, [map, loaded, city, spotlight, target, eligible, anyLit]);
 
   // The spotlight pulses.
   useEffect(() => {
@@ -273,6 +301,7 @@ export function CityMap({ city, spotlight = [], target = null, eligible = null, 
       const note = chipNote?.(d.id);
       const badge = chipBadge?.(d.id);
       el.dataset.target = String(target === d.id);
+      el.dataset.lit = String(toneOf(d.id, target, spotlight, eligible) !== 'none');
       el.dataset.spot = String(spotlight.includes(d.id));
       el.dataset.off = String(off);
       el.setAttribute('aria-label', `${d.name}, resilience ${r}${off ? ', not allowed for this card' : ''}`);

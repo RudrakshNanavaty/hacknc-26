@@ -94,6 +94,27 @@ export function buildings3dLayer(): LayerSpecification {
   };
 }
 
+/** What the map does when some areas are highlighted: everything else sinks (see CityMap's area states). */
+export const DIM = {
+  scrim: '#061629',
+  scrimOpacity: 0.38,
+  buildings: '#97a7be',
+  buildingsDay: '#d8d3ca',
+  labelText: '#eaf5ff',
+  labelHalo: '#0a1b33',
+} as const;
+
+/** A navy veil over the ground, water and streets (not the areas, buildings or labels above it). Invisible until an area is lit. */
+export function dimScrimLayer(): LayerSpecification {
+  return {
+    id: 'dim-scrim', type: 'background',
+    paint: { 'background-color': DIM.scrim, 'background-opacity': 0, 'background-opacity-transition': { duration: 450, delay: 0 } },
+  };
+}
+
+/** The symbol layers whose colors flip when the map is dimmed. */
+export const LABEL_IDS = ['water-names', 'waterway-names', 'street-names-minor', 'street-names-major', 'place-names'] as const;
+
 export function labelLayers(): LayerSpecification[] {
   const label = { 'text-color': INK.ink, 'text-halo-color': INK.land, 'text-halo-width': 1.5 };
   return [
