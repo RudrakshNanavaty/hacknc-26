@@ -142,6 +142,7 @@ function FinalScreen({ state, room }: { state: RoomState; room: Room }) {
         </div>
       )}
       <Link to={`/studio${state.matchId ? `?match=${state.matchId}` : ''}`} className="gel gel-lime gel-big">Open Planning Studio →</Link>
+      {state.matchId && <Link to={`/verify/${state.matchId}`} className="gel">Verify this match on Solana</Link>}
       {host && <button type="button" className="gel" onClick={() => room.again()}>New match</button>}
     </div>
   );

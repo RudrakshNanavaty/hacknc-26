@@ -158,6 +158,15 @@ Every round re-enacts a real Miami Beach story from a reviewed research corpus, 
 - **In play:** the crisis card shows the real story, its years, who each character stands in for, and source chips. Hands are the story's deal (`dealtHand`, enforced by `checkPlay`, used by bots). Cards show their story name with "Plays as …". Crisis bubbles are the story scripts, reveal bubbles the card lines, and the narrator and Director get the story as facts.
 - **Unchanged:** what every card does, the rules engine, scoring and the storm test.
 
+## Public record on Solana (branch `aum/solana-record`)
+
+Ported from Mayday Mayor's civic record. Every finished match becomes publicly checkable planning feedback.
+- **Fingerprint:** `matchFingerprintInput` (`shared/src/game/proof.ts`) covers the real stories, every play, every negotiation move, accepted deals, outcomes and final scores. It contains personas and seats only, never names. The fingerprint is the SHA-256 of its canonical JSON.
+- **Two memos on Solana devnet** (`server/src/solana/`): the match's own memo, `coastal-clash:v1:match:miami-beach:<room>:<session>:<fingerprint> | R1 <story>; <project> @ <area>: <status>; …`, and batch memos carrying a Merkle root over the matches' fingerprints, `coastal-clash:v1:matches:miami-beach:<root>:<count>:<dataVersion>`. Each match keeps its Merkle proof. Memo transactions request a 600k compute budget, and failed memos are re-sent on the next batch run (every 2 minutes).
+- **Verify:** `/verify/:matchId` checks everything in the browser. It rebuilds the fingerprint from the public match record, walks the Merkle proof, and reads both memos straight from a devnet RPC node. It's linked from the end screen and from Planning Studio's match replay. The API is `/api/solana/status`, `/api/solana/proof/:matchId` and `/api/solana/anchors`.
+- **Authority and storage:** the team's devnet key (`SOLANA_PAYER_SECRET_KEY` in `.env`) is labelled "Demo authority (simulated), not the City of Miami Beach". Without the key, matches are fingerprinted locally and nothing is sent. The record is kept in `server/.cache/civic-record.json`. Match records are kept in `server/.cache/matches.json` when no database is configured.
+- **Not ported yet:** Mayday's civic signals and soulbound contribution cards (Metaplex Core).
+
 ## 9. What is next (P3)
 
 More cities and scenarios, the Fisherman as a playable fifth seat (today a non-player role), ElevenLabs persona voices, richer layers (NOAA sea level rise), designer review of the AI combo ideas queue, and balance tuning of the 24 cards from recorded community sessions.

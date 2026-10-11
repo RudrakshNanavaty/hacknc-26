@@ -307,7 +307,7 @@ export function Studio() {
               </ul>
             </section>
             <section className="glass flex flex-col gap-2 p-4">
-              <h2 className="font-display text-24 font-black">Match replay</h2>
+              <h2 className="flex flex-wrap items-center justify-between gap-2 font-display text-24 font-black">Match replay{record?.final && <Link to={`/verify/${record.id}`} className="source-chip text-13">Verify on Solana</Link>}</h2>
               {record ? <Timeline m={record} /> : <p className="text-13 opacity-70">Pick a match to see its timeline: every card, negotiation move, rule and outcome.</p>}
             </section>
           </div>

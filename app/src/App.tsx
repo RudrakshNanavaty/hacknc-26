@@ -2,6 +2,7 @@ import { FxLab } from './routes/FxLab';
 import { Landing } from './routes/Landing';
 import { Play } from './routes/Play';
 import { Studio } from './routes/Studio';
+import { Verify } from './routes/Verify';
 import { Link, matchPath, usePath } from './router';
 
 export function App() {
@@ -11,6 +12,7 @@ export function App() {
   if (matchPath('/', path)) return <Landing />;
   if (matchPath('/studio', path)) return <Studio />;
   if (import.meta.env.DEV && matchPath('/fx-lab', path)) return <FxLab />;
+  if ((params = matchPath('/verify/:matchId', path))) return <Verify key={params.matchId} matchId={params.matchId ?? ''} />;
   if ((params = matchPath('/play/:code', path))) return <Play key={params.code} code={(params.code ?? '').toUpperCase()} />;
 
   return (
