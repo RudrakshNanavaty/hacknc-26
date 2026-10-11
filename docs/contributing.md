@@ -172,11 +172,6 @@ and the number check in `server/src/ai/scenario.ts`.
 5. A test in `server/src/rooms.test.ts`.
 
 ### UI work
-- Look: dark liquid glass over the light map. Surfaces use the `--g-*` tokens in `styles.css` (`.wet`, `.float-card`, `.frost`,
-  `.glass`, `.lchip`, `.hcard`, `.tv`); text on them is `--g-ink`, accents `--g-aqua/lime/coral`. Do not put dark-ink Tailwind
-  colors (`text-ink`, `text-[#0a6f9a]`) on glass; use the light equivalents. Map-attached markers use `--g-solid` (no blur).
-- Highlights on the map: `CityMap` marks an area `lit` when it is the target, legal for the held card, or (with no card held)
-  in the crisis spotlight. If any area is lit the rest `dim` and the `dim-scrim` layer comes up (`DIM` in `map/basemap.ts`).
 - There is no side panel: `routes/Play.tsx` puts each phase on the map. Crisis: `CrisisBriefing` + `CrisisAlert` + `CrisisFx`, and `NewsTV` (crawl + anchor card) stays on all match.
   Select: `HandDeck` (point at a card to light its legal areas, click it to hold it, click a lit area) into `DistrictPopover`;
   clicking an area first still lists your cards. Reveal and negotiate: `CaseFile` for the table, `HandDeck` for your move.

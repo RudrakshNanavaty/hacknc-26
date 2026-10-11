@@ -49,13 +49,13 @@ function Timeline({ m }: { m: MatchRecord }) {
   const replay = useMemo(() => replayMatch(m), [m]);
   return (
     <ol className="flex flex-col gap-3">
-      <li className={`rounded-2xl p-2 text-13 font-bold ${!replay.comparable ? 'bg-white/[.07]' : replay.matches ? 'bg-leaf/20' : 'bg-coral/20'}`}>
+      <li className={`rounded-2xl p-2 text-13 font-bold ${!replay.comparable ? 'bg-white/60' : replay.matches ? 'bg-leaf/20' : 'bg-coral/20'}`}>
         {!replay.comparable
           ? `Replay check skipped: ${replay.reason}`
           : replay.matches ? '✓ Replay check: the engine reproduces this match from the record alone (no AI calls).' : `⚠ Replay differs: ${replay.mismatches.join(', ')}`}
       </li>
       {m.rounds.map((r) => (
-        <li key={r.round} className="rounded-2xl bg-white/[.07] p-3">
+        <li key={r.round} className="rounded-2xl bg-white/60 p-3">
           <p className="font-display text-18 font-black">Round {r.round} · {typeof r.crisis === 'string' ? (r.crisis as string).replace('-', ' ') : r.crisis.title}</p>
           <p className="text-13 italic">“{r.headline}”</p>
           {r.director?.event && (
@@ -86,7 +86,7 @@ function Timeline({ m }: { m: MatchRecord }) {
         </li>
       ))}
       {m.responses.length > 0 && (
-        <li className="rounded-2xl border-2 border-sun bg-white/[.07] p-3 text-13">
+        <li className="rounded-2xl border-2 border-sun bg-white/70 p-3 text-13">
           <p className="font-bold">Personal preferences (outside the role)</p>
           {m.responses.map((r) => (
             <p key={r.seat}>{name(r.seat)?.name}, who played the {PERSONA_INFO[r.persona].name}: {r.kind && r.district ? `${PROJECTS[r.kind].name}, ${districtById(r.district).name}` : 'none of the proposals'}</p>
@@ -150,7 +150,7 @@ export function Studio() {
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <Link to="/" className="font-display text-18 font-black text-aqua-deep">🌊 Coastal Clash</Link>
-          <h1 className="font-display text-48 leading-none font-black text-ink">Planning Studio</h1>
+          <h1 className="hero-title font-display text-48 leading-none font-black">Planning Studio</h1>
           <p className="text-15 font-bold text-ink">Every match as geographically linked planning feedback, Miami Beach.</p>
         </div>
         <div className="glass flex flex-wrap items-center gap-2 p-2">
@@ -186,13 +186,13 @@ export function Studio() {
             </section>
             <section className="glass flex flex-col gap-3 p-4">
               <h2 className="font-display text-24 font-black">Findings</h2>
-              {brief && <p className="rounded-2xl bg-white/[.07] p-3 text-15">{brief.brief} <span className="chip ml-1 text-[11px]">{brief.source === 'gemini' ? 'Gemini summary of the findings below' : 'computed'}</span></p>}
+              {brief && <p className="rounded-2xl bg-white/60 p-3 text-15">{brief.brief} <span className="chip ml-1 text-[11px]">{brief.source === 'gemini' ? 'Gemini summary of the findings below' : 'computed'}</span></p>}
               <ul className="flex flex-col gap-2">
                 {s.findings.map((f, i) => (
-                  <li key={i} className="rounded-xl bg-white/[.07] p-2 text-13">
+                  <li key={i} className="rounded-xl bg-white/50 p-2 text-13">
                     {f.text}
                     {f.refs.length > 0 && (
-                      <button type="button" className="ml-1 text-[12px] font-bold text-[#7fd6ff] underline" onClick={() => setOpenFinding(openFinding === i ? null : i)}>
+                      <button type="button" className="ml-1 text-[12px] font-bold text-aqua-deep underline" onClick={() => setOpenFinding(openFinding === i ? null : i)}>
                         {f.refs.length} source record{f.refs.length > 1 ? 's' : ''}
                       </button>
                     )}
@@ -262,7 +262,7 @@ export function Studio() {
                 </ul>
               )}
               {s.director.reviewQueue.length > 0 && (
-                <div className="rounded-xl bg-white/[.07] p-2 text-13">
+                <div className="rounded-xl bg-white/60 p-2 text-13">
                   <p className="font-bold">Designer review queue (AI combo ideas, never played)</p>
                   <ul className="list-disc pl-5">{s.director.reviewQueue.slice(0, 5).map((q, i) => <li key={i}>{q.idea}</li>)}</ul>
                 </div>

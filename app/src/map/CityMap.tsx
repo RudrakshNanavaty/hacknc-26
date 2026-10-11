@@ -8,7 +8,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Map as MapLibreMap, Marker, type ExpressionSpecification, type StyleSpecification } from 'maplibre-gl';
 import { DISTRICTS, PROJECTS, type CityState, type MapFeatureKind } from '@shared';
-import { ATTRIBUTION, DIM, GLYPHS, INK, LABEL_IDS, PRINT_FADE, SATELLITE_ATTRIBUTION, SATELLITE_TILES, TILES, buildings3dLayer, dimScrimLayer, groundLayers, labelLayers, streetLayers } from './basemap';
+import { ATTRIBUTION, DIM, GLYPHS, INK, PRINT_FADE, SATELLITE_ATTRIBUTION, SATELLITE_TILES, TILES, buildings3dLayer, dimScrimLayer, groundLayers, labelLayers, streetLayers } from './basemap';
 
 const DATA = '/data/miami-beach';
 
@@ -48,7 +48,7 @@ const byState = (v: { off: number; target: number; lit: number; dim: number; res
   ['case', ['==', ['feature-state', 'eligible'], false], v.off, stateFlag('target'), v.target, stateFlag('lit'), v.lit, stateFlag('dim'), v.dim, v.rest];
 const RESILIENCE_RAMP: ExpressionSpecification = ['interpolate', ['linear'], ['coalesce', ['feature-state', 'resilience'], 40], 0, '#ff4f6d', 35, '#ffb020', 60, '#9be85a', 100, '#19e6c1'];
 /** Rim colors by why an area is lit: selected (white-gold), legal for the held card (lime), crisis spotlight (gold). */
-const TONE_COLOR: ExpressionSpecification = ['match', ['coalesce', ['feature-state', 'tone'], 'none'], 'target', '#fff6b8', 'eligible', '#9bf08a', 'spot', '#ffd23f', '#ffffff'];
+const TONE_COLOR: ExpressionSpecification = ['match', ['coalesce', ['feature-state', 'tone'], 'none'], 'target', '#ff9d00', 'eligible', '#22b014', 'spot', '#f2a900', '#ffffff'];
 
 type AreaTone = 'target' | 'eligible' | 'spot' | 'none';
 /** Why an area is highlighted, if it is. Holding a card narrows the highlight to where it may go. */
@@ -256,7 +256,7 @@ export function CityMap({ city, spotlight = [], target = null, eligible = null, 
     const sat = !!overlays.satellite;
     map.setLayoutProperty('satellite', 'visibility', sat ? 'visible' : 'none');
     for (const [id, prop, full] of PRINT_FADE) map.setPaintProperty(id, prop, sat ? 0 : full);
-    map.setPaintProperty('buildings-3d', 'fill-extrusion-opacity', sat ? 0.55 : 0.92);
+    map.setPaintProperty('buildings-3d', 'fill-extrusion-opacity', sat ? 0.55 : anyLit ? DIM.buildingsOpacity : 0.92);
     map.setPaintProperty('buildings-3d', 'fill-extrusion-color', anyLit ? DIM.buildings : DIM.buildingsDay);
   }, [map, loaded, overlays.flood, overlays.zoning, overlays.satellite, anyLit]);
 
@@ -273,10 +273,6 @@ export function CityMap({ city, spotlight = [], target = null, eligible = null, 
       map.setFeatureState({ source: 'centers', id: d.id }, { resilience, target: target === d.id, eligible: ok, lit, dim: anyLit && !lit, tone });
     }
     map.setPaintProperty('dim-scrim', 'background-opacity', anyLit ? DIM.scrimOpacity : 0);
-    for (const id of LABEL_IDS) {
-      map.setPaintProperty(id, 'text-color', anyLit ? DIM.labelText : INK.ink);
-      map.setPaintProperty(id, 'text-halo-color', anyLit ? DIM.labelHalo : INK.land);
-    }
   }, [map, loaded, city, spotlight, target, eligible, anyLit]);
 
   // The spotlight pulses.

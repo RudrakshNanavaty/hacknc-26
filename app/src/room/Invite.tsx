@@ -31,7 +31,7 @@ export function Invite({ code }: { code: string }) {
       <div aria-label={`QR code to join room ${code}`} role="img" className="aspect-square w-32 shrink-0 overflow-hidden rounded-xl border border-white bg-white" dangerouslySetInnerHTML={{ __html: svg }} />
       <div className="min-w-0">
         <p className="text-15">Scan to join, or enter the code</p>
-        <p className="tabular font-display text-72 leading-none font-black tracking-widest text-[#7fd6ff]">{code}</p>
+        <p className="tabular font-display text-72 leading-none font-black tracking-widest text-aqua-deep">{code}</p>
         <p className="truncate text-13">{url.replace(/^https?:\/\//, '')}</p>
       </div>
     </div>

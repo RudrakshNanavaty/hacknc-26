@@ -76,7 +76,7 @@ export function WhyButton({ ask, label = 'Why?' }: { ask: () => Promise<ExplainA
       >
         {busy ? '…' : `🤔 ${label}`}
       </button>
-      {a && <span className="why-answer">{a.source === 'gemini' && <b className="text-[#7fd6ff]" title="Reworded by the AI from the engine's answer">✦ </b>}{a.answer}</span>}
+      {a && <span className="why-answer">{a.source === 'gemini' && <b className="text-[#0a6f9a]" title="Reworded by the AI from the engine's answer">✦ </b>}{a.answer}</span>}
     </span>
   );
 }
@@ -96,7 +96,7 @@ export function Hints({ hints, state, room }: { hints: TableHint[]; state: RoomS
           <div key={h.id} className="flex items-start gap-1.5">
             <span className="text-15">{h.kind === 'combo' ? '✨' : h.kind === 'accept' ? '🤝' : '💡'}</span>
             <p className="min-w-0 flex-1 text-13 font-semibold">
-              {h.source === 'gemini' && <b className="text-[#7fd6ff]" title="Worded by the AI; the move was found by the rules engine">✦ </b>}{h.text}
+              {h.source === 'gemini' && <b className="text-[#0a6f9a]" title="Worded by the AI; the move was found by the rules engine">✦ </b>}{h.text}
             </p>
             {canDo && (
               <button
@@ -125,7 +125,7 @@ export function PreviewBox({ p }: { p: ProjectPreview }) {
           const up = p.after[k] > p.before[k];
           return (
             <span key={k} className="text-13 font-black whitespace-nowrap">
-              {INDICATOR_INFO[k].icon} {fmt(k, p.before[k])} → <span className={up ? 'text-[#b6f07a]' : 'text-[#ff9c8c]'}>{fmt(k, p.after[k])}</span>
+              {INDICATOR_INFO[k].icon} {fmt(k, p.before[k])} → <span className={up ? 'text-[#2f7a0e]' : 'text-[#c0392b]'}>{fmt(k, p.after[k])}</span>
             </span>
           );
         })}

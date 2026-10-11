@@ -112,10 +112,10 @@ export function Play({ code }: { code: string }) {
       <main className="lagoon relative flex min-h-full flex-col items-center gap-4 p-4 sm:p-6">
         <LagoonBubbles count={18} />
         <header className="flex w-full max-w-5xl items-center justify-between">
-          <Link to="/" className="vr text-24 text-ink">🌊 Coastal Clash</Link>
+          <Link to="/" className="vr text-24 text-white drop-shadow">🌊 Coastal Clash</Link>
           <span className="lchip">Room {code}</span>
         </header>
-        {room.error && !missing && <p role="alert" className="wet max-w-2xl p-3 text-15 text-[#ff9c8c]">{room.error}</p>}
+        {room.error && !missing && <p role="alert" className="wet max-w-2xl p-3 text-15 text-[#c0392b]">{room.error}</p>}
         <div className="flex w-full justify-center">
           {!state && !missing && <p className="wet p-6 text-18">Connecting to room {code}…</p>}
           {(missing || (state && me === null && !joined) || (state && me === null && state.phase === 'lobby')) && (state?.phase ?? 'lobby') === 'lobby' && <JoinForm room={room} create={missing} />}

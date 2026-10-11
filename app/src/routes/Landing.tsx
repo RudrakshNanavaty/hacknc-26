@@ -34,7 +34,7 @@ export function Landing() {
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/10 via-transparent to-abyss/30" />
         <div className="pointer-events-none relative flex h-full flex-col justify-between gap-4 p-4 sm:p-8">
           <div className="pointer-events-auto glass max-w-xl p-5 sm:p-7">
-            <p className="chip mb-2 w-fit text-[#7fd6ff]">Miami Beach, Florida · real GIS data</p>
+            <p className="chip mb-2 w-fit bg-white/70 text-aqua-deep">Miami Beach, Florida · real GIS data</p>
             <h1 className="hero-title font-display text-48 font-black sm:text-72">Coastal Clash</h1>
             <p className="mt-2 text-18 font-semibold">Clash Royale meets real-world coastal planning. Four stakeholders deploy cards on a real city, their proposals collide, and every match becomes geographically linked feedback for planners.</p>
             <div className="mt-4 flex flex-wrap items-center gap-2">
