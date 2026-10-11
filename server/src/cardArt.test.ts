@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { CARDS } from '@shared';
 import { buildServer } from './app';
 import { Gemini, type GenerateClient } from './ai/gemini';
-import { cardArtPrompt, plain } from './cardArt';
+import { cardArtPrompt, plain, registerCardArt } from './cardArt';
 
 const PNG = Buffer.from('89504e470d0a1a0a', 'hex');
 const painter = (calls: { n: number }, fail = false): GenerateClient => ({
@@ -88,5 +88,78 @@ describe('GET /api/card-art/:id', () => {
     expect((await bad.inject('/api/card-art/fast-track')).statusCode).toBe(503); // remembered: no new call
     expect(calls.n).toBe(before);
     await bad.close();
+  });
+});
+
+describe('painting ahead', () => {
+  const gate = () => {
+    const started: { card: string; release: () => void }[] = [];
+    const client: GenerateClient = {
+      models: {
+        generateContent: (req) =>
+          new Promise((resolve) => {
+            const card = /for the card "([^"]+)"/.exec(String(req.contents))?.[1] ?? '?';
+            started.push({ card, release: () => resolve({ candidates: [{ content: { parts: [{ inlineData: { data: PNG.toString('base64'), mimeType: 'image/png' } }] } }] } as never) });
+          }),
+      },
+    };
+    return { started, client };
+  };
+  const make = async (client: GenerateClient) => {
+    const { default: Fastify } = await import('fastify');
+    const app = Fastify();
+    const art = registerCardArt(app, new Gemini({ apiKey: 'test', client, imageModels: ['m'] }), { dir: null });
+    return { app, art };
+  };
+  const tick = () => new Promise((r) => setTimeout(r, 10));
+
+  it('a picture painted ahead of time is served without painting again', async () => {
+    const calls = { n: 0 };
+    const { app, art } = await make(painter(calls));
+    art.prefetch([{ id: 'fast-track', skin: 'Rush Permit', place: 'south-pointe', story: 'Garage fight' }]);
+    await tick();
+    await tick();
+    expect(calls.n).toBe(1);
+    const r = await app.inject('/api/card-art/fast-track?skin=Rush%20Permit&place=south-pointe&story=Garage%20fight&s=v5');
+    expect(r.statusCode).toBe(200);
+    expect(calls.n).toBe(1);
+    await app.close();
+  });
+
+  it("a player's request jumps ahead of queued background work", async () => {
+    const { started, client } = gate();
+    const { app, art } = await make(client);
+    const ids = ['fast-track', 'seawall-upgrade', 'hotel-development', 'rent-shield', 'flood-watch', 'lobbying-blitz'] as const;
+    art.prefetch(ids.map((id) => ({ id })));
+    await tick();
+    expect(started).toHaveLength(4); // the concurrency limit
+    const wanted = app.inject('/api/card-art/lobbying-blitz'); // last in line, but a player is waiting for it
+    await tick();
+    started[0]!.release(); // one slot frees up
+    await tick();
+    expect(started[4]!.card).toBe(CARDS['lobbying-blitz'].name);
+    started.forEach((s) => s.release());
+    await tick();
+    started.forEach((s) => s.release());
+    await tick();
+    expect((await wanted).statusCode).toBe(200);
+    await app.close();
+  });
+
+  it('warmExamples paints every card once, and does nothing without a key', async () => {
+    const calls = { n: 0 };
+    const { app, art } = await make(painter(calls));
+    art.warmExamples();
+    await new Promise((r) => setTimeout(r, 60));
+    expect(calls.n).toBe(Object.keys(CARDS).length);
+    art.warmExamples();
+    await tick();
+    expect(calls.n).toBe(Object.keys(CARDS).length);
+    await app.close();
+    const { default: Fastify } = await import('fastify');
+    const bare = Fastify();
+    const off = registerCardArt(bare, new Gemini({ apiKey: '' }), { dir: null });
+    expect(() => off.warmExamples()).not.toThrow();
+    await bare.close();
   });
 });

@@ -5,12 +5,13 @@
 import type { IncomingMessage } from 'node:http';
 import type { Duplex } from 'node:stream';
 import { WebSocketServer, type WebSocket } from 'ws';
-import { EVENT_RULES, TOTAL_ROUNDS, authoredScenario, combosInReach, crisisFor, narrationFacts, type ClientMsg, type LiveConditions, type RoomState, type ServerMsg } from '@shared';
+import { EVENT_RULES, TOTAL_ROUNDS, authoredScenario, combosInReach, crisisFor, dealtHand, narrationFacts, type ClientMsg, type LiveConditions, type RoomState, type ServerMsg } from '@shared';
 import type { MatchStore } from './db/store';
 import type { Narrator } from './ai/narrator';
 import type { ScenarioWriter } from './ai/scenario';
 import type { CivicRecord } from './solana/civic';
 import { type EventLog, noEvents } from './db/events';
+import type { ArtService } from './cardArt';
 import { directorFacts, type Director } from './ai/director';
 import {
   RoomError, accept, again, applyDialogue, applyHints, applyScenario, choosePersona, done, findPlayer, getOrCreateRoom, getRoom, join, mapRoles, move,
@@ -50,10 +51,12 @@ export interface RoomServerOptions {
   civic?: CivicRecord | null;
   /** The gameplay timeline (every message, phase and headline); off by default. */
   events?: EventLog;
+  /** Starts painting the match's card pictures as soon as its hands are known. */
+  art?: ArtService | null;
   log: { warn: (obj: unknown, msg: string) => void; info?: (msg: string) => void };
 }
 
-export function roomServer({ store, narrator, scenario, director = null, civic = null, events = noEvents, log }: RoomServerOptions) {
+export function roomServer({ store, narrator, scenario, director = null, civic = null, events = noEvents, art = null, log }: RoomServerOptions) {
   const wss = new WebSocketServer({ noServer: true });
   const conns = new Map<string, Set<Conn>>();
 
@@ -99,6 +102,23 @@ export function roomServer({ store, narrator, scenario, director = null, civic =
     );
   }
 
+  /**
+   * Every round's crisis (and so every card each player will be dealt, under its story name, in its
+   * place) is known the moment the scenario is written: paint round 1 first, then 2 and 3, behind the
+   * crisis the players are reading. Bots never show a card, so only people's hands are painted.
+   */
+  function prefetchArt(room: Room) {
+    if (!art || !room.scenario) return;
+    const people = room.players.filter((p) => !p.bot);
+    art.prefetch(
+      room.scenario.crises.flatMap((crisis, i) =>
+        people.flatMap((p) =>
+          dealtHand(p.persona, i + 1, crisis).map((id) => ({ id, skin: crisis.skins?.[id]?.name, place: crisis.spotlight[0], story: crisis.story?.title })),
+        ),
+      ),
+    );
+  }
+
   function writeScenario(room: Room) {
     const matchId = room.matchId;
     void (async () => {
@@ -109,6 +129,7 @@ export function roomServer({ store, narrator, scenario, director = null, civic =
       });
       if (room.matchId !== matchId) return; // a new match started meanwhile
       applyScenario(room, written, Date.now());
+      prefetchArt(room);
       broadcast(room);
     })();
   }

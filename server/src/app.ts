@@ -90,7 +90,9 @@ export function buildServer({ store = new MemoryStore(), gemini = defaultGemini,
   });
 
   registerStudio(app, store, gemini, persist.snapshots);
-  registerCardArt(app, gemini, { dir: process.env.VITEST ? null : undefined });
+  const cardArt = registerCardArt(app, gemini, { dir: process.env.VITEST ? null : undefined });
+  // The lobby's example cards are generic and never change: paint them once, in the background, at start.
+  if (!process.env.VITEST) setTimeout(() => cardArt.warmExamples(), 1_500).unref();
   app.get('/api/db/status', async () => ({ ...(await persist.status(store.kind)), pendingMatches: 'pending' in store ? (store as { pending(): number }).pending() : 0 }));
   registerLive(app);
 
@@ -115,6 +117,7 @@ export function buildServer({ store = new MemoryStore(), gemini = defaultGemini,
     director: theDirector,
     civic: theCivic,
     events: persist.events,
+    art: cardArt,
     log: app.log,
   });
   app.server.on('upgrade', rooms.onUpgrade);

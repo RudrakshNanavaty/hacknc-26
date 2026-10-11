@@ -971,3 +971,21 @@ button.tc:hover { transform: translateY(-4px); }
 .hc-art { flex: none; border-radius: 8px; }
 .hand-art { width: 56px; flex: none; border-radius: 7px; border-width: 1px; }
 .sc .sc-art { width: 84px; border-radius: 8px; border-width: 1px; }
+
+/* The lobby's deck preview: a held-up fan in a tray, so it reads as a picture of the deck. */
+.deck-fan {
+  display: flex; justify-content: center; align-items: flex-end; padding: 22px 18px 14px; border-radius: 22px; overflow: hidden;
+  background:
+    radial-gradient(ellipse at 50% 120%, color-mix(in srgb, var(--tint) 34%, transparent), transparent 70%),
+    linear-gradient(180deg, rgba(255, 255, 255, .25), rgba(255, 255, 255, .08));
+  border: 1px solid rgba(255, 255, 255, .7);
+  box-shadow: inset 0 -12px 22px rgba(11, 61, 92, .12), inset 0 1px 0 rgba(255, 255, 255, .9);
+}
+.deck-fan .tc {
+  margin-left: -30px; transform-origin: 50% 130%; transform: translateY(var(--y)) rotate(var(--r));
+  animation: fan-deal .45s var(--ease-out) backwards; animation-delay: calc(var(--i) * 50ms);
+}
+.deck-fan .tc:first-child { margin-left: 0; }
+.deck-fan .tc:hover { transform: translateY(calc(var(--y) - 12px)) rotate(var(--r)); z-index: 3; }
+@keyframes fan-deal { from { transform: translateY(40px) rotate(0deg); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .deck-fan .tc { animation: none; } }

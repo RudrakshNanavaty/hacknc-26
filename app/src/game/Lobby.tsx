@@ -8,6 +8,25 @@ import { GameCard } from './GameCard';
 import { PersonaOrb } from './Players';
 import { unlockAudio } from '../ui/sound';
 
+/**
+ * The chosen stakeholder's deck, fanned out like a hand held up to the light. It is a picture of the
+ * deck, not a list of choices: tilted and overlapping in a tray, so it does not read as buttons.
+ */
+function DeckFan({ persona }: { persona: PersonaId }) {
+  const cards = handOf(persona);
+  const mid = (cards.length - 1) / 2;
+  return (
+    <div className="deck-fan" key={persona} style={{ ['--tint' as string]: PERSONA_INFO[persona].color }} role="img" aria-label={`${PERSONA_INFO[persona].name} deck`}>
+      {cards.map((c, i) => (
+        <GameCard
+          key={c} id={c} size="lg"
+          style={{ ['--w' as string]: '118px', ['--r' as string]: `${(i - mid) * 7}deg`, ['--y' as string]: `${Math.abs(i - mid) ** 2 * 2.2}px`, ['--i' as string]: i }}
+        />
+      ))}
+    </div>
+  );
+}
+
 function PersonaPicker({ taken, value, onPick }: { taken: Map<PersonaId, { bot: boolean }>; value: PersonaId | null; onPick: (p: PersonaId) => void }) {
   return (
     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -54,10 +73,9 @@ export function JoinForm({ room, create }: { room: Room; create: boolean }) {
         <PersonaPicker taken={taken} value={persona} onPick={setPersona} />
       </fieldset>
       {persona && (
-        <div className="flex flex-wrap items-end gap-3 pt-2">
-          {handOf(persona).map((c) => <GameCard key={c} id={c} size="lg" />)}
-          <p className="w-full text-13 opacity-70">Your deck: each crisis deals you 4 of these 6.</p>
-          <p className="max-w-[16rem] text-13 opacity-80">{PERSONA_INFO[persona].voice}</p>
+        <div className="flex flex-col gap-2">
+          <DeckFan persona={persona} />
+          <p className="max-w-[28rem] text-13 opacity-80">{PERSONA_INFO[persona].voice}</p>
         </div>
       )}
       <button className="aero-btn aero-btn-go aero-btn-lg self-start" disabled={!persona || !name.trim()}>{create ? 'Open room' : 'Join'}</button>

@@ -9,11 +9,11 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { FastifyInstance } from 'fastify';
-import { CARDS, CARD_ART_STYLE, DISTRICT_IDS, districtById, type Card, type CardId } from '@shared';
+import { CARDS, CARD_ART_STYLE, CARD_IDS, DISTRICT_IDS, districtById, type Card, type CardId } from '@shared';
 import type { Gemini } from './ai/gemini';
 
 const DIR = join(dirname(fileURLToPath(import.meta.url)), '..', '.cache', 'card-art');
-const CONCURRENCY = 3;
+const CONCURRENCY = 4;
 const MEMORY_MAX = 120;
 const FAIL_TTL_MS = 45_000;
 /** A quota or billing error (402, 429) pauses all painting: every card would only fail the same way. */
@@ -69,83 +69,154 @@ export function cardArtPrompt(card: Card, theme: ArtTheme = {}): string {
 
 const keyFor = (id: CardId, t: ArtTheme) => createHash('sha1').update(`${CARD_ART_STYLE}|${id}|${t.skin ?? ''}|${t.place ?? ''}|${t.story ?? ''}`).digest('hex').slice(0, 24);
 
-export function registerCardArt(app: FastifyInstance, gemini: Gemini, opts: { dir?: string | null } = {}) {
+export interface ArtItem extends ArtTheme {
+  id: CardId;
+}
+
+export interface ArtService {
+  /** Start painting these in the background (a match's hands, as soon as they are known). Requests from players jump ahead. */
+  prefetch(items: ArtItem[]): void;
+  /** Paint every card's generic picture once (the lobby's examples); pictures already on disk cost nothing. */
+  warmExamples(): void;
+}
+
+type Stored = { data: Buffer; mimeType: string };
+
+interface Task {
+  key: string;
+  /** A player is waiting on it (otherwise it is background work). */
+  urgent: boolean;
+  started: boolean;
+  run: () => Promise<Stored>;
+  promise: Promise<Stored>;
+  resolve: (v: Stored) => void;
+  reject: (e: unknown) => void;
+}
+
+export function registerCardArt(app: FastifyInstance, gemini: Gemini, opts: { dir?: string | null } = {}): ArtService {
   const dir = opts.dir === undefined ? DIR : opts.dir;
-  const memory = new Map<string, { data: Buffer; mimeType: string }>();
-  const inflight = new Map<string, Promise<{ data: Buffer; mimeType: string }>>();
+  const memory = new Map<string, Stored>();
+  const tasks = new Map<string, Task>();
+  const queue: Task[] = [];
   const failed = new Map<string, number>();
   let running = 0;
   let pausedUntil = 0;
-  const waiting: (() => void)[] = [];
 
-  const slot = async <T>(run: () => Promise<T>): Promise<T> => {
-    if (running >= CONCURRENCY) await new Promise<void>((resolve) => waiting.push(resolve));
-    running++;
-    try {
-      return await run();
-    } finally {
-      running--;
-      waiting.shift()?.();
-    }
-  };
-
-  const remember = (key: string, v: { data: Buffer; mimeType: string }) => {
+  const remember = (key: string, v: Stored) => {
     memory.set(key, v);
     if (memory.size > MEMORY_MAX) memory.delete(memory.keys().next().value!);
   };
 
-  async function paint(id: CardId, theme: ArtTheme, key: string) {
-    const hit = memory.get(key);
-    if (hit) return hit;
-    if (dir) {
-      for (const [ext, mimeType] of [['jpg', 'image/jpeg'], ['png', 'image/png']] as const) {
-        const disk = await readFile(join(dir, `${key}.${ext}`)).catch(() => null);
-        if (disk) {
-          const v = { data: disk, mimeType };
-          remember(key, v);
-          return v;
-        }
-      }
-    }
-    const job = inflight.get(key) ?? slot(async () => {
-      const img = await gemini.image({ prompt: cardArtPrompt(CARDS[id], theme), aspectRatio: '4:3' });
-      const v = { data: img.data, mimeType: img.mimeType };
-      remember(key, v);
-      if (dir) void mkdir(dir, { recursive: true }).then(() => writeFile(join(dir, `${key}.${img.mimeType === 'image/jpeg' ? 'jpg' : 'png'}`), img.data)).catch(() => {});
-      return v;
-    });
-    inflight.set(key, job);
-    try {
-      return await job;
-    } finally {
-      inflight.delete(key);
+  /** Players' requests first, then background work in the order it was queued. */
+  function pump() {
+    while (running < CONCURRENCY) {
+      const next = queue.find((t) => !t.started && t.urgent) ?? queue.find((t) => !t.started);
+      if (!next) return;
+      next.started = true;
+      queue.splice(queue.indexOf(next), 1);
+      running++;
+      next.run().then(next.resolve, next.reject).finally(() => {
+        running--;
+        tasks.delete(next.key);
+        pump();
+      });
     }
   }
+
+  async function fromDisk(key: string): Promise<Stored | null> {
+    if (!dir) return null;
+    for (const [ext, mimeType] of [['jpg', 'image/jpeg'], ['png', 'image/png']] as const) {
+      const data = await readFile(join(dir, `${key}.${ext}`)).catch(() => null);
+      if (data) return { data, mimeType };
+    }
+    return null;
+  }
+
+  /** One picture: from memory, disk, or Gemini. Joins work already queued for the same picture. */
+  function paint(id: CardId, theme: ArtTheme, key: string, urgent: boolean): Promise<Stored> {
+    const hit = memory.get(key);
+    if (hit) return Promise.resolve(hit);
+    const queued = tasks.get(key);
+    if (queued) {
+      queued.urgent ||= urgent;
+      return queued.promise;
+    }
+    let resolve!: Task['resolve'];
+    let reject!: Task['reject'];
+    const promise = new Promise<Stored>((res, rej) => ((resolve = res), (reject = rej)));
+    const task: Task = {
+      key, urgent, started: false, promise, resolve, reject,
+      run: async () => {
+        const disk = await fromDisk(key);
+        if (disk) {
+          remember(key, disk);
+          return disk;
+        }
+        if (Date.now() < pausedUntil) throw new Error('paused (quota)');
+        const img = await gemini.image({ prompt: cardArtPrompt(CARDS[id], theme), aspectRatio: '4:3' });
+        const v = { data: img.data, mimeType: img.mimeType };
+        remember(key, v);
+        if (dir) void mkdir(dir, { recursive: true }).then(() => writeFile(join(dir, `${key}.${img.mimeType === 'image/jpeg' ? 'jpg' : 'png'}`), img.data)).catch(() => {});
+        return v;
+      },
+    };
+    tasks.set(key, task);
+    queue.push(task);
+    pump();
+    return promise;
+  }
+
+  const noteFailure = (err: unknown, id: CardId) => {
+    const message = (err as Error).message;
+    if (OUT_OF_CREDIT.test(message)) {
+      if (Date.now() >= pausedUntil) app.log.warn({ err: message.slice(0, 160) }, `card art paused for ${PAUSE_MS / 60_000} minutes: the Gemini image quota or credits are used up`);
+      pausedUntil = Date.now() + PAUSE_MS;
+    } else if (!/paused/.test(message)) app.log.warn({ err: message.slice(0, 160), card: id }, 'card art not painted');
+  };
+
+  const theme = (t: ArtTheme): ArtTheme => ({ skin: plain(t.skin, 40), place: plain(t.place, 40), story: plain(t.story, 70) });
+
+  const service: ArtService = {
+    prefetch(items) {
+      if (!gemini.ready()) return;
+      for (const it of items) {
+        if (!Object.prototype.hasOwnProperty.call(CARDS, it.id)) continue;
+        const t = theme(it);
+        const key = keyFor(it.id, t);
+        if (memory.has(key) || tasks.has(key)) continue;
+        // Background work never poisons the failure memory: a player's own request decides that.
+        paint(it.id, t, key, false).catch((err) => noteFailure(err, it.id));
+      }
+    },
+    warmExamples() {
+      service.prefetch(CARD_IDS.map((id) => ({ id })));
+    },
+  };
 
   app.get<{ Params: { id: string }; Querystring: { skin?: string; place?: string; story?: string } }>('/api/card-art/:id', async (req, reply) => {
     const id = req.params.id as CardId;
     if (!Object.prototype.hasOwnProperty.call(CARDS, id)) return reply.code(404).send({ error: 'unknown card' });
     if (!gemini.ready()) return reply.code(503).send({ error: 'pictures are off' });
-    if (Date.now() < pausedUntil) return reply.code(503).header('retry-after', '300').send({ error: 'pictures are paused (quota)' });
-    const theme: ArtTheme = { skin: plain(req.query.skin, 40), place: plain(req.query.place, 40), story: plain(req.query.story, 70) };
-    const key = keyFor(id, theme);
+    const t = theme(req.query);
+    const key = keyFor(id, t);
     // The key includes the style version, so it is the picture's identity: a client that has it is current.
     const etag = `"${key}"`;
     if (req.headers['if-none-match'] === etag) return reply.code(304).header('etag', etag).send();
     const lastFail = failed.get(key);
     if (lastFail && Date.now() - lastFail < FAIL_TTL_MS) return reply.code(503).header('retry-after', '45').send({ error: 'not painted yet' });
+    if (Date.now() < pausedUntil && !memory.has(key) && !tasks.has(key) && !(await fromDisk(key))) {
+      return reply.code(503).header('retry-after', '300').send({ error: 'pictures are paused (quota)' });
+    }
     try {
-      const v = await paint(id, theme, key);
+      const v = await paint(id, t, key, true);
       failed.delete(key);
       return reply.header('content-type', v.mimeType).header('etag', etag).header('cache-control', 'no-cache').send(v.data);
     } catch (err) {
       failed.set(key, Date.now());
-      const message = (err as Error).message;
-      if (OUT_OF_CREDIT.test(message)) {
-        if (Date.now() >= pausedUntil) app.log.warn({ err: message.slice(0, 160) }, `card art paused for ${PAUSE_MS / 60_000} minutes: the Gemini image quota or credits are used up`);
-        pausedUntil = Date.now() + PAUSE_MS;
-      } else app.log.warn({ err: message.slice(0, 160), card: id }, 'card art not painted');
+      noteFailure(err, id);
       return reply.code(503).header('retry-after', '45').send({ error: 'not painted' });
     }
   });
+
+  return service;
 }
