@@ -520,7 +520,7 @@ input[type="range"].aero-range {
 .anchor-tail.on-left { left: -7px; border-right: 0; border-top: 0; }
 .anchor-tail.on-right { right: -7px; border-left: 0; border-bottom: 0; }
 /* The action at the bottom of a floating card stays in reach while its body scrolls. */
-.anchor-foot { position: sticky; bottom: -14px; z-index: 5; margin: 2px -14px -14px; padding: 10px 14px 14px; display: flex; flex-direction: column; gap: 6px; color: #fff;
+.anchor-foot { position: sticky; bottom: -14px; z-index: 5; margin: 10px -14px -14px; padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 6px; color: #fff;
   background: linear-gradient(180deg, rgba(10,143,200,0), rgba(10,143,200,.9) 26%, rgba(10,134,190,.97)); }
 .side-float { position: fixed; z-index: 35; top: calc(var(--crawl) + 168px); right: 12px; bottom: 16px; width: 440px; animation: pop-in .35s cubic-bezier(.2,.9,.3,1.3) both; }
 .final-scrim { position: fixed; inset: 0; z-index: 45; display: grid; place-items: center; padding: 24px; background: rgba(6,40,66,.35); }
@@ -988,3 +988,26 @@ button.tc:hover { transform: translateY(-4px); }
 .deck-fan .tc:hover { transform: translateY(calc(var(--y) - 12px)) rotate(var(--r)); z-index: 3; }
 @keyframes fan-deal { from { transform: translateY(40px) rotate(0deg); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .deck-fan .tc { animation: none; } }
+
+/* The card detail in a map popover: picture beside the stats, a sticky area header, no wasted rows. */
+.anchor-top {
+  position: sticky; top: -14px; z-index: 6; margin: -14px -14px 0; padding: 12px 14px 8px; display: flex; flex-direction: column; gap: 4px;
+  background: linear-gradient(180deg, rgba(240, 251, 255, .97), rgba(214, 242, 255, .94)); border-bottom: 1px solid rgba(255, 255, 255, .8);
+}
+.tcf-compact { gap: 6px; padding: 6px 8px 8px; }
+.tcf-compact .tcf-head { min-height: 30px; }
+.tcf-compact .tcf-name { font-size: 18px; }
+.tcf-compact .tc-cost { width: 30px; height: 30px; font-size: 17px; }
+.tcf-row { display: grid; grid-template-columns: 42% minmax(0, 1fr); gap: 8px; align-items: start; }
+.tcf-side { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.tcf-compact .tcf-tags { gap: 3px; }
+.tcf-compact .stats4 { grid-template-columns: repeat(2, 1fr); gap: 4px; }
+.tcf-compact .stat { padding: 2px 0; font-size: 9.5px; border-radius: 12px; }
+.tcf-compact .stat b { font-size: 14.5px; }
+.tcf-compact .quip { font-size: 13.5px; }
+.tcf-rule { margin: 0; font: 700 12.5px/1.3 Nunito, sans-serif; opacity: .88; }
+.tcf-compact .stats4.is-one { grid-template-columns: minmax(0, 1fr); }
+.combo-fold > summary { cursor: pointer; font-weight: 900; color: #0a6f9a; list-style: none; }
+.combo-fold > summary::before { content: "+ "; }
+.combo-fold[open] > summary::before { content: "- "; }
+.combo-fold > p { margin-top: 4px; }

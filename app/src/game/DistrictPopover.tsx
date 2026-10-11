@@ -51,13 +51,13 @@ export function DistrictPopover({ state, room, map, district, setDistrict, onCar
   const header = (
     <div className="flex items-start gap-2">
       <div className="min-w-0 flex-1">
-        <p className="vr text-18 leading-tight">📍 {d.name}</p>
+        <p className="vr text-18 leading-tight">{d.name}</p>
         <span className="mt-1 flex items-center gap-2 text-[12px] font-black">
           <span className="map-chip-meter !w-24"><span style={{ width: `${resilience}%` }} /></span>
           Resilience {resilience}
         </span>
       </div>
-      <span className="lchip">⚡ {me.influence}</span>
+      <span className="lchip">Influence {me.influence}</span>
       <button type="button" className="hint-x" aria-label="Close" onClick={close}>✕</button>
     </div>
   );
@@ -96,31 +96,31 @@ export function DistrictPopover({ state, room, map, district, setDistrict, onCar
   const preview = why ? null : projectPreview(card, district, state.round, state.city, state.crisis ?? undefined);
   const elsewhere = DISTRICT_IDS.filter((id) => id !== district && !blocker(card, id, me.influence));
   return (
-    <MapAnchor map={map} district={district} label={`${cardName(card, state.crisis)} in ${d.name}`} onClose={close} width={400}>
+    <MapAnchor map={map} district={district} label={`${cardName(card, state.crisis)} in ${d.name}`} onClose={close} width={440}>
       <div className="flex flex-col gap-2">
-        {header}
-        <button type="button" className="self-start text-[12px] font-black text-[#0a6f9a] underline" onClick={() => setCard(null)}>‹ All your cards</button>
+        <div className="anchor-top">
+          {header}
+          <button type="button" className="self-start text-[12px] font-black text-[#0a6f9a] underline" onClick={() => setCard(null)}>‹ All your cards</button>
+        </div>
         <CharacterCard id={card} quip={state.quips[card]} note={why} compact />
-        <div className="frost p-3"><CardExtras id={card} /></div>
+        <div className="frost p-2.5"><CardExtras id={card} compact /></div>
         {preview && <PreviewBox p={preview} />}
-        <WhyButton key={`${card}-${district}`} label={why ? 'Why not here?' : 'Why here?'} ask={() => explain({ kind: 'eligibility', card, district })} />
-        {elsewhere.length > 0 && (
-          <p className="flex flex-wrap items-center gap-1.5 text-[12px] font-black">
-            Also playable in:
-            {elsewhere.map((id) => <button key={id} type="button" className="gel gel-sm" onClick={() => setDistrict(id)}>{districtById(id).name}</button>)}
-          </p>
-        )}
+        <div className="flex flex-wrap items-center gap-1.5 text-[12px] font-black">
+          <WhyButton key={`${card}-${district}`} label={why ? 'Why not here?' : 'Why here?'} ask={() => explain({ kind: 'eligibility', card, district })} />
+          {elsewhere.length > 0 && <span className="opacity-80">Also in:</span>}
+          {elsewhere.map((id) => <button key={id} type="button" className="gel gel-sm" onClick={() => setDistrict(id)}>{districtById(id).name}</button>)}
+        </div>
         <div className="anchor-foot">
           <button
-            type="button" className="gel gel-lime gel-big" disabled={!!why}
+            type="button" className="gel gel-lime gel-big !min-h-[48px] !text-[19px]" disabled={!!why}
             onClick={() => {
               playDeal();
               room.select(card, district);
             }}
           >
-            {why ? 'Not playable here' : `Deploy here · ⚡${CARDS[card].cost}`}
+            {why ? 'Not playable here' : `Deploy here · ${CARDS[card].cost} influence`}
           </button>
-          <p className="text-center text-[11px] font-black opacity-80">Final: one card a round, face down until everyone plays.</p>
+          <p className="text-center text-[10.5px] font-black opacity-80">Final: one card a round, face down until everyone plays.</p>
         </div>
       </div>
     </MapAnchor>

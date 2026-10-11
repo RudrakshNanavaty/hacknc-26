@@ -74,7 +74,7 @@ export function WhyButton({ ask, label = 'Why?' }: { ask: () => Promise<ExplainA
             .finally(() => setBusy(false));
         }}
       >
-        {busy ? '…' : `🤔 ${label}`}
+        {busy ? '...' : label}
       </button>
       {a && <span className="why-answer">{a.source === 'gemini' && <b className="text-[#0a6f9a]" title="Reworded by the AI from the engine's answer">✦ </b>}{a.answer}</span>}
     </span>
@@ -118,19 +118,19 @@ export function Hints({ hints, state, room }: { hints: TableHint[]; state: RoomS
 export function PreviewBox({ p }: { p: ProjectPreview }) {
   const moved = INDICATORS.filter((k) => p.after[k] !== p.before[k]);
   return (
-    <div className="frost flex flex-col gap-1.5 p-3">
-      <p className="text-[11px] font-black tracking-wide uppercase opacity-75">If approved as it stands · illustrative</p>
+    <div className="frost flex flex-col gap-1 p-2.5">
+      <p className="text-[10.5px] font-black tracking-wide uppercase opacity-75">If approved as it stands · illustrative</p>
       <div className="flex flex-wrap gap-x-3 gap-y-1">
         {moved.map((k) => {
           const up = p.after[k] > p.before[k];
           return (
             <span key={k} className="text-13 font-black whitespace-nowrap">
-              {INDICATOR_INFO[k].icon} {fmt(k, p.before[k])} → <span className={up ? 'text-[#2f7a0e]' : 'text-[#c0392b]'}>{fmt(k, p.after[k])}</span>
+              {INDICATOR_INFO[k].short} {fmt(k, p.before[k])} → <span className={up ? 'text-[#2f7a0e]' : 'text-[#c0392b]'}>{fmt(k, p.after[k])}</span>
             </span>
           );
         })}
       </div>
-      {p.warnings.map((w) => <p key={w} className="warn-line">⚠ {w}</p>)}
+      {p.warnings.map((w) => <p key={w} className="warn-line">{w}</p>)}
     </div>
   );
 }
@@ -194,16 +194,25 @@ export function Recap({ state }: { state: RoomState }) {
 }
 
 /** A card's family, trade-off, what answers it, its combos and any delayed consequence. */
-export function CardExtras({ id }: { id: CardId }) {
+export function CardExtras({ id, compact = false }: { id: CardId; compact?: boolean }) {
   const c = CARDS[id];
   return (
-    <div className="flex flex-col gap-1 text-13">
+    <div className={`flex flex-col gap-1 ${compact ? 'text-[12px] leading-snug' : 'text-13'}`}>
       <p className="font-semibold opacity-85"><b>Trade-off:</b> {c.tradeoff}</p>
-      {c.delayed && <p className="warn-line">⏳ Next round: {c.delayed.text}</p>}
-      {c.counters.length > 0 && <p className="font-semibold opacity-85"><b>Answered by:</b> {c.counters.map((x) => CARDS[x].name).join(', ')}</p>}
-      {c.combos.map((k) => (
-        <p key={k} className="combo-line">✨ <b>{COMBOS[k].name}</b>: {COMBOS[k].recipe} Bonus {deltaText(COMBOS[k].bonus)}.</p>
-      ))}
+      {c.delayed && <p className="warn-line">Next round: {c.delayed.text}</p>}
+      {!compact && c.counters.length > 0 && <p className="font-semibold opacity-85"><b>Answered by:</b> {c.counters.map((x) => CARDS[x].name).join(', ')}</p>}
+      {compact && c.combos.length > 0 ? (
+        <details className="combo-fold">
+          <summary>Combos with this card ({c.combos.length})</summary>
+          {c.combos.map((k) => (
+            <p key={k} className="combo-line"><b>{COMBOS[k].name}</b>: {COMBOS[k].recipe} Bonus {deltaText(COMBOS[k].bonus)}.</p>
+          ))}
+        </details>
+      ) : (
+        c.combos.map((k) => (
+          <p key={k} className="combo-line"><b>{COMBOS[k].name}</b>: {COMBOS[k].recipe} Bonus {deltaText(COMBOS[k].bonus)}.</p>
+        ))
+      )}
     </div>
   );
 }

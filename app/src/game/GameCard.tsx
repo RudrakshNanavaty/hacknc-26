@@ -64,7 +64,7 @@ function derivedStats(id: CardId): Stat[] {
 
 export function CharacterCard({ id, quip, note, compact = false }: {
   id: CardId; quip?: string | null; note?: string | null;
-  /** Inside a map popover: a shorter picture window. */
+  /** Inside a map popover: picture beside the stats, tighter type, so it fits without scrolling. */
   compact?: boolean;
 }) {
   const c = CARDS[id];
@@ -72,26 +72,59 @@ export function CharacterCard({ id, quip, note, compact = false }: {
   const line = story.line ?? quip;
   const p = PERSONA_INFO[c.persona];
   const cost = c.project ? PROJECTS[c.project].budgetCost : 0;
+  const costChip = cost > 0
+    ? <span className="lchip lchip-sun">Public cost ${cost}M{c.project && PROJECTS[c.project].upkeep ? ` + $${PROJECTS[c.project].upkeep}M/round` : ''}</span>
+    : c.project ? <span className="lchip lchip-lime">Privately funded</span> : null;
+  const all = cardStats(id);
+  // In the popover, a stat that does nothing is only noise: show the ones that move something.
+  const shown = compact && all.some((s) => s.tone !== 'zero') ? all.filter((s) => s.tone !== 'zero') : all;
+  const stats = (
+    <div className={`stats4 ${shown.length === 1 ? 'is-one' : ''}`}>
+      {shown.map((s) => (
+        <span key={s.label} className={`stat ${s.tone ?? ''}`}>{s.label}<b>{s.value}</b></span>
+      ))}
+    </div>
+  );
+  const head = (
+    <header className="tcf-head">
+      <h2 className="tcf-name">{story.name}</h2>
+      <span className="tc-cost" aria-label={`${c.cost} influence`}>{c.cost}</span>
+    </header>
+  );
+  if (compact) {
+    return (
+      <article className="tcf tcf-compact" style={{ ['--c' as string]: p.color }} aria-label={`${story.name} card`}>
+        {head}
+        {story.skinned && <p className="tcf-plays">Plays as {c.name}</p>}
+        <div className="tcf-row">
+          <CardArt id={id} className="tcf-art" />
+          <div className="tcf-side">
+            <div className="tcf-tags">
+              <span className="lchip">{FAMILY_INFO[c.family].label}</span>
+              <span className={`lchip ${CATEGORY_TONE[c.category]}`}>{CATEGORY[c.category]}</span>
+              {costChip}
+            </div>
+            {stats}
+          </div>
+        </div>
+        {line && <p className="quip">“{line}”</p>}
+        <p className="tcf-rule">{c.rule}</p>
+        {note && <p className="text-13 font-black text-[#c0392b]">{note}</p>}
+      </article>
+    );
+  }
   return (
     <article className="tcf" style={{ ['--c' as string]: p.color }} aria-label={`${story.name} card`}>
-      <header className="tcf-head">
-        <h2 className="tcf-name">{story.name}</h2>
-        <span className="tc-cost" aria-label={`${c.cost} influence`}>{c.cost}</span>
-      </header>
+      {head}
       {story.skinned && <p className="tcf-plays">Plays as {c.name}</p>}
-      <CardArt id={id} className={`tcf-art ${compact ? 'is-wide' : ''}`} />
+      <CardArt id={id} className="tcf-art" />
       <div className="tcf-tags">
         <span className="lchip">{p.name}</span>
         <span className="lchip" style={{ color: `color-mix(in srgb, ${FAMILY_INFO[c.family].color} 60%, #0b3d5c)` }}>{FAMILY_INFO[c.family].label}</span>
         <span className={`lchip ${CATEGORY_TONE[c.category]}`}>{CATEGORY[c.category]}</span>
-        {cost > 0 && <span className="lchip lchip-sun">Public cost ${cost}M{c.project && PROJECTS[c.project].upkeep ? ` + $${PROJECTS[c.project].upkeep}M/round` : ''}</span>}
-        {c.project && cost === 0 && <span className="lchip lchip-lime">Privately funded</span>}
+        {costChip}
       </div>
-      <div className="stats4">
-        {cardStats(id).map((s) => (
-          <span key={s.label} className={`stat ${s.tone ?? ''}`}>{s.label}<b>{s.value}</b></span>
-        ))}
-      </div>
+      {stats}
       {line && <p className="quip">“{line}”</p>}
       <p className="text-13 font-semibold opacity-85">{c.rule}</p>
       {note && <p className="text-13 font-black text-[#c0392b]">{note}</p>}
