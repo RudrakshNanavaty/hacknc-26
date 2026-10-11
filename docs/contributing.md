@@ -56,11 +56,11 @@ server/src/
   db/store.ts, db/tiger.ts, db/schema.sql   MemoryStore or Tiger Data (Postgres) behind failSoft
 app/src/
   routes/Landing.tsx, Play.tsx, Studio.tsx    the three pages (tiny router in router.tsx); Play is the stage: the map
-                            is the whole board, with the HUD (meters, clock, player bubbles, the news TV) over it and your hand along the bottom
+                            is the whole board, with the HUD (meters, clock, player bubbles, the news crawl and anchor card) over it and your hand along the bottom
   routes/FxLab.tsx          dev-only /fx-lab: every crisis animation, any intensity
   room/useRoom.ts           the WebSocket client: state, clock offset, one function per ClientMsg, pings
-  game/NewsTV.tsx           the news: a TV with the anchor in the top-right (latest headline, details drawer: facts, K1,
-                            agenda, twist) and the crisis briefing card while the crisis lands
+  game/NewsTV.tsx           the news: a crawl across the top edge, a card with the pulsing anchor in the top-right (latest
+                            headline, details drawer: facts, K1, agenda, twist), and the crisis briefing while it lands
   game/HandDeck.tsx         your hand, fanned along the bottom: the dealt cards (select) or Back / Oppose / Fund / Pass
                             (negotiate); moves.ts = move availability on top of the engine's checkMove
   game/DistrictPopover.tsx  click an area: your dealt hand (handFor: 4 of 6), illegal cards greyed with the reason,
@@ -172,7 +172,7 @@ and the number check in `server/src/ai/scenario.ts`.
 5. A test in `server/src/rooms.test.ts`.
 
 ### UI work
-- There is no side panel: `routes/Play.tsx` puts each phase on the map. Crisis: `CrisisBriefing` + `CrisisAlert` + `CrisisFx`, and `NewsTV` stays on top-right all match.
+- There is no side panel: `routes/Play.tsx` puts each phase on the map. Crisis: `CrisisBriefing` + `CrisisAlert` + `CrisisFx`, and `NewsTV` (crawl + anchor card) stays on all match.
   Select: `HandDeck` (point at a card to light its legal areas, click it to hold it, click a lit area) into `DistrictPopover`;
   clicking an area first still lists your cards. Reveal and negotiate: `CaseFile` for the table, `HandDeck` for your move.
   Resolve and final: `ResultOverlay`. Rules/Director additions live in `game/insights.tsx`. Pin anything that belongs to a

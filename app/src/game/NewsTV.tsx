@@ -1,16 +1,20 @@
-// The news. A TV window in the top-right corner stays on for the whole match: the anchor reads the
-// latest headline (the narrator's line, or the crisis title until there is one). Click the TV for the
-// details the old crisis screen had: the real facts of each spotlight area, what the crisis adds this
-// round (rule K1), your agenda, and the round's twist. While the crisis lands, the full story and the
-// live readings still drop in top-center as the briefing (CrisisBriefing), then fold into the TV.
+// The news, on for the whole match. A crawl runs across the top edge (the crisis, its live readings, the
+// spotlight areas, the round's twist, the last result); a card in the top-right corner has the pulsing
+// anchor and the latest headline (the narrator's line, or the crisis title until there is one). Click the
+// card for the details the old crisis screen had: the real facts of each spotlight area, what the crisis
+// adds this round (rule K1), your agenda, and the round's twist. While the crisis lands, the full story
+// and the live readings still drop in top-center as the briefing (CrisisBriefing), then fold into the card.
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { CRISIS_KIND_INFO, INDICATOR_INFO, PERSONA_INFO, districtById, districtFacts, type RoomState } from '@shared';
 import { spriteSvg } from '../map/sprites';
 import { TwistCard } from './insights';
 
 const ANCHOR_SVG = spriteSvg('anchor');
-/** The lower third shows this many lines; a longer headline pans like a teleprompter. */
-const LINES = 3;
+/** The card shows this many lines; a longer headline pans like a teleprompter. */
+const LINES = 6;
+/** The crawl's speed and the gap between its items. */
+const CRAWL_PX_PER_S = 70;
+const CRAWL_GAP = 40;
 const LINE_PX = 16;
 
 const reduceMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -96,6 +100,48 @@ function NewsDetails({ state }: { state: RoomState }) {
   );
 }
 
+/** What runs across the top: short, from what the match already knows (no new numbers). */
+function crawlItems(state: RoomState): string[] {
+  const c = state.crisis;
+  if (!c) return ['Live desk checking Miami Beach right now: tide gauge, flood thresholds, forecast, FEMA zones'];
+  const twist = state.event && state.event.round === state.round ? state.event : null;
+  const last = state.history.at(-1);
+  return [
+    c.title,
+    ...c.readings,
+    `Spotlight: ${c.spotlight.map((id) => districtById(id).name).join(' and ')}`,
+    twist ? `Twist: ${twist.title}` : '',
+    last ? `Round ${last.round}: ${last.headline}` : '',
+  ].filter(Boolean);
+}
+
+/** The strip across the top: an alert label, then the items crawling left, looped. */
+function Crawl({ state, label }: { state: RoomState; label: string }) {
+  const text = crawlItems(state).join('  ◆  ');
+  const probe = useRef<HTMLSpanElement>(null);
+  const [fit, setFit] = useState({ reps: 2, ms: 60000 });
+  useLayoutEffect(() => {
+    const w = (probe.current?.offsetWidth ?? 0) + CRAWL_GAP;
+    if (w <= CRAWL_GAP) return;
+    // Each half of the loop is at least as wide as the screen, so there is never a gap.
+    const reps = Math.max(1, Math.ceil(window.innerWidth / w));
+    setFit({ reps, ms: Math.round(((reps * w) / CRAWL_PX_PER_S) * 1000) });
+  }, [text]);
+  const half = Array.from({ length: fit.reps }, (_, i) => <span key={i} className="crawl-item">{text}</span>);
+  return (
+    <div className="crawl" aria-hidden>
+      <span className="crawl-tag"><i />{label}</span>
+      <span className="crawl-view">
+        <span ref={probe} className="crawl-probe">{text}</span>
+        <span key={text} className="crawl-track" style={{ ['--crawl-ms' as string]: `${fit.ms}ms` }}>
+          {half}
+          {half}
+        </span>
+      </span>
+    </div>
+  );
+}
+
 export function NewsTV({ state, open, setOpen }: { state: RoomState; open: boolean; setOpen: (open: boolean) => void }) {
   const c = state.crisis;
   const kind = c ? CRISIS_KIND_INFO[c.kind] : null;
@@ -103,7 +149,8 @@ export function NewsTV({ state, open, setOpen }: { state: RoomState; open: boole
   const headline = state.headline;
   // The crisis title leads while the crisis lands; after that the narrator's line is the news.
   const text = (crisisPhase ? c?.title : headline?.text ?? c?.title) ?? 'Checking Miami Beach right now…';
-  const tag = crisisPhase || !headline ? 'BREAKING' : headline.source === 'gemini' ? 'LIVE' : 'NEWS';
+  const live = !crisisPhase && headline?.source === 'gemini';
+  const label = crisisPhase ? 'Breaking' : kind ? `${kind.label} alert` : 'Live desk';
 
   // The anchor talks for about as long as the line takes to read.
   const [talking, setTalking] = useState(false);
@@ -113,7 +160,7 @@ export function NewsTV({ state, open, setOpen }: { state: RoomState; open: boole
     return () => clearTimeout(t);
   }, [text]);
 
-  // A line longer than the lower third pans up like a teleprompter (never with reduced motion: the drawer has it all).
+  // A line longer than the card pans up like a teleprompter (never with reduced motion: the drawer has it all).
   const inner = useRef<HTMLSpanElement>(null);
   const [pan, setPan] = useState(0);
   useLayoutEffect(() => {
@@ -121,51 +168,49 @@ export function NewsTV({ state, open, setOpen }: { state: RoomState; open: boole
     setPan(over > 2 && !reduceMotion() ? over : 0);
   }, [text]);
 
-  const spot = c?.spotlight.map((id) => districtById(id).name) ?? [];
   return (
-    <div className="tv-zone">
-      <button
-        type="button" className="tv hud-block" onClick={() => setOpen(!open)} aria-expanded={open} aria-controls="news-drawer"
-        aria-label="Coastal Clash Live news desk. Show details"
-      >
-        <span className="tv-bar">
-          <span className={`tv-tag ${tag === 'BREAKING' ? 'is-breaking' : ''}`}><i />{tag}</span>
-          <span className="tv-name">Coastal Clash Live</span>
-          <span className={`tv-chev ${open ? 'is-open' : ''}`} aria-hidden>▾</span>
-        </span>
-        <span className="tv-screen">
-          <svg className="tv-skyline" viewBox="0 0 320 70" preserveAspectRatio="none" aria-hidden>
-            <path d="M0 70V48h18V30h14v18h10V38h16V22h12v26h14V34h12v14h16V26h14v22h12V40h18V18h14v30h12V36h16v12h14V30h12v18h16V42h18v28Z" fill="#fff" />
-          </svg>
-          <span className="tv-anchor" data-talking={talking ? 'true' : 'false'} aria-hidden dangerouslySetInnerHTML={{ __html: ANCHOR_SVG }} />
-          <span className="tv-desk" aria-hidden />
-          {kind && (
-            <span className="tv-ots" aria-hidden>
-              <span className="tv-ots-icon">{kind.icon}</span>
-              <span className="tv-ots-text">
-                <b>{kind.label}</b>
-                <span>{spot.slice(0, 2).join(' · ')}</span>
+    <>
+      <Crawl state={state} label={label} />
+      <div className="tv-zone">
+        <button
+          type="button" className="tv hud-block" onClick={() => setOpen(!open)} aria-expanded={open} aria-controls="news-drawer"
+          aria-label="Coastal Clash Live news desk. Show details"
+        >
+          <span className="tv-face" aria-hidden>
+            <span className="tv-face-clip">
+              <svg className="tv-skyline" viewBox="0 0 320 70" preserveAspectRatio="none">
+                <path d="M0 70V48h18V30h14v18h10V38h16V22h12v26h14V34h12v14h16V26h14v22h12V40h18V18h14v30h12V36h16v12h14V30h12v18h16V42h18v28Z" fill="#fff" />
+              </svg>
+              <span className="tv-anchor" data-talking={talking ? 'true' : 'false'} dangerouslySetInnerHTML={{ __html: ANCHOR_SVG }} />
+              <span className="tv-live"><i />LIVE</span>
+              <span className="tv-net">Coastal Clash News</span>
+            </span>
+            <span className="tv-ring" />
+          </span>
+          <span className="tv-copy">
+            <span className="tv-tags">
+              {kind && <span className="tv-chip is-dark">{kind.icon} {kind.label}</span>}
+              <span className="tv-chip">{live ? '✨ Gemini' : 'News desk'}</span>
+              <span className={`tv-chev ${open ? 'is-open' : ''}`} aria-hidden>▾</span>
+            </span>
+            <span className="tv-lower">
+              <span key={text} className="tv-line" aria-live="polite">
+                <span
+                  ref={inner} className={`tv-scroll ${pan ? 'is-long' : ''}`}
+                  style={pan ? { ['--pan' as string]: `-${pan}px`, ['--pan-ms' as string]: `${Math.max(2500, (pan / LINE_PX) * 1500)}ms` } : undefined}
+                >
+                  {text}
+                </span>
               </span>
             </span>
-          )}
-          <span className="tv-scan" aria-hidden />
-        </span>
-        <span className="tv-lower">
-          <span key={text} className="tv-line" aria-live="polite">
-            <span
-              ref={inner} className={`tv-scroll ${pan ? 'is-long' : ''}`}
-              style={pan ? { ['--pan' as string]: `-${pan}px`, ['--pan-ms' as string]: `${Math.max(2500, (pan / LINE_PX) * 1500)}ms` } : undefined}
-            >
-              {text}
-            </span>
           </span>
-        </span>
-      </button>
-      {open && (
-        <div id="news-drawer" className="float-card tv-drawer flex flex-col gap-2">
-          <NewsDetails state={state} />
-        </div>
-      )}
-    </div>
+        </button>
+        {open && (
+          <div id="news-drawer" className="float-card tv-drawer flex flex-col gap-2">
+            <NewsDetails state={state} />
+          </div>
+        )}
+      </div>
+    </>
   );
 }

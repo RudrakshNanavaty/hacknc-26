@@ -135,12 +135,12 @@ export function Play({ code }: { code: string }) {
         : null;
   // Room for the HUD at the top, the hand at the bottom, and whatever floats beside the focused area.
   const padding =
-    phase === 'crisis' ? { top: 330, bottom: 40, left: 260, right: 80 }
-      : phase === 'reveal' ? { top: 150, bottom: 40, left: 260, right: 470 }
-        : phase === 'negotiate' ? { top: 150, bottom: 210, left: 260, right: 470 } // the hand is out
-          : phase === 'resolve' ? { top: 150, bottom: 40, left: 260, right: 500 }
-            : phase === 'select' ? { top: 150, bottom: 210, left: 260, right: 60 } // the hand is out
-              : { top: 150, bottom: 40, left: 260, right: 60 };
+    phase === 'crisis' ? { top: 364, bottom: 40, left: 260, right: 80 }
+      : phase === 'reveal' ? { top: 184, bottom: 40, left: 260, right: 470 }
+        : phase === 'negotiate' ? { top: 184, bottom: 210, left: 260, right: 470 } // the hand is out
+          : phase === 'resolve' ? { top: 184, bottom: 40, left: 260, right: 500 }
+            : phase === 'select' ? { top: 184, bottom: 210, left: 260, right: 60 } // the hand is out
+              : { top: 184, bottom: 40, left: 260, right: 60 };
   const stage: CrisisStage = phase === 'crisis' ? 'alert' : phase === 'select' || phase === 'reveal' || phase === 'negotiate' ? 'rest' : 'off';
   const onPick =
     picking ? (id: string) => {

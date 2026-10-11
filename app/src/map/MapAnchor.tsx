@@ -27,7 +27,7 @@ export function useCameraTick(map: MapLibreMap | null) {
 const EDGE = 16;
 /** The HUD owns the top of the screen: keep below the meters, and below the news where we would overlap it. */
 function hudBottom(left: number, right: number) {
-  let bottom = 96;
+  let bottom = 130;
   for (const el of document.querySelectorAll('.hud-block')) {
     const r = el.getBoundingClientRect();
     if (r.width && r.right > left && r.left < right) bottom = Math.max(bottom, r.bottom + 10);
