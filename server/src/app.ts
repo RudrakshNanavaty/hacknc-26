@@ -1,5 +1,5 @@
 import Fastify from 'fastify';
-import { CARDS, COMBOS, CRISIS_KIND_INFO, DATA_METHOD, DATA_SOURCES, DATA_VERSION, DIRECTOR_EVENTS, DISTRICTS, HANDS, PERSONA_INFO, RULES_VERSION, explainEligibility, explainOutcome, strayNumbers, type Explanation } from '@shared';
+import { CARDS, COMBOS, CRISIS_KIND_INFO, DATA_METHOD, DATA_SOURCES, DATA_VERSION, DIRECTOR_EVENTS, DISTRICTS, HANDS, PERSONA_INFO, RULES_VERSION, checkSpoken, explainEligibility, explainOutcome, type Explanation } from '@shared';
 import { type MatchStore, MemoryStore } from './db/store';
 import { lanAddresses } from './net';
 import { roomServer } from './roomSocket';
@@ -53,7 +53,8 @@ export function buildServer({ store = new MemoryStore(), gemini = defaultGemini,
     else if (b.kind === 'outcome') {
       try {
         const room = getRoom(String(b.code ?? ''));
-        const h = room.history.find((x) => x.resolution.outcomes.some((o) => o.proposalId === b.proposalId));
+        // A delayed proposal is decided again later: explain its latest verdict.
+        const h = [...room.history].reverse().find((x) => x.resolution.outcomes.some((o) => o.proposalId === b.proposalId));
         e = h ? explainOutcome(String(b.proposalId), h.resolution.events, h.resolution.outcomes.find((o) => o.proposalId === b.proposalId)) : null;
       } catch {
         e = null;
@@ -63,7 +64,7 @@ export function buildServer({ store = new MemoryStore(), gemini = defaultGemini,
     if (!theDirector) return e;
     try {
       const answer = await theDirector.explain(e);
-      return strayNumbers(answer, e).length ? e : { ...e, answer, source: 'gemini' };
+      return checkSpoken(answer, e) ? e : { ...e, answer, source: 'gemini' };
     } catch {
       return e;
     }

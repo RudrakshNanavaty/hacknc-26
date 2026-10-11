@@ -102,8 +102,19 @@ describe('clashes', () => {
     expect(o.status).toBe('approved');
     expect(o.funding).toBe('covered');
     expect(r.after.budget).toBe(START_INDICATORS.budget);
-    // +6 env +3 flood +2 access, +2 env grant match, king tide +2 flood.
-    expect(o.delta).toEqual({ environment: 8, flood: 5, access: 2 });
+    // +6 env +3 flood +2 access and the king tide's +2 flood; the grant match is a recorded combo (C3): +2 env more.
+    expect(o.delta).toEqual({ environment: 6, flood: 5, access: 2 });
+    expect(r.combos.map((c) => c.combo)).toEqual(['grant-match']);
+    expect(r.after.environment).toBe(START_INDICATORS.environment + 8);
+  });
+
+  it('no grant match when the shoreline is not approved: no C3, no +2 environment', () => {
+    const board = buildBoard(1, [play('activist', 'living-shoreline', 'south-pointe'), play('mayor', 'emergency-funding', 'south-pointe'), play('resident', 'neighborhood-petition', 'south-pointe')]);
+    const r = resolveRound(board, [], startCity());
+    expect(r.outcomes[0]!.status).toBe('delayed'); // 2 vs 2
+    expect(r.events.some((e) => e.rule === 'C3')).toBe(false);
+    expect(r.combos).toEqual([]);
+    expect(r.after.environment).toBe(START_INDICATORS.environment);
   });
 
   it('a tie is delayed, carried into the next round, and Fast-Track decides it', () => {

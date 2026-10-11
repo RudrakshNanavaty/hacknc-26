@@ -2,9 +2,9 @@
 // the round's twist, "why?" explanations, public negotiation hints, before/after previews,
 // "if it passes" effects, combos, the round's bill, and the end-of-match recap. Every number shown
 // here comes from the shared engine or the validated state the server sent; the AI only words things.
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  CARDS, COMBOS, INDICATORS, INDICATOR_INFO, PROJECTS, districtById, upcomingCosts,
+  CARDS, COMBOS, INDICATORS, INDICATOR_INFO, NEGOTIATION_COST, PROJECTS, districtById, ifApproved, upcomingCosts,
   type AcceptedEvent, type CardId, type ComboHit, type Delta, type Outcome, type ProjectPreview, type Proposal, type RoomState, type TableHint,
 } from '@shared';
 import type { Room } from '../room/useRoom';
@@ -103,7 +103,7 @@ export function Hints({ hints, state, room }: { hints: TableHint[]; state: RoomS
                 type="button" className="gel gel-lime gel-sm"
                 onClick={() => (h.kind === 'accept' && h.compromiseId ? room.accept(h.compromiseId) : h.move && h.move !== 'accept' ? room.move(h.move, h.proposalId) : undefined)}
               >
-                Do it
+                {h.kind === 'accept' ? 'Accept deal' : h.move === 'back' ? `👍 Back (${NEGOTIATION_COST.back})` : h.move === 'oppose' ? `👎 Oppose (${NEGOTIATION_COST.oppose})` : `💰 Fund (${NEGOTIATION_COST.fund})`}
               </button>
             )}
             <button type="button" className="hint-x" aria-label="Dismiss hint" onClick={() => setHidden([...hidden, h.id])}>✕</button>
@@ -136,14 +136,19 @@ export function PreviewBox({ p }: { p: ProjectPreview }) {
 }
 
 /** What the focused proposal would change if it passes (or is changing, if it passes as things stand). */
-export function IfItPasses({ p, o }: { p: Proposal; o: Outcome }) {
+export function IfItPasses({ state, p, o }: { state: RoomState; p: Proposal; o: Outcome }) {
   const project = PROJECTS[p.kind];
-  const delta: Delta = o.status === 'approved' ? o.delta : project.delta;
+  // The engine itself, run as if the vote tipped: crisis bonus, conditions, cards' effects and combos included.
+  const would = useMemo(() => (state.board ? ifApproved(state.board, state.actions, state.city, p.id) : null), [state.board, state.actions, state.city, p.id]);
+  if (o.status === 'blocked' || would?.status === 'blocked') {
+    return <p className="frost px-3 py-2 text-center text-13 font-semibold">Blocked by a rule (see the verdict): backing cannot pass it as it stands.</p>;
+  }
+  const delta: Delta = would?.delta ?? project.delta;
   return (
     <p className="frost px-3 py-2 text-center text-13 font-semibold">
       {o.status === 'approved' ? 'Passing now: ' : 'If it passes: '}
-      <b>{deltaText(delta) || 'no change'}</b>
-      {project.budgetCost > 0 && o.funding !== 'covered' ? ` · −$${project.budgetCost}M budget` : ''}
+      {would?.status === 'unfunded' ? <b>it would be approved but unfunded (no budget left, nobody covering it)</b> : <b>{deltaText(delta) || 'no change'}</b>}
+      {project.budgetCost > 0 && o.funding !== 'covered' && would?.status !== 'unfunded' ? ` · −$${project.budgetCost}M budget` : ''}
       {project.upkeep > 0 ? ` · then $${project.upkeep}M upkeep a round` : ''}
       <span className="opacity-70"> (illustrative)</span>
     </p>

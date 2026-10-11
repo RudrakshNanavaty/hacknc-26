@@ -80,4 +80,7 @@ The contracts are `shared/src/room.ts`, the exported types in `engine.ts` and `r
   (`{ live: async () => null, write: ... }`), and give `new Gemini` a fake `client`. Room tests call `applyScenario(room, authoredScenario(null), now)` after `start`.
 - A match's crisis can be null for up to 10 s at the start (the scenario desk is writing): code that reads `room.crisis` / `state.crisis` must handle null.
 - `RoundRecord.crisis` is a Crisis object on new records and a crisis id string on rules 1.x records.
+- Every AI text a player reads goes through `checkSpoken` (shared/src/game/director.ts): number words and comma-grouped
+  figures count as numbers, and unsafe words are matched with their forms. Do not bypass it with a raw string check.
+- Ids from the wire are checked with own-property tests (`isCardId`, `isComboId`, `Object.hasOwn`): never `id in CARDS`.
 - `pipeline/cache/` is git-ignored. `npm run data -- --refresh` hits live County and City services; use it sparingly.

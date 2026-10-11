@@ -13,14 +13,48 @@ import type { Crisis, CrisisKind } from './scenario';
 
 // ---------- Shared checks ----------
 
-/** Digits in `text` that do not appear anywhere in `facts`. */
-export function strayNumbers(text: string, facts: unknown): string[] {
-  const allowed = new Set((JSON.stringify(facts).match(/\d+(?:\.\d+)?/g) ?? []).map((n) => String(Math.abs(Number(n)))));
-  return (text.match(/\d+(?:\.\d+)?/g) ?? []).filter((n) => !allowed.has(String(Number(n))));
+const DIGITS = /\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?/g;
+const UNITS: Record<string, number> = { zero: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19 };
+const TENS: Record<string, number> = { twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90 };
+const SCALES: Record<string, number> = { hundred: 100, thousand: 1e3, million: 1e6, billion: 1e9 };
+const SPELLED = new RegExp(
+  `\\b(?:(${Object.keys(TENS).join('|')})(?:[\\s-](${Object.keys(UNITS).slice(1, 10).join('|')}))?|(${Object.keys(UNITS).join('|')}))(?:\\s+(${Object.keys(SCALES).join('|')}))?(\\s*(?:percent|per\\s?cent|%))?`,
+  'gi',
+);
+
+/**
+ * Numbers a text states: digit runs (commas allowed) and spelled-out quantities. Small spelled counts
+ * (one to nine, "three disasters") are rhetoric and not counted unless a scale or "percent" follows.
+ */
+export function numbersIn(text: string): number[] {
+  const out = (text.match(DIGITS) ?? []).map((n) => Math.abs(Number(n.replace(/,/g, ''))));
+  for (const m of text.matchAll(SPELLED)) {
+    const [, tens, unit2, unit, scale, pct] = m;
+    const base = tens ? TENS[tens.toLowerCase()]! + (unit2 ? UNITS[unit2.toLowerCase()]! : 0) : UNITS[unit!.toLowerCase()]!;
+    const value = scale ? base * SCALES[scale.toLowerCase()]! : base;
+    if (value >= 10 || scale || pct) out.push(value);
+  }
+  return out;
 }
 
-/** A short list of words a general-audience game never shows (Gemini's own safety filters run first). */
-const UNSAFE = /\b(damn|hell|crap|stupid|idiot|kill|die|dead|hate|sex|drunk)\b/i;
+/** Numbers in `text` (digits or spelled out) that do not appear anywhere in `facts`. */
+export function strayNumbers(text: string, facts: unknown): string[] {
+  const allowed = new Set(numbersIn(JSON.stringify(facts)).map(String));
+  return numbersIn(text).map(String).filter((n) => !allowed.has(n));
+}
+
+/** A short list of words a general-audience game never shows, with their forms (Gemini's own safety filters run first). */
+const UNSAFE = /\b(damn\w*|hell|crap\w*|stupid\w*|idiot\w*|kill\w*|die|dies|died|dying|dead|deadly|hate|hated|hates|hating|hateful|sex\w*|drunk\w*)\b/i;
+
+/** Model text a player will read: general-audience safe and no numbers beyond the facts. Returns the problem, or null. */
+export function checkSpoken(text: string, facts: unknown): string | null {
+  if (UNSAFE.test(text)) return 'not general-audience safe';
+  const stray = strayNumbers(text, facts);
+  return stray.length ? `numbers not in the facts: ${stray.join(', ')}` : null;
+}
+
+/** Twists are game fiction: no breaking-news framing, no real agencies, no claims that it is real. */
+const REAL_WORLD = /\b(real|really|actual|actually|official|officially|breaking|weather service|nws|noaa|fema|evacuat\w*|issued|alert)\b/i;
 
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 const str = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().replace(/\s+/g, ' ').slice(0, max + 1) : '');
@@ -55,9 +89,8 @@ export function validateDialogue(raw: unknown, ctx: DialogueContext): Verdict<Ch
   const words = wordCount(line);
   if (words < BUBBLE_WORDS.min || words > BUBBLE_WORDS.max) return reject(`${words} words (bubbles take ${BUBBLE_WORDS.min}-${BUBBLE_WORDS.max})`);
   if (line.length > 140) return reject('longer than 140 characters');
-  if (UNSAFE.test(line)) return reject('not general-audience safe');
-  const stray = strayNumbers(line, ctx.facts);
-  if (stray.length) return reject(`numbers not in the facts: ${stray.join(', ')}`);
+  const spoken = checkSpoken(line, ctx.facts);
+  if (spoken) return reject(spoken);
   const clamped: string[] = [];
   let district: string | null = null;
   if (raw.district !== undefined && raw.district !== null) {
@@ -220,8 +253,8 @@ export function validateEventProposal(raw: unknown, ctx: EventContext, source: A
     magnitude = m;
   }
   let narrative = str(raw.narrative, EVENT_RULES.narrativeMax);
-  if (!narrative || narrative.length > EVENT_RULES.narrativeMax || /\d/.test(narrative) || UNSAFE.test(narrative)) {
-    clamped.push('narrative replaced by the template (empty, too long, unsafe or with numbers)');
+  if (!narrative || narrative.length > EVENT_RULES.narrativeMax || numbersIn(narrative).length || /\d/.test(narrative) || UNSAFE.test(narrative) || REAL_WORLD.test(narrative)) {
+    clamped.push('narrative replaced by the template (empty, too long, unsafe, with numbers, or framed as real news)');
     narrative = spec.narrative(d);
   }
   const tension: Tension = raw.tension === 'low' || raw.tension === 'medium' || raw.tension === 'high' ? raw.tension : 'medium';
@@ -394,7 +427,8 @@ export function templateHints(board: Board, candidates: MoveCandidate[], reach: 
     return `the ${PROJECTS[p.kind].name.toLowerCase()} in ${districtById(p.district).name}`;
   };
   const moves: TableHint[] = candidates.map((c) => ({
-    id: `h-${c.id}`, kind: c.kind, proposalId: c.proposalId, seat: c.seat, move: c.move, compromiseId: c.compromiseId, combo: null, source: 'template',
+    // The id names the outcome it predicts: when the engine's prediction changes, so does the hint (and old AI wording goes).
+    id: `h-${c.id}-${c.from}-${c.to}`, kind: c.kind, proposalId: c.proposalId, seat: c.seat, move: c.move, compromiseId: c.compromiseId, combo: null, source: 'template',
     text: c.kind === 'accept'
       ? `If the ${PERSONA_INFO[c.persona].name} accepts "${board.compromises.find((x) => x.id === c.compromiseId)!.title}", ${label(c.proposalId)} goes from ${STATUS_WORD[c.from]} to ${STATUS_WORD[c.to]}.`
       : `The ${PERSONA_INFO[c.persona].name} ${MOVE_WORD[c.move as NegotiationMove]} it (${NEGOTIATION_COST[c.move as NegotiationMove]} influence) turns ${label(c.proposalId)} from ${STATUS_WORD[c.from]} to ${STATUS_WORD[c.to]}.`,
@@ -404,8 +438,27 @@ export function templateHints(board: Board, candidates: MoveCandidate[], reach: 
     text: `Combo in reach: ${COMBOS[r.combo].name}, if ${r.needs}.`,
   }));
   // Acceptances first (they are free), then up to two combos in reach, then moves; at most HINTS_MAX.
-  return [...moves.filter((m) => m.kind === 'accept'), ...combos.slice(0, 2), ...moves.filter((m) => m.kind === 'move')].slice(0, HINTS_MAX);
+  // Within acceptances and moves, take seats in turn so no seat gets all the coaching.
+  return [...fairOrder(moves.filter((m) => m.kind === 'accept')), ...combos.slice(0, 2), ...fairOrder(moves.filter((m) => m.kind === 'move'))].slice(0, HINTS_MAX);
 }
+
+/** Round-robin by seat: seat 0's first, seat 1's first, ..., then everyone's second, and so on. */
+function fairOrder(hints: TableHint[]): TableHint[] {
+  const bySeat = new Map<number, TableHint[]>();
+  for (const h of hints) bySeat.set(h.seat ?? -1, [...(bySeat.get(h.seat ?? -1) ?? []), h]);
+  const queues = [...bySeat.entries()].sort((a, b) => a[0] - b[0]).map(([, q]) => q);
+  const out: TableHint[] = [];
+  for (let i = 0; out.length < hints.length; i++) for (const q of queues) if (q[i]) out.push(q[i]!);
+  return out;
+}
+
+/** What a pitch must say for each move, so the words match what "Do it" will do. */
+const MOVE_VERBS: Record<NegotiationMove | 'accept', RegExp> = {
+  back: /\b(back\w*|support\w*|vote for|yes)\b/i,
+  oppose: /\b(oppos\w*|against|block\w*|vote (?:it )?down|no)\b/i,
+  fund: /\b(fund\w*|pay\w*|cover\w*|money|cash|budget)\b/i,
+  accept: /\b(accept\w*|take|takes|taking|deal|agree\w*|sign\w*|yes)\b/i,
+};
 
 export interface NegotiationSuggestion {
   /** The id of a candidate hint (from the list the model was given). */
@@ -420,9 +473,10 @@ export function validateSuggestion(raw: unknown, candidates: TableHint[], facts:
   if (!c) return reject(`hint ${String(raw.hint)} is not one of the moves the engine found`);
   const pitch = str(raw.pitch, 180);
   if (!pitch || pitch.length > 180) return reject('pitch is empty or too long');
-  if (UNSAFE.test(pitch)) return reject('not general-audience safe');
-  const stray = strayNumbers(pitch, facts);
-  if (stray.length) return reject(`numbers not in the facts: ${stray.join(', ')}`);
+  const spoken = checkSpoken(pitch, facts);
+  if (spoken) return reject(spoken);
+  const verb = c.move ? MOVE_VERBS[c.move] : null;
+  if (verb && !verb.test(pitch)) return reject(`the pitch does not describe the hint's own move (${c.move})`);
   return { ok: true, value: { ...c, text: pitch, source: 'gemini' }, clamped: [] };
 }
 
@@ -442,10 +496,17 @@ export function validateComboSuggestion(raw: unknown, reach: ComboInReach[], fac
   if (!match) return reject(`${raw.combo} is not in reach for proposals ${ids.join(', ') || '(none)'}`);
   const explanation = str(raw.explanation, 200);
   if (!explanation || explanation.length > 200) return reject('explanation is empty or too long');
-  const stray = strayNumbers(explanation, facts);
-  if (stray.length) return reject(`numbers not in the facts: ${stray.join(', ')}`);
+  const spoken = checkSpoken(explanation, facts);
+  if (spoken) return reject(spoken);
+  // A novel idea is kept for designers only if it is short, safe and invents no numbers; otherwise it is dropped.
   const novel = str(raw.novelIdea, 300);
-  return { ok: true, value: { combo: raw.combo, proposalIds: match.proposalIds, explanation, novelIdea: novel || null }, clamped: [] };
+  const clamped: string[] = [];
+  let idea: string | null = novel || null;
+  if (idea && (idea.length > 300 || checkSpoken(idea, facts))) {
+    clamped.push(`novel idea dropped (${idea.length > 300 ? 'too long' : checkSpoken(idea, facts)})`);
+    idea = null;
+  }
+  return { ok: true, value: { combo: raw.combo, proposalIds: match.proposalIds, explanation, novelIdea: idea }, clamped };
 }
 
 // ---------- Explanations ----------
@@ -461,7 +522,7 @@ export interface Explanation {
 
 /** "Why can't I play this here?" from the eligibility rule and the real measurements. */
 export function explainEligibility(card: string, district: string): Explanation | null {
-  if (!(card in CARDS) || !isDistrictId(district)) return null;
+  if (!Object.hasOwn(CARDS, card) || !isDistrictId(district)) return null;
   const c = CARDS[card as keyof typeof CARDS];
   const d = districtById(district);
   const facts = [c.rule];

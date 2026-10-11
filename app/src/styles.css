@@ -729,6 +729,11 @@ input[type="range"].aero-range {
 .recap-tag { display: inline-block; margin-left: 6px; padding: 0 7px; border-radius: 99px; font-size: 11px; font-weight: 800; background: linear-gradient(90deg, #fff7c2, #f3edff); border: 1px solid #fff; }
 .recap-tag.is-twist { background: #f3edff; }
 
+/* Touch screens and phones: avatars and ghosts are decoration; taps go through to the chips and the map. */
+@media (hover: none), (max-width: 1023px) {
+  .avatar, .ghost { pointer-events: none; }
+}
+
 /* The round's bill spans the meters row. */
 .meters .bill-chip { grid-column: 1 / -1; justify-self: start; max-width: 100%; overflow: hidden; text-overflow: ellipsis; font-size: 12px; }
 

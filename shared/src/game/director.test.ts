@@ -3,10 +3,11 @@
 import { describe, expect, it } from 'vitest';
 import type { CardId, PersonaId } from './content';
 import {
-  EVENT_RULES, applyDirectorEvent, combosInReach, explainEligibility, mergeDialogue, negotiationCandidates, templateEventProposal, templateHints,
-  validateComboSuggestion, validateDialogue, validateEventProposal, validateReaction, validateSuggestion,
+  EVENT_RULES, applyDirectorEvent, checkSpoken, combosInReach, explainEligibility, mergeDialogue, negotiationCandidates, numbersIn, strayNumbers,
+  templateEventProposal, templateHints, validateComboSuggestion, validateDialogue, validateEventProposal, validateReaction, validateSuggestion,
 } from './director';
-import { buildBoard, startCity, type Play } from './engine';
+import { buildBoard, checkPlay, startCity, type Play } from './engine';
+import { isCardId, isComboId } from './content';
 import { crisisBubbles } from './living';
 import { authoredScenario } from './scenario';
 
@@ -87,6 +88,35 @@ describe('event proposals', () => {
   });
 });
 
+describe('the number and safety checks behind every AI text', () => {
+  it('spelled-out quantities count as numbers; small rhetorical counts do not', () => {
+    expect(numbersIn('Hotels need seventy-five percent commercial zoning.')).toEqual([75]);
+    expect(numbersIn('A twenty five million dollar plan.')).toEqual([25e6]);
+    expect(numbersIn('We have three disasters and one budget.')).toEqual([]);
+    expect(numbersIn('It costs 40,000 dollars.')).toEqual([40000]);
+    expect(strayNumbers('needs seventy-five percent', { rule: 'needs 25%' })).toEqual(['75']);
+    expect(strayNumbers('needs twenty-five percent', { rule: 'needs 25%' })).toEqual([]);
+  });
+  it('inflected unsafe words are caught too', () => {
+    expect(checkSpoken('This moratorium is killing my business.', {})).toMatch(/safe/);
+    expect(checkSpoken('Everybody hates this plan.', {})).toMatch(/safe/);
+    expect(checkSpoken('The deadline is Friday, folks.', {})).toBeNull();
+  });
+  it('ids are own properties only', () => {
+    expect(isCardId('constructor')).toBe(false);
+    expect(isComboId('toString')).toBe(false);
+    expect(explainEligibility('constructor', 'west-avenue')).toBeNull();
+    expect(checkPlay('mayor', 8, 'toString', 'west-avenue', 1)).toBe('Pick a card.');
+  });
+  it('a twist narrative framed as real news is replaced by the template', () => {
+    const v = validateEventProposal({ type: 'surge-warning', district: 'south-pointe', magnitude: 2, narrative: 'Breaking: the National Weather Service has issued a real hurricane warning for South Pointe tonight.', tension: 'high' }, crisisCtx, 'gemini');
+    expect(v.ok).toBe(true);
+    if (!v.ok) return;
+    expect(v.value.narrative).not.toMatch(/Weather Service|Breaking|real/);
+    expect(v.clamped.join(' ')).toMatch(/real news/);
+  });
+});
+
 describe('dialogue and reactions', () => {
   const facts = { round: 2, crisis: 'Oceanfront hotel boom' };
   it('accepts a short, in-vocabulary line', () => {
@@ -144,6 +174,22 @@ describe('negotiation hints and combos', () => {
     expect(validateSuggestion(42, hints, facts).ok).toBe(false);
   });
 
+  it('hints are shared fairly: seats take turns, and each hint id names the outcome it predicts', () => {
+    const b = buildBoard(1, [play('mayor', 'drainage-upgrade', 'west-avenue'), play('activist', 'living-shoreline', 'south-pointe'), play('resort', 'hotel-development', 'collins-mid-beach'), play('resident', 'neighborhood-petition', 'collins-mid-beach')]);
+    const all = (['mayor', 'activist', 'resort', 'resident'] as PersonaId[]).map((p) => ({ seat: seat[p], persona: p, influence: 8, moved: false }));
+    const cands = negotiationCandidates(b, [], startCity(), all);
+    const hints = templateHints(b, cands, combosInReach(b));
+    expect(new Set(hints.map((h) => h.seat)).size).toBeGreaterThanOrEqual(Math.min(4, new Set(cands.map((c) => c.seat)).size));
+    for (const h of hints) if (h.kind !== 'combo') expect(h.id).toMatch(/-(approved|delayed|rejected|blocked|unfunded)-(approved|delayed|rejected|blocked|unfunded)$/);
+  });
+
+  it('a pitch must describe its own hint\'s move', () => {
+    const hints = templateHints(board, negotiationCandidates(board, [], startCity(), players), combosInReach(board));
+    const accept = hints.find((h) => h.kind === 'accept')!;
+    expect(validateSuggestion({ hint: accept.id, pitch: 'Oppose the hotel and it is gone for good.' }, hints, {}).ok).toBe(false);
+    expect(validateSuggestion({ hint: accept.id, pitch: 'Take the setback deal and the hotel goes through.' }, hints, {}).ok).toBe(true);
+  });
+
   it('combo suggestions must be authored and in reach; novel ideas are kept apart', () => {
     const reach = combosInReach(board);
     const id = board.proposals[0]!.id;
@@ -152,6 +198,10 @@ describe('negotiation hints and combos', () => {
     expect(validateComboSuggestion({ combo: 'turtle-hatchery', proposalIds: [id], explanation: 'x y z' }, reach, {}).ok).toBe(false);
     expect(validateComboSuggestion({ combo: 'hybrid-shoreline', proposalIds: [id], explanation: 'Seawall plus dunes.' }, reach, {}).ok).toBe(false);
     expect(validateComboSuggestion({ combo: 'eco-resort', proposalIds: ['r9-nope'], explanation: 'A greener hotel.' }, reach, {}).ok).toBe(false);
+    // An unsafe or number-inventing idea is dropped (the suggestion itself stands); an unsafe explanation is refused.
+    const dropped = validateComboSuggestion({ combo: 'eco-resort', proposalIds: [id], explanation: 'A greener hotel the activist can live with.', novelIdea: 'Give hotels a 500 million dollar tax break, you idiots.' }, reach, {});
+    expect(dropped).toMatchObject({ ok: true, value: { novelIdea: null } });
+    expect(validateComboSuggestion({ combo: 'eco-resort', proposalIds: [id], explanation: 'Only a stupid owner would refuse this green deal.' }, reach, {}).ok).toBe(false);
   });
 });
 

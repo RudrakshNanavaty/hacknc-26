@@ -157,7 +157,7 @@ export interface Card {
   /** Cards without a special rule in the engine: what they do (see resolveRound). */
   attach?: AttachEffect;
   offer?: Offer;
-  /** A consequence one round later, once the card has acted on a proposal (rule L1). */
+  /** A consequence one round later, if the proposal the card backed is approved (rules L0/L1). */
   delayed?: { delta: Delta; text: string };
   /** If nothing in the district can be acted on, this happens instead. */
   fallback?: { delta: Delta; text: string };
@@ -244,7 +244,7 @@ export const CARDS: Record<CardId, Card> = {
   'resilience-bond': {
     id: 'resilience-bond', name: 'Resilience Bond', persona: 'mayor', category: 'support', family: 'civic', cost: 2, art: '📜', anim: 'invest',
     text: 'Borrow now to build a public project, pay it back later.',
-    rule: 'Adds 1 support to a public project here and covers its cost. Next round the bond payment is due: −$3M budget.',
+    rule: 'Adds 1 support to a public project here and covers its cost. If the project is approved, the bond payment is due next round: −$3M budget.',
     tradeoff: 'Pays now, costs later.',
     acts: ['drainage', 'seawall', 'elevate', 'shoreline', 'dune', 'housing'],
     attach: { rule: 'F4', support: 1, cover: true },
@@ -277,7 +277,7 @@ export const CARDS: Record<CardId, Card> = {
     id: 'dune-restoration', name: 'Dune Restoration', persona: 'activist', category: 'project', family: 'environmental', cost: 2, art: '🏝️', anim: 'restore', project: 'dune',
     text: 'Propose replanting and widening the dunes on the Atlantic side.',
     rule: 'Project: +4 environment, +2 flood, +1 access, +8 district resilience. Costs $3M unless covered. Needs an Atlantic-facing district.',
-    tradeoff: 'Dunes need room: less beach for towels while they grow.',
+    tradeoff: 'Slow and modest: a dune protects less than a seawall, and a bay-side area cannot have one.',
     counters: ['neighborhood-petition'], combos: ['hybrid-shoreline'],
     refs: [NOAA_SLR, FEMA_NFHL],
   },
@@ -316,7 +316,7 @@ export const CARDS: Record<CardId, Card> = {
     id: 'eco-certification', name: 'Eco-Certification', persona: 'activist', category: 'negotiation', family: 'negotiation', cost: 1, art: '🏅', anim: 'deal',
     text: 'Offer a green label in exchange for greener design.',
     rule: 'Offers a compromise to a hotel or marina here. Accepted: +1 support, +3 environment, −1 economy. Refused: +1 opposition.',
-    tradeoff: 'A deal, not a veto: the project still gets built.',
+    tradeoff: 'A deal, not a veto: accepted, the project is greener and gets support; refused, it costs it one opposition.',
     acts: ['hotel', 'marina'],
     offer: {
       kind: 'green', title: 'Eco-certified design',
@@ -367,7 +367,7 @@ export const CARDS: Record<CardId, Card> = {
   'lobbying-blitz': {
     id: 'lobbying-blitz', name: 'Lobbying Blitz', persona: 'resort', category: 'support', family: 'civic', cost: 2, art: '🤵', anim: 'stamp',
     text: 'Work the phones and the lunch circuit for a project business wants.',
-    rule: 'Adds 2 support to a hotel, marina, seawall, drainage or housing proposal here. Next round the public backlash arrives: −2 access.',
+    rule: 'Adds 2 support to a hotel, marina, seawall, drainage or housing proposal here. If it is approved, the public backlash arrives next round: −2 access.',
     tradeoff: 'Wins votes now; residents remember later.',
     acts: ['hotel', 'marina', 'seawall', 'drainage', 'housing'],
     attach: { rule: 'S3', support: 2 },
@@ -449,7 +449,8 @@ export const CARDS: Record<CardId, Card> = {
 };
 
 export const CARD_IDS = Object.keys(CARDS) as CardId[];
-export const isCardId = (v: unknown): v is CardId => typeof v === 'string' && v in CARDS;
+/** Own keys only: 'constructor', 'toString' and friends are not cards. */
+export const isCardId = (v: unknown): v is CardId => typeof v === 'string' && Object.hasOwn(CARDS, v);
 /** A persona's whole deck. */
 export const handOf = (persona: PersonaId): CardId[] => CARD_IDS.filter((id) => CARDS[id].persona === persona);
 
@@ -530,7 +531,7 @@ export const COMBOS: Record<ComboId, Combo> = {
   },
 };
 export const COMBO_IDS = Object.keys(COMBOS) as ComboId[];
-export const isComboId = (v: unknown): v is ComboId => typeof v === 'string' && v in COMBOS;
+export const isComboId = (v: unknown): v is ComboId => typeof v === 'string' && Object.hasOwn(COMBOS, v);
 
 /** Negotiation moves (one per player per round, plus accepting compromises offered to you). */
 export const NEGOTIATION_COST = { back: 1, oppose: 1, fund: 2 } as const;

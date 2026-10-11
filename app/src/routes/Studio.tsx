@@ -49,8 +49,10 @@ function Timeline({ m }: { m: MatchRecord }) {
   const replay = useMemo(() => replayMatch(m), [m]);
   return (
     <ol className="flex flex-col gap-3">
-      <li className={`rounded-2xl p-2 text-13 font-bold ${replay.matches ? 'bg-leaf/20' : 'bg-coral/20'}`}>
-        {replay.matches ? '✓ Replay check: the engine reproduces this match from the record alone (no AI calls).' : `⚠ Replay differs: ${replay.mismatches.join(', ')}`}
+      <li className={`rounded-2xl p-2 text-13 font-bold ${!replay.comparable ? 'bg-white/60' : replay.matches ? 'bg-leaf/20' : 'bg-coral/20'}`}>
+        {!replay.comparable
+          ? `Replay check skipped: ${replay.reason}`
+          : replay.matches ? '✓ Replay check: the engine reproduces this match from the record alone (no AI calls).' : `⚠ Replay differs: ${replay.mismatches.join(', ')}`}
       </li>
       {m.rounds.map((r) => (
         <li key={r.round} className="rounded-2xl bg-white/60 p-3">

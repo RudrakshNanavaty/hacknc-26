@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { CARDS, CARD_IDS, TOTAL_ROUNDS, type PersonaId } from './content';
 import { DISTRICT_IDS, cardEligibility } from './districts';
 import { buildBoard, resolveRound, startCity } from './engine';
-import { projectPreview, upcomingCosts } from './economy';
+import { ifApproved, projectPreview, upcomingCosts } from './economy';
 import { makeCrisis } from './scenario';
 
 const seat: Record<PersonaId, number> = { mayor: 0, activist: 1, resort: 2, resident: 3 };
@@ -40,10 +40,42 @@ describe('previews agree with the engine', () => {
     const city = startCity();
     city.indicators.budget = 5;
     const p = projectPreview('drainage-upgrade', 'west-avenue', 1, city)!;
-    expect(p.warnings.join(' ')).toMatch(/has \$5M and this needs \$8M/);
+    expect(p.warnings.join(' ')).toMatch(/will have \$5M and this needs \$8M/);
+    expect(p.fundable).toBe(false);
+    expect(p.after.budget).toBe(5); // unfunded: nothing is paid and nothing is built
     expect(p.warnings.join(' ')).toMatch(/Upkeep: \$1M/);
     expect(p.warnings.join(' ')).toMatch(/spotlight/);
     expect(projectPreview('fast-track', 'west-avenue', 1, city)).toBeNull();
+  });
+
+  it('the preview charges this round\'s bill first, as the engine does', () => {
+    // Round 1 builds drainage (upkeep $1M from round 2) backed by a Resilience Bond-free budget path.
+    const r1 = resolveRound(buildBoard(1, [{ seat: 0, persona: 'mayor', card: 'drainage-upgrade', district: 'west-avenue' }]), [], startCity());
+    const city = structuredClone(r1.city);
+    city.indicators.budget = 5;
+    const p = projectPreview('workforce-housing', 'south-pointe', 2, city)!;
+    const r2 = resolveRound(buildBoard(2, [{ seat: 3, persona: 'resident', card: 'workforce-housing', district: 'south-pointe' }]), [], city);
+    expect(r2.outcomes[0]!.status).toBe('unfunded'); // $5M - $1M upkeep < $5M
+    expect(p.fundable).toBe(false);
+    expect(p.after).toEqual(r2.after);
+    expect(p.warnings.join(' ')).toMatch(/after this round's bill/);
+  });
+
+  it('ifApproved runs the real engine: crisis bonus and conditions included; a block stays a block', () => {
+    const board = buildBoard(2, [
+      { seat: 2, persona: 'resort', card: 'hotel-development', district: 'collins-mid-beach' },
+      { seat: 3, persona: 'resident', card: 'neighborhood-petition', district: 'collins-mid-beach' },
+    ]);
+    const now = resolveRound(board, [], startCity());
+    expect(now.outcomes[0]!.status).toBe('rejected');
+    const would = ifApproved(board, [], startCity(), board.proposals[0]!.id)!;
+    expect(would.status).toBe('approved');
+    expect(would.delta).toEqual({ economy: 10, environment: -4, access: -3 }); // +2 economy: Collins is in the hotel-boom spotlight
+    const blocked = buildBoard(2, [
+      { seat: 2, persona: 'resort', card: 'hotel-development', district: 'south-pointe' },
+      { seat: 1, persona: 'activist', card: 'environmental-challenge', district: 'south-pointe' },
+    ]);
+    expect(ifApproved(blocked, [], startCity(), blocked.proposals[0]!.id)!.status).toBe('blocked');
   });
 
   it('lists what the city owes next round', () => {

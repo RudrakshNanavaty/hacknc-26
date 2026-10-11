@@ -1,7 +1,7 @@
 // The planning-feedback record a match leaves behind, and what Planning Studio computes from them.
 // Role-play choices and personal preferences are kept apart, and so are demo sessions, bots and
 // community sessions: role-play is not public opinion.
-import { CARDS, PERSONA_INFO, PROJECTS, RULES_VERSION, START_INDICATORS, type CardId, type ComboId, type Indicators, type PersonaId, type ProjectKind } from './content';
+import { CARDS, INDICATORS, PERSONA_INFO, PROJECTS, RULES_VERSION, START_INDICATORS, type CardId, type ComboId, type Indicators, type PersonaId, type ProjectKind } from './content';
 import { applyDirectorEvent, type AcceptedEvent, type TableHint } from './director';
 import { DATA_SOURCES, DATA_VERSION, DISTRICTS, districtById, type DataSource } from './districts';
 import type { Crisis, LiveConditions } from './scenario';
@@ -112,18 +112,27 @@ export function newMatchRecord(id: string, roomCode: string, sessionKind: Sessio
 }
 
 export interface Replay {
+  /** False when the record was played under other rules: re-running it with today's engine proves nothing. */
+  comparable: boolean;
+  reason: string | null;
   rounds: Resolution[];
-  final: FinalResult;
+  final: FinalResult | null;
   /** True when every round's outcomes and indicators match the record. */
   matches: boolean;
   mismatches: string[];
 }
+
+/** Compare by value, not by JSON text: a database may reorder an object's keys (Postgres jsonb does). */
+const sameIndicators = (a: Indicators, b: Indicators | undefined) => !!b && INDICATORS.every((k) => a[k] === b[k]);
 
 /**
  * Re-run a recorded match through the engine, with each round's stored twist and no network:
  * the same record always gives the same city.
  */
 export function replayMatch(m: MatchRecord): Replay {
+  if (m.rulesVersion !== RULES_VERSION) {
+    return { comparable: false, reason: `Recorded under ${m.rulesVersion}; this engine runs ${RULES_VERSION}.`, rounds: [], final: m.final, matches: false, mismatches: [] };
+  }
   let city = startCity();
   const rounds: Resolution[] = [];
   const mismatches: string[] = [];
@@ -136,15 +145,16 @@ export function replayMatch(m: MatchRecord): Replay {
     const crisis = recorded && typeof recorded === 'object' ? recorded : crisisFor(r.round);
     const board = { round: r.round, crisis, proposals: r.proposals, attachments: r.attachments, compromises: r.compromises };
     const res = resolveRound(board, r.actions, city);
-    if (JSON.stringify(res.before) !== JSON.stringify(r.before)) mismatches.push(`round ${r.round}: indicators before`);
-    if (JSON.stringify(res.after) !== JSON.stringify(r.after)) mismatches.push(`round ${r.round}: indicators after`);
+    if (!sameIndicators(res.before, r.before)) mismatches.push(`round ${r.round}: indicators before`);
+    if (!sameIndicators(res.after, r.after)) mismatches.push(`round ${r.round}: indicators after`);
     if (res.outcomes.map((o) => `${o.proposalId}:${o.status}`).join() !== r.outcomes.map((o) => `${o.proposalId}:${o.status}`).join()) mismatches.push(`round ${r.round}: outcomes`);
     rounds.push(res);
     city = res.city;
   }
   const final = finalResult(START_INDICATORS, city.indicators, rounds, m.players.map((p) => p.persona));
-  if (m.final && JSON.stringify(final.scores) !== JSON.stringify(m.final.scores)) mismatches.push('final scores');
-  return { rounds, final, matches: mismatches.length === 0, mismatches };
+  const totals = (scores: FinalResult['scores']) => scores.map((s) => `${s.persona}:${s.total}`).sort().join();
+  if (m.final && totals(final.scores) !== totals(m.final.scores)) mismatches.push('final scores');
+  return { comparable: true, reason: null, rounds, final, matches: mismatches.length === 0, mismatches };
 }
 
 // ---------- Planning Studio ----------
@@ -254,7 +264,7 @@ export function studioSummary(all: MatchRecord[], f: StudioFilter = {}): StudioS
       for (const a of r.attachments) if (seats.has(a.seat)) cards.set(a.card, (cards.get(a.card) ?? 0) + 1);
       for (const o of r.outcomes) {
         const d = districts.get(o.district);
-        if (!d) continue;
+        if (!d || !seats.has(o.seat)) continue;
         d.proposals += 1;
         d.status[o.status] += 1;
         d.byKind[o.kind] = (d.byKind[o.kind] ?? 0) + 1;
@@ -301,7 +311,12 @@ export function studioSummary(all: MatchRecord[], f: StudioFilter = {}): StudioS
   const director: DirectorSummary = { twists: [], proposals: { accepted: 0, clamped: 0, rejected: 0 }, hints: { shown: 0, aiWorded: 0, followed: 0 }, reviewQueue: [] };
   for (const m of matches) {
     for (const r of m.rounds) {
-      for (const c of r.combos ?? []) combos.set(c.combo, (combos.get(c.combo) ?? 0) + 1);
+      // A combo counts when a counted participant took part in it (proposed one of its projects or played a card on one).
+      const seatsHere = (c: { proposalIds: string[] }) => [
+        ...r.proposals.filter((p) => c.proposalIds.includes(p.id)).map((p) => p.seat),
+        ...r.attachments.filter((a) => a.proposalId && c.proposalIds.includes(a.proposalId)).map((a) => a.seat),
+      ];
+      for (const c of r.combos ?? []) if (seatsHere(c).some((s) => humanSeats(m, humansOnly).has(s))) combos.set(c.combo, (combos.get(c.combo) ?? 0) + 1);
       const d = r.director;
       if (!d) continue;
       if (d.event) director.twists.push({ matchId: m.id, round: r.round, type: d.event.type, title: d.event.title, district: d.event.district, magnitude: d.event.magnitude, source: d.event.source });
@@ -371,6 +386,7 @@ export const CSV_COLUMNS = [
   'match_id', 'session_kind', 'rules_version', 'data_version', 'round', 'record_type', 'seat', 'persona', 'participant',
   'card', 'project', 'proposal_id', 'district_id', 'district_name', 'planning_district', 'lon', 'lat', 'status',
   'support', 'opposition', 'conditions', 'rule_ids', 'zoning_object_ids', 'flood_zone_object_ids', 'source_layers',
+  'event_type', 'event_source', 'fictional', 'effect',
 ] as const;
 
 /** One row per decision: each card played, each negotiation move, each outcome and each personal preference. */
@@ -397,6 +413,15 @@ export function toCsv(matches: MatchRecord[]): string {
       for (const n of r.actions) {
         const p = r.proposals.find((x) => x.id === n.proposalId);
         push({ ...base(r.round, `negotiation:${n.move}`, n.seat, p?.district ?? null), project: p?.kind ?? '', proposal_id: n.proposalId });
+      }
+      // The round's twist: game fiction from the Director (or its template), applied before play. Marked so
+      // that outcomes it changed are never read as player decisions alone.
+      const ev = r.director?.event;
+      if (ev) {
+        push({
+          ...base(r.round, 'twist_event', '', ev.district), status: 'applied', event_type: ev.type, event_source: ev.source, fictional: true,
+          effect: Object.entries(ev.delta).map(([k, v]) => `${k}:${v! > 0 ? '+' : ''}${v}`).join(' '), rule_ids: ['D1'],
+        });
       }
       for (const o of r.outcomes) {
         push({
@@ -429,6 +454,19 @@ export function toGeoJson(matches: MatchRecord[]) {
           },
         });
       }
+    }
+    for (const r of m.rounds) {
+      const ev = r.director?.event;
+      if (!ev) continue;
+      const d = districtById(ev.district);
+      features.push({
+        type: 'Feature' as const,
+        geometry: { type: 'Point' as const, coordinates: d.center },
+        properties: {
+          record: 'twist_event', fictional: true, match_id: m.id, session_kind: m.sessionKind, round: r.round, event_type: ev.type, event_title: ev.title,
+          event_source: ev.source, magnitude: ev.magnitude, effect: ev.delta, district_id: d.id, district_name: d.name, rules_version: m.rulesVersion,
+        },
+      });
     }
     for (const resp of m.responses) {
       if (!resp.district) continue;

@@ -28,7 +28,7 @@ export interface DecisionRow {
   at: string;
   match_id: string;
   round: number | null;
-  kind: 'play' | 'move' | 'outcome' | 'preference';
+  kind: 'play' | 'move' | 'outcome' | 'preference' | 'twist';
   seat: number | null;
   persona: string | null;
   participant: string | null;
@@ -55,6 +55,13 @@ export function decisionRows(m: MatchRecord): DecisionRow[] {
   const out: DecisionRow[] = [];
   for (const r of m.rounds) {
     const at = r.resolvedAt;
+    const ev = r.director?.event;
+    if (ev) {
+      out.push(row({
+        id: `${m.id}:twist:r${r.round}`, at, round: r.round, kind: 'twist', seat: null, card: null, project: null, proposal_id: null, district: ev.district,
+        status: ev.source, detail: { type: ev.type, title: ev.title, magnitude: ev.magnitude, delta: ev.delta, fictional: true },
+      }));
+    }
     for (const p of r.proposals.filter((x) => !x.carried)) {
       const card = Object.values(CARDS).find((c) => c.project === p.kind)!.id;
       out.push(row({ id: `${m.id}:play:${p.id}`, at, round: r.round, kind: 'play', seat: p.seat, card, project: p.kind, proposal_id: p.id, district: p.district, status: null, detail: null }));

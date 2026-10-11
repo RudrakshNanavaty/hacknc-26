@@ -312,7 +312,13 @@ const eventContext = (room: Room) => ({ round: room.round, phase: room.phase, fi
 
 function logDirector(room: Room, kind: DirectorLogEntry['kind'], source: DirectorLogEntry['source'], v: { ok: boolean; reasons?: string[]; clamped?: string[] }, now: number, proposal?: unknown) {
   const reasons = v.ok ? (v as { clamped: string[] }).clamped : (v as { reasons: string[] }).reasons;
-  room.directorLog.push({ kind, source, status: !v.ok ? 'rejected' : reasons.length ? 'clamped' : 'accepted', reasons, ...(proposal !== undefined ? { proposal } : {}), at: new Date(now).toISOString() });
+  const entry: DirectorLogEntry = { kind, source, status: !v.ok ? 'rejected' : reasons.length ? 'clamped' : 'accepted', reasons, ...(proposal !== undefined ? { proposal } : {}), at: new Date(now).toISOString() };
+  // During a resolution or the final screen the round is already recorded: file the entry there, and save.
+  const recorded = room.phase === 'resolve' || room.phase === 'final' ? room.record?.rounds.at(-1)?.director : undefined;
+  if (recorded) {
+    recorded.log.push(entry);
+    room.effects.push({ t: 'record' });
+  } else room.directorLog.push(entry);
 }
 
 /** A twist proposal for a coming round, kept until its crisis starts (then validated like any other). */

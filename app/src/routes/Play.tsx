@@ -64,6 +64,7 @@ export function Play({ code }: { code: string }) {
   useEffect(() => {
     setCard(null);
     setTarget(null);
+    setHoverCard(null);
   }, [state?.round, phase === 'select']);
 
   useEffect(() => {

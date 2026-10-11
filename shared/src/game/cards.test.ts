@@ -161,6 +161,19 @@ describe('delayed consequences and upkeep', () => {
     expect(r.city.pending).toHaveLength(0);
   });
 
+  it('a delayed consequence comes due only if the backed proposal is approved', () => {
+    // The bond backs a home-elevation program that two players oppose: delayed, so the bond was never used.
+    const board = buildBoard(1, [play('mayor', 'resilience-bond', 'collins-mid-beach'), play('resident', 'elevate-buildings', 'collins-mid-beach')]);
+    const elevate = board.proposals[0]!.id;
+    const r = resolveRound(board, [
+      { seat: 1, persona: 'activist', move: 'oppose', proposalId: elevate },
+      { seat: 2, persona: 'resort', move: 'oppose', proposalId: elevate },
+    ], startCity());
+    expect(r.outcomes[0]!.status).toBe('delayed');
+    expect(r.city.pending).toEqual([]);
+    expect(r.events.some((e) => e.rule === 'L0')).toBe(false);
+  });
+
   it('drainage and seawalls cost upkeep in every later round (U1)', () => {
     const r1 = resolveRound(buildBoard(1, [play('mayor', 'drainage-upgrade', 'west-avenue')]), [], startCity());
     const r2 = resolveRound(buildBoard(2, []), [], r1.city);

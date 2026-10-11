@@ -79,6 +79,7 @@ export function roomServer({ store, narrator, scenario, director = null, log }: 
     ask().then(
       (raw) => {
         if (apply(raw)) broadcast(room);
+        else drain(room); // nothing to show, but a logged verdict may need saving
       },
       (err) => log.warn({ err: (err as Error).message, room: room.code, what }, 'director: template kept'),
     );

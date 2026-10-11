@@ -6,11 +6,10 @@
 // cannot hand one player information the others lack. Every call has a timeout; a missing key, a slow
 // answer or malformed JSON throws AIError and the template already on screen stays.
 import {
-  DIRECTOR_EVENTS, DISTRICTS, EVENT_RULES, EVENT_TYPES, PERSONA_INFO, PROJECTS, REACTIONS, ROLES, SCENARIO_ROLES, COMBOS, districtById, districtFacts,
+  DIRECTOR_EVENTS, DISTRICTS, EVENT_RULES, EVENT_TYPES, PERSONA_INFO, PROJECTS, REACTIONS, ROLES, SCENARIO_ROLES, COMBOS, checkSpoken, districtById, districtFacts,
   type ComboInReach, type EventType, type Explanation, type RoleId, type RoomState, type TableHint,
 } from '@shared';
 import { GROUNDED, type Gemini } from './gemini';
-import { strayNumbers } from './narrator';
 
 /** The facts every Director prompt is given: public state only. */
 export function directorFacts(state: RoomState) {
@@ -41,7 +40,8 @@ export function directorFacts(state: RoomState) {
           combos: last.resolution.combos.map((c) => COMBOS[c.combo].name),
         }
       : null,
-    twist: state.event ? { title: state.event.title, place: districtById(state.event.district).name, narrative: state.event.narrative } : null,
+    // Only a twist that has happened: during the crisis the template twist may still be replaced.
+    twist: state.event && state.phase !== 'crisis' ? { title: state.event.title, place: districtById(state.event.district).name, narrative: state.event.narrative } : null,
   };
 }
 
@@ -117,8 +117,8 @@ ${GROUNDED}`,
       const allowed = allowedEvents(fired);
       return gemini.json<unknown>({
         system: `You are the Game Director of "Coastal Clash", a city-planning game on real Miami Beach data. Propose ONE twist for round ${round} that raises the tension in an interesting, fair way.
-Choose the type and a place from "allowed" only, a magnitude from ${EVENT_RULES.magnitude.min} to ${EVENT_RULES.magnitude.max}, and write a one-sentence narrative (no numbers, under 25 words) in the voice of a local news desk.
-- This is game fiction: never present it as a real event or forecast. The game computes all effects; do not state any.
+Choose the type and a place from "allowed" only, a magnitude from ${EVENT_RULES.magnitude.min} to ${EVENT_RULES.magnitude.max}, and write a one-sentence narrative (no numbers, under 25 words) in the playful voice of the game's narrator.
+- This is game fiction: never present it as a real event, forecast, alert or "breaking" news, and never name real agencies (NOAA, NWS, FEMA). The game computes all effects; do not state any.
 ${GROUNDED}`,
         prompt: JSON.stringify({ allowed, facts }),
         schema: {
@@ -172,8 +172,7 @@ ${GROUNDED}`,
         check: ({ answer }) => {
           if (typeof answer !== 'string' || answer.trim().length < 10) return 'empty answer';
           if (answer.length > 500) return 'too long';
-          const stray = strayNumbers(answer, e);
-          return stray.length ? `numbers not in the facts: ${stray.join(', ')}` : null;
+          return checkSpoken(answer, e);
         },
       });
       return answer.trim();

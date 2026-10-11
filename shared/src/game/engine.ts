@@ -177,7 +177,7 @@ export const nextInfluence = (current: number) => Math.min(MAX_INFLUENCE, curren
 
 /** Why this play is not allowed, or null. `round` decides which hand is dealt. */
 export function checkPlay(persona: PersonaId, influence: number, card: unknown, district: unknown, round: number): string | null {
-  if (typeof card !== 'string' || !(card in CARDS)) return 'Pick a card.';
+  if (typeof card !== 'string' || !Object.hasOwn(CARDS, card)) return 'Pick a card.';
   const c = CARDS[card as CardId];
   if (c.persona !== persona) return `${c.name} is not in your hand.`;
   if (!handFor(persona, round).includes(c.id)) return `${c.name} is not in your hand this round (each crisis deals 4 of your 6 cards).`;
@@ -328,6 +328,7 @@ export function resolveRound(board: Board, actions: NegotiationAction[], city: C
     const mods: Delta = {};
     const conditions: string[] = [];
     const features: MapFeature[] = [];
+    const laters: { a: Attachment; later: NonNullable<(typeof CARDS)[CardId]['delayed']> }[] = [];
     rules.push(log({ rule: 'P1', text: `${PERSONA_INFO[p.persona].name} proposes a ${project.name.toLowerCase()} in ${d.name}${p.carried ? ' (delayed from an earlier round)' : ''}: 1 support.`, seat: p.seat, proposalId: p.id, district: p.district }));
 
     for (const a of board.attachments.filter((x) => x.proposalId === p.id).sort(bySeat)) {
@@ -337,10 +338,6 @@ export function resolveRound(board: Board, actions: NegotiationAction[], city: C
           support += 1;
           covered = true;
           rules.push(log({ rule: 'F1', text: `${who}'s Emergency Funding: +1 support, the public cost is covered by an emergency grant.`, seat: a.seat, proposalId: p.id }));
-          if (p.kind === 'shoreline') {
-            addDelta(mods, { environment: 2 });
-            rules.push(log({ rule: 'C3', text: 'Nature-based grant match: the living shoreline gives +2 environment.', seat: a.seat, proposalId: p.id, delta: { environment: 2 } }));
-          }
           break;
         case 'fast-track':
           support += 1;
@@ -356,12 +353,12 @@ export function resolveRound(board: Board, actions: NegotiationAction[], city: C
           support += 1;
           if (project.budgetCost > 0) covered = true;
           if (p.kind === 'hotel') addDelta(mods, { economy: 2 });
-          rules.push(log({ rule: 'F3', text: `${who}'s Private Investment: +1 support${project.budgetCost > 0 ? ', the public cost is covered privately' : ', +2 economy if built'}.`, seat: a.seat, proposalId: p.id }));
+          rules.push(log({ rule: 'F3', text: `${who}'s Private Investment: +1 support${project.budgetCost > 0 ? ', the public cost is covered privately' : p.kind === 'hotel' ? ', +2 economy if built' : ''}.`, seat: a.seat, proposalId: p.id }));
           break;
         case 'tourism-campaign':
           support += 1;
           addDelta(mods, { economy: 3 });
-          rules.push(log({ rule: 'S2', text: `${who}'s Tourism Campaign: +1 support, +3 economy if the hotel is built.`, seat: a.seat, proposalId: p.id }));
+          rules.push(log({ rule: 'S2', text: `${who}'s Tourism Campaign: +1 support, +3 economy if it is built.`, seat: a.seat, proposalId: p.id }));
           break;
         case 'environmental-challenge': {
           const setback = compromiseFor(p.id, 'setback');
@@ -430,10 +427,7 @@ export function resolveRound(board: Board, actions: NegotiationAction[], city: C
         }
       }
       const later = CARDS[a.card].delayed;
-      if (later) {
-        pending.push({ id: `r${board.round}-${a.persona}-${a.card}`, dueRound: board.round + 1, delta: later.delta, text: later.text, card: a.card, seat: a.seat });
-        rules.push(log({ rule: 'L0', text: `${who}'s ${CARDS[a.card].name} has a consequence next round: ${later.text}`, seat: a.seat, proposalId: p.id, delta: later.delta }));
-      }
+      if (later) laters.push({ a, later });
     }
 
     for (const n of actions.filter((x) => x.proposalId === p.id).sort(bySeat)) {
@@ -500,13 +494,21 @@ export function resolveRound(board: Board, actions: NegotiationAction[], city: C
       carried.push({ ...p, carried: true });
     }
 
+    // A delayed consequence comes due only if the proposal its card backed was built (rule L0 schedules it).
+    if (status === 'approved') {
+      for (const { a, later } of laters) {
+        pending.push({ id: `r${board.round}-${a.persona}-${a.card}`, dueRound: board.round + 1, delta: later.delta, text: later.text, card: a.card, seat: a.seat });
+        rules.push(log({ rule: 'L0', text: `${PERSONA_INFO[a.persona].name}'s ${CARDS[a.card].name} has a consequence next round: ${later.text}`, seat: a.seat, proposalId: p.id, delta: later.delta }));
+      }
+    }
+
     outcomes.push({
       proposalId: p.id, kind: p.kind, district: p.district, seat: p.seat, persona: p.persona, status, support, opposition, ignored,
       funding, delta, conditions: status === 'approved' ? conditions : [], rules,
     });
   }
 
-  // Authored combos (rules M1-M5): the pairing is on the board and the projects were approved.
+  // Authored combos (rules M1-M5 and C3): the pairing is on the board and the projects were approved.
   const combos: ComboHit[] = [];
   const approved = (id: string) => outcomes.find((o) => o.proposalId === id)?.status === 'approved';
   const outcomeOf = (id: string) => outcomes.find((o) => o.proposalId === id)!;
@@ -522,6 +524,7 @@ export function resolveRound(board: Board, actions: NegotiationAction[], city: C
   const ordered = [...board.proposals].sort(proposalOrder);
   for (const p of ordered.filter((x) => approved(x.id))) {
     const on = board.attachments.filter((a) => a.proposalId === p.id);
+    if (p.kind === 'shoreline' && on.some((a) => a.card === 'emergency-funding')) hit('grant-match', p.district, [p.id]);
     if ((p.kind === 'drainage' || p.kind === 'seawall') && on.some((a) => a.card === 'private-investment')) hit('public-private-flood', p.district, [p.id]);
     if ((p.kind === 'hotel' || p.kind === 'marina') && board.compromises.some((c) => c.proposalId === p.id && c.accepted && (c.kind === 'setback' || c.kind === 'green'))) hit('eco-resort', p.district, [p.id]);
     if (p.kind === 'marina' && board.compromises.some((c) => c.proposalId === p.id && c.accepted && c.kind === 'access')) hit('working-waterfront', p.district, [p.id]);

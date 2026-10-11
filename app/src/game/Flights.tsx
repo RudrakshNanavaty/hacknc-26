@@ -50,25 +50,36 @@ export function Flights({ map, state }: { map: MapLibreMap | null; state: RoomSt
     ].sort((a, b) => a.seat - b.seat);
     playReveal();
     if (reduceMotion()) return;
-    const list = plays.map((p, i) => {
-      const tile = document.querySelector(`[data-seat="${p.seat}"]`)?.getBoundingClientRect();
-      const from = tile ? { x: tile.left + tile.width / 2, y: tile.top + tile.height / 2 } : { x: window.innerWidth / 2, y: window.innerHeight };
-      return { key: `${revealKey}-${p.seat}`, card: p.card, from, to: screenPoint(map, districtById(p.district).center), delay: i * 0.28 };
-    });
-    setFlights(list);
-    const timers = plays.map((p, i) =>
-      setTimeout(() => {
-        playStamp();
-        setSplashes((s) => [...s, { key: `${revealKey}-${p.seat}`, district: p.district }]);
-      }, 900 + i * 280),
-    );
-    const clear = setTimeout(() => {
-      setFlights([]);
-      setSplashes([]);
-    }, 900 + plays.length * 280 + 900);
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    let started = false;
+    // Cards land where their area is once the camera has settled (the reveal flies the camera to the duel).
+    const start = () => {
+      if (started) return;
+      started = true;
+      const list = plays.map((p, i) => {
+        const tile = document.querySelector(`[data-seat="${p.seat}"]`)?.getBoundingClientRect();
+        const from = tile ? { x: tile.left + tile.width / 2, y: tile.top + tile.height / 2 } : { x: window.innerWidth / 2, y: window.innerHeight };
+        return { key: `${revealKey}-${p.seat}`, card: p.card, from, to: screenPoint(map, districtById(p.district).center), delay: i * 0.28 };
+      });
+      setFlights(list);
+      plays.forEach((p, i) =>
+        timers.push(setTimeout(() => {
+          playStamp();
+          setSplashes((s) => [...s, { key: `${revealKey}-${p.seat}`, district: p.district }]);
+        }, 900 + i * 280)),
+      );
+      timers.push(setTimeout(() => {
+        setFlights([]);
+        setSplashes([]);
+      }, 900 + plays.length * 280 + 900));
+    };
+    if (map.isMoving()) {
+      map.once('moveend', start);
+      timers.push(setTimeout(start, 1800)); // never wait for a camera that does not settle
+    } else start();
     return () => {
+      map.off('moveend', start);
       timers.forEach(clearTimeout);
-      clearTimeout(clear);
       // The phase can end early (host skip): never leave a card hanging over the map.
       setFlights([]);
       setSplashes([]);

@@ -208,6 +208,7 @@ Schema changes go in `server/src/db/schema.sql`, written idempotently (`IF NOT E
 | No AI headline / no voice | Expected without `GEMINI_API_KEY` / `ELEVENLABS_API_KEY`. `/api/health` shows what is on (`ai`, `director`, `voice`). |
 | `director: template kept ... timed out` in the server log | Gemini was slower than 8 s (big prompt, busy key). The template is already showing; nothing breaks. Raise `geminiDirector(gemini, ms)` only if it happens constantly. |
 | `error 402 ... prepayment credits are depleted` in the server log | The Gemini key's AI Studio project is out of credit. Top it up at https://ai.studio/projects; until then every AI call falls back to templates and the game plays normally. |
+| Studio says "Replay check skipped: Recorded under coastal-clash-rules/1.0.0" | Expected for matches played before the 2.0.0 rules: today's engine would not reproduce them, so they are not compared. |
 | `scenario desk: authored scenario stands in` | Gemini or the live feeds (NOAA, NWS) failed or were slow: the authored scenario, with whatever live readings arrived, is used. |
 | Avatars or effects pile up in one corner of the map | Something set `position` or animated `transform` on a MapLibre marker's root element. Animate a child instead. |
 | Studio is empty after a restart | The memory store is not persistent. Set `DATABASE_URL` for Tiger Data. |

@@ -257,7 +257,7 @@ export function DuelScreen({ state, room, focus, setFocus }: { state: RoomState;
         </div>
       )}
       {acting.length === 0 && <p className="frost p-2 text-center text-13">No one else played on this proposal. It stands on its own support.</p>}
-      <IfItPasses p={p} o={o} />
+      <IfItPasses state={state} p={p} o={o} />
       {moves.length > 0 && <p className="text-center text-13 font-black text-white drop-shadow">{moves.map((m) => `${who(state, m.seat)?.name} ${m.move === 'back' ? 'backs it 👍' : m.move === 'oppose' ? 'opposes it 👎' : 'funds it 💰'}`).join(' · ')}</p>}
 
       {offers.map((c) => (

@@ -19,7 +19,9 @@ const SLOT: Record<RoleId, [number, number]> = {
 const slotScale = () => (window.innerWidth < 1024 ? 0.6 : 1);
 const slot = (role: RoleId): [number, number] => {
   const k = slotScale();
-  return [Math.round(SLOT[role][0] * k), Math.round(SLOT[role][1] * k)];
+  // The Fisherman stands below his area's chip: on a phone the ring is tighter, so step him down past it.
+  const extra = role === 'fisherman' && k < 1 ? 33 : 0;
+  return [Math.round(SLOT[role][0] * k), Math.round(SLOT[role][1] * k) + extra];
 };
 const WALK_MS = 1500;
 /** Bubbles overlap a little on wide screens; phones show one at a time. */
@@ -144,7 +146,8 @@ export function LivingLayer({ map, state }: { map: MapLibreMap | null; state: Ro
         a.at = to;
         continue;
       }
-      const from = center(a.at);
+      // Start from where the avatar is now (a walk can be interrupted by the next moment).
+      const from = a.marker.getLngLat().toArray() as [number, number];
       const dest = center(to);
       const t0 = performance.now();
       let raf = 0;
@@ -251,7 +254,11 @@ export function LivingLayer({ map, state }: { map: MapLibreMap | null; state: Ro
       el.dataset.status = g.status;
       el.title = `${PROJECTS[g.kind].name} · ${districtById(g.district).name}: ${GHOST_TAG[g.status]}`;
       const deal = g.deal === 'agreed' ? '<span class="ghost-deal" title="A condition was accepted">🤝</span>' : g.deal === 'offered' ? '<span class="ghost-deal is-offered" title="A condition is on the table">🤝?</span>' : '';
-      el.innerHTML = `<span class="ghost-icon">${PROJECTS[g.kind].marker}${deal}</span><span class="ghost-tag">${GHOST_TAG[g.status]}</span>`;
+      const sig = `${g.kind}|${g.status}|${g.deal}`;
+      if (el.dataset.sig !== sig) {
+        el.dataset.sig = sig;
+        el.innerHTML = `<span class="ghost-icon">${PROJECTS[g.kind].marker}${deal}</span><span class="ghost-tag">${GHOST_TAG[g.status]}</span>`;
+      }
     }
     // ghostKey captures the list.
     // eslint-disable-next-line react-hooks/exhaustive-deps

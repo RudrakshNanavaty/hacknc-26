@@ -1,10 +1,12 @@
 // The Game Director end to end, with Gemini mocked: fallbacks (no key, timeout, malformed JSON),
 // validation inside the room, public hints, the review queue, and deterministic replays.
 import { describe, expect, it } from 'vitest';
-import { authoredScenario, replayMatch, studioSummary, type CardId, type PersonaId } from '@shared';
+import { authoredScenario, replayMatch, studioSummary, toCsv, toGeoJson, type CardId, type PersonaId } from '@shared';
+import { decisionRows } from './db/tiger';
+import { buildServer } from './app';
 import { Gemini, type GenerateClient } from './ai/gemini';
 import { directorFacts, geminiDirector } from './ai/director';
-import { accept, applyDialogue, applyHints, applyScenario, done, getOrCreateRoom, join, proposeEarlyEvent, proposeEvent, publicState, rooms, select, setBot, skip, start, type Player, type Room } from './rooms';
+import { accept, applyDialogue, applyHints, applyScenario, done, getOrCreateRoom, join, move, proposeEarlyEvent, proposeEvent, publicState, rooms, select, setBot, skip, start, type Player, type Room } from './rooms';
 
 const answer = (text: string): GenerateClient => ({ models: { generateContent: async () => ({ text }) as never } });
 /** A Gemini that never answers: only the abort signal (the timeout) ends the call. */
@@ -84,8 +86,24 @@ describe('the Director inside a room', () => {
     expect(record.rounds[2]!.director!.event?.source).toBe('template');
 
     const replay = replayMatch(record);
+    expect(replay.comparable).toBe(true);
     expect(replay.mismatches).toEqual([]);
-    expect(replay.final.scores).toEqual(room.final!.scores);
+    expect(replay.final!.scores).toEqual(room.final!.scores);
+
+    // A database may store the record with its keys reordered (Postgres jsonb does): the replay still matches.
+    const reorder = (v: unknown): unknown => Array.isArray(v) ? v.map(reorder) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v as object).reverse().map(([k, x]) => [k, reorder(x)])) : v;
+    expect(replayMatch(reorder(structuredClone(record)) as typeof record).matches).toBe(true);
+    // A record made under other rules is not replayed with today's engine: it says so instead of "differs".
+    const older = replayMatch({ ...structuredClone(record), rulesVersion: 'coastal-clash-rules/1.0.0' });
+    expect(older).toMatchObject({ comparable: false, matches: false, mismatches: [] });
+    expect(older.reason).toMatch(/1\.0\.0/);
+
+    // Exports carry the twist, marked as fiction, so outcomes it changed are not read as player decisions alone.
+    const csv = toCsv([record]);
+    expect(csv.split('\n').find((l) => l.includes('twist_event'))).toMatch(/access-march,gemini,true/);
+    const geo = toGeoJson([record]);
+    expect(geo.features.find((f) => f.properties.record === 'twist_event')?.properties).toMatchObject({ fictional: true, event_source: 'gemini' });
+    expect(decisionRows(record).filter((r) => r.kind === 'twist').map((r) => r.status)).toEqual(['gemini', 'template']);
 
     // Planning Studio counts the Director's work apart from opinion data.
     const studio = studioSummary([record], { humansOnly: false });
@@ -127,6 +145,44 @@ describe('the Director inside a room', () => {
     advance(room, host, 3, 'crisis');
     expect(room.event!.source).toBe('template');
     expect(room.directorLog.at(-1)).toMatchObject({ source: 'gemini', status: 'rejected' });
+  });
+
+  it('verdicts on lines for a resolution land in that round\'s record, and are saved', () => {
+    const { room, host } = botRoom('LGRS');
+    advance(room, host, 1, 'resolve');
+    room.effects.length = 0;
+    const facts = directorFacts(publicState(room, null, tick()));
+    applyDialogue(room, 'resolve-1', [{ speaker: 'mayor', line: 'Approved and paid for. Somebody frame this moment.', reaction: 'celebrate' }, { speaker: 'kraken', line: 'Release me from the bay at once.', reaction: 'protest' }], facts, tick());
+    const log = room.record!.rounds[0]!.director!.log.filter((l) => l.kind === 'dialogue');
+    expect(log.map((l) => l.status)).toEqual(['accepted', 'rejected']);
+    expect(room.directorLog.filter((l) => l.kind === 'dialogue')).toEqual([]);
+    expect(room.effects.some((e) => e.t === 'record')).toBe(true);
+  });
+
+  it('"Explain in plain words" explains the latest verdict of a proposal that was delayed and decided later', async () => {
+    const down = () => Promise.reject(new Error('down'));
+    const app = buildServer({ narrator: null, director: null, scenario: { live: async () => null, write: down } });
+    rooms.delete('XPLN');
+    const room = getOrCreateRoom('XPLN', 0);
+    const mayor = join(room, 'Mae', 'mayor');
+    const activist = join(room, 'Kai', 'activist');
+    start(room, mayor, tick());
+    applyScenario(room, authoredScenario(null), tick());
+    skip(room, mayor, tick());
+    select(room, mayor, 'drainage-upgrade', 'west-avenue', tick());
+    select(room, activist, 'habitat-survey', 'west-avenue', tick()); // a survey has nothing to act on here (it falls back)
+    skip(room, mayor, tick());
+    const drainage = room.board!.proposals[0]!.id;
+    move(room, activist, 'oppose', drainage, tick()); // 1 vs 1: delayed
+    for (const p of [mayor, activist]) done(room, p, tick());
+    expect(room.history[0]!.resolution.outcomes[0]!.status).toBe('delayed');
+    advance(room, mayor, 2, 'negotiate');
+    move(room, mayor, 'back', drainage, tick());
+    for (const p of [mayor, activist]) if (!p.done) done(room, p, tick());
+    expect(room.history[1]!.resolution.outcomes.find((o) => o.proposalId === drainage)!.status).toBe('approved');
+    const res = (await app.inject({ method: 'POST', url: '/api/explain', payload: { kind: 'outcome', code: 'XPLN', proposalId: drainage } })).json();
+    expect(res.answer).toMatch(/^It was approved/);
+    await app.close();
   });
 
   it('dialogue: validated lines replace template bubbles for the current moment only', () => {
