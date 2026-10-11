@@ -63,6 +63,8 @@ export interface BankSync {
   /** The external record's id once confirmed. */
   externalId: string | null;
   attempts: number;
+  /** Reads that found nothing after an uncertain write (two, a retry apart, before it is sent again). */
+  checks?: number;
   error: string | null;
   updatedAt: string;
 }

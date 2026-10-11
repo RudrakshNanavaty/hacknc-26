@@ -1,11 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { AddressInfo } from 'node:net';
 import WebSocket from 'ws';
-import { authoredScenario, type PersonaId, type RoomState, type ServerMsg } from '@shared';
+import { authoredScenario, buildBoard, type PersonaId, type RoomState, type ServerMsg } from '@shared';
 import { buildServer } from './app';
 import { MemoryStore } from './db/store';
 import {
-  RECONNECT_GRACE_MS, RoomError, accept, again, applyScenario, choosePersona, done, getOrCreateRoom, join, move, presence, publicState, respond, rooms, select, setBot, skip, start, tick,
+  DEAL_HOLD_MS, RECONNECT_GRACE_MS, RoomError, accept, again, applyScenario, choosePersona, decline, done, getOrCreateRoom, join, move, presence, publicState, respond, rooms, select, setBot, skip, start, tick,
 } from './rooms';
 
 const fresh = (code = 'ABCD') => {
@@ -122,6 +122,39 @@ describe('room state machine', () => {
     expect(out.status).toBe('approved');
     expect(out.conditions).toEqual(['Public beach access corridor']);
     expect(room.city.districts['collins-mid-beach']!.features.map((f) => f.kind)).toContain('access-corridor');
+  });
+
+  it('negotiation holds once when time runs out on a money deal a person has not answered', () => {
+    const setup = () => {
+      const room = fresh();
+      const a = join(room, 'Ana', 'mayor');
+      for (const p of ['activist', 'resort', 'resident'] as PersonaId[]) setBot(room, a, p, true);
+      start(room, a, 0);
+      applyScenario(room, authoredScenario(null), 0);
+      skip(room, a, 1);
+      select(room, a, 'drainage-upgrade', 'west-avenue', 2);
+      if (room.phase === 'select') skip(room, a, 3);
+      skip(room, a, 4); // reveal -> negotiate
+      expect(room.phase).toBe('negotiate');
+      // The Resort Owner's partnership on the Mayor's drainage, owned by the (human) Mayor.
+      room.board = buildBoard(1, [{ seat: 0, persona: 'mayor', card: 'drainage-upgrade', district: 'west-avenue' }, { seat: 2, persona: 'resort', card: 'private-investment', district: 'west-avenue' }]);
+      return { room, a, deal: room.board.compromises.find((c) => c.kind === 'ppp')! };
+    };
+    const { room, a, deal } = setup();
+    const end = room.endsAt! + 1_600;
+    expect(tick(room, end)).toBe(true);
+    expect(room.phase).toBe('negotiate');
+    expect(room.endsAt).toBe(end + DEAL_HOLD_MS);
+    // Only once: the next time it runs out, the round resolves (the unanswered deal counts as refused).
+    tick(room, end + DEAL_HOLD_MS + 1_600);
+    expect(room.phase).toBe('resolve');
+    expect(room.history[0]!.resolution.agreements.find((x) => x.compromiseId === deal.id)?.status).toBe('refused');
+    // Answered (declined) or done: no hold.
+    const second = setup();
+    decline(second.room, second.a, second.deal.id, 10);
+    tick(second.room, second.room.endsAt! + 1_600);
+    expect(second.room.phase).toBe('resolve');
+    void a;
   });
 
   it('a phase never waits on someone who left', () => {

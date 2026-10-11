@@ -230,7 +230,8 @@ Schema changes go in `server/src/db/schema.sql`, written idempotently (`IF NOT E
 | `npm run data` fails | The GIS services are down or rate-limited. Run it without `--refresh` to use the cache; the committed data still works. |
 | `/api/bank` says `paused` | Nessie refused the key (auth). Fix `NESSIE_API_KEY` and restart; pending items resume. The game is unaffected. |
 | Ledger entries stay "checking" | A write timed out; the mirror reads the payer's records for the `[cc:match:entry]` marker before it sends again. |
-| A different set of CoastalClash accounts appeared | Nessie answers an unknown key with an empty namespace (200), not an error: a mistyped key provisions a fresh eight. |
+| `/api/bank` paused: "accounts already mapped ... not visible with this key" | A different (often mistyped) `NESSIE_API_KEY`: Nessie answers an unknown key with an empty namespace. Fix the key, or clear `cc_bank_accounts` for the host to provision a fresh set on purpose. |
+| No ocean sound | Audio starts on the first tap or key (browser rule), only with sound on (🔊), and rests while the tab is hidden. |
 | Money looks wrong | The engine's ledger is the truth: open 📒, or `RoundRecord.ledger` in a record. Nessie balances never move (its transfers are records only). |
 
 ## 8. Deploying

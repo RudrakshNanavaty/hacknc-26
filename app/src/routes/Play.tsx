@@ -17,6 +17,7 @@ import { CardScreen, CrisisScreen, DuelScreen, FinalScreen, ResultScreen } from 
 import { LagoonBubbles } from '../game/ui';
 import { useCountdown } from '../game/format';
 import { LedgerPanel, MoneyToasts } from '../game/money';
+import { SoundToggle } from '../ui/SoundToggle';
 
 function useWide() {
   const q = '(min-width: 1024px)';
@@ -100,6 +101,7 @@ export function Play({ code }: { code: string }) {
           {state && me === null && state.phase !== 'lobby' && <p className="wet max-w-xl p-6 text-18">This match is under way. Join the next one from this page, or watch the result in <Link to="/studio" className="font-bold underline">Planning Studio</Link>.</p>}
           {state && me !== null && state.phase === 'lobby' && <Lobby state={state} room={room} />}
         </div>
+        <SoundToggle />
       </main>
     );
   }

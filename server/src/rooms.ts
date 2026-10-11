@@ -94,6 +94,8 @@ export interface Room {
   directorLog: DirectorLogEntry[];
   /** Whether this server mirrors match money to the external bank (set by the socket layer from NESSIE_ENABLED). */
   bankMirror: BankRecord['mirror'];
+  /** The negotiation clock was already held once this round for an unanswered money deal. */
+  dealHold: boolean;
 }
 
 export const rooms = new Map<string, Room>();
@@ -103,7 +105,7 @@ export function newRoom(code: string, now = Date.now()): Room {
     code, phase: 'lobby', round: 0, endsAt: null, players: [], hostId: null, pace: 'standard', sessionKind: 'demo', touchedAt: now,
     matchId: null, record: null, city: startCity(), crisis: null, scenario: null, carried: [], board: null, actions: [], history: [], resolvedRound: 0,
     headline: null, bubbles: null, final: null, effects: [],
-    event: null, eventApplied: null, firedEvents: [], hints: null, hintLog: new Map(), earlyEvent: null, directorLog: [], bankMirror: 'off',
+    event: null, eventApplied: null, firedEvents: [], hints: null, hintLog: new Map(), earlyEvent: null, directorLog: [], bankMirror: 'off', dealHold: false,
   };
 }
 
@@ -226,6 +228,8 @@ export function setSession(room: Room, player: Player, kind: unknown): void {
 
 /** How long the first crisis waits for the live desk before the authored scenario stands in. */
 export const SCENARIO_WAIT_MS = 10_000;
+/** When negotiation time runs out while a person still has a money deal to answer, the clock holds once this long. */
+export const DEAL_HOLD_MS = 10_000;
 
 const seconds = (room: Room, phase: keyof (typeof PACES)['standard']) => PACES[room.pace][phase] * 1000;
 
@@ -459,6 +463,7 @@ function enterNegotiate(room: Room, now: number): void {
   if (!room.board?.proposals.length) return enterResolve(room, now);
   room.phase = 'negotiate';
   room.endsAt = now + seconds(room, 'negotiate');
+  room.dealHold = false;
   for (const p of room.players) {
     p.moved = false;
     p.done = p.bot;
@@ -676,6 +681,16 @@ export function presence(room: Room, player: Player, connected: boolean, now = D
   touch(room, now);
 }
 
+/** A money agreement offered to a connected person who has neither answered it nor finished negotiating. */
+function dealWaiting(room: Room, now: number): boolean {
+  const here = present(room, now);
+  return !!room.board?.compromises.some((c) => {
+    if (!c.terms || c.accepted || c.declined) return false;
+    const p = room.players[c.owner];
+    return !!p && !p.bot && !p.done && here.includes(p);
+  });
+}
+
 /** Time: a phase ends at its clock (selection and negotiation get a short grace for in-flight messages). */
 export function tick(room: Room, now: number): boolean {
   if (room.endsAt === null) return false;
@@ -686,6 +701,14 @@ export function tick(room: Room, now: number): boolean {
   if (room.phase !== before) return true;
   const grace = room.phase === 'select' || room.phase === 'negotiate' ? LOCK_GRACE_MS : 0;
   if (now < room.endsAt + grace) return false;
+  // A money deal still waiting on a person who is here: give them one short hold instead of refusing it for them.
+  if (room.phase === 'negotiate' && !room.dealHold && dealWaiting(room, now)) {
+    room.dealHold = true;
+    room.endsAt = now + DEAL_HOLD_MS;
+    room.headline = { text: 'Hold on: a deal on the table is still waiting for an answer. A few more seconds.', source: 'template', key: `hold-${room.round}` };
+    touch(room, now);
+    return true;
+  }
   return advance(room, now);
 }
 

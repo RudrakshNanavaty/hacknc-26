@@ -193,7 +193,7 @@ beyond what it has not already promised on the board is refused, and accepting t
 resolveRound (authoritative) -> room effect 'ledger' -> BankMirror.enqueue (idempotent by match:entry) -> outbox
   -> send: one transfer record on the payer's fictional account (bonds also as a loan record)
   -> confirmed | uncertain (timeout, network, 5xx) -> reconcile by reading the account for the [cc:match:entry] marker
-     -> confirmed | pending (read and absent: safe to send again, attempt cap 4) | failed
+     -> confirmed | still uncertain (absent once: read again next pass) | pending (absent on two reads: safe to send again, attempt cap 4) | failed
 ```
 
 - Turns never wait on it, and its status (`RoomState.bank`, `MatchRecord.bank`) sits beside the outcomes, never in them.
@@ -201,7 +201,9 @@ resolveRound (authoritative) -> room effect 'ledger' -> BankMirror.enqueue (idem
   then reused by every match. Pre-existing customers are never touched.
 - Nessie (checked live 2026-10-11 at `https://prod-api.nessieisreal.com`): transfers have no payee field and never move balances,
   so the payee and the idempotency marker live in the description. Bills are not used.
-- An auth error pauses the mirror until a restart. A refusal is final. Pending and uncertain items are stored in Tiger Data
+- An auth error pauses the mirror until a restart, and so does a key that cannot see the accounts already mapped for the host
+  (Nessie serves an unknown key an empty namespace rather than an error). A refusal is final.
+- Negotiation holds its clock once for 10 s when it runs out while a connected person still has a money deal to answer. Pending and uncertain items are stored in Tiger Data
   (`cc_bank_sync`, `cc_bank_accounts`) when `DATABASE_URL` is set, so they resume after a restart; in memory otherwise.
 - Replays never call Nessie or Gemini: `replayMatch` is pure shared code (tested with the network forbidden).
 

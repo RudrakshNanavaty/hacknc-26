@@ -23,6 +23,8 @@ class FakeNessie {
   loans = new Map<string, FakeRecord[]>();
   calls: string[] = [];
   failures: { when: (method: string, path: string) => boolean; mode: Mode }[] = [];
+  /** Listings that lag: this many reads of an account's transfers leave out its newest record. */
+  lagReads = 0;
   private n = 0;
   readonly key = 'test-key-not-real';
 
@@ -69,7 +71,10 @@ class FakeNessie {
     if ((m = path.match(/^\/accounts\/([^/]+)\/(transfers|loans)$/))) {
       const book: Map<string, FakeRecord[]> = m[2] === 'transfers' ? this.transfers : this.loans;
       const list = book.get(m[1]!) ?? [];
-      if (method === 'GET') return list.length ? this.json(list.map(({ _id, ...rest }) => ({ id: _id, ...rest }))) : new Response(`"No ${m[2]} found for this account"`, { status: 404 });
+      if (method === 'GET') {
+        const shown = this.lagReads > 0 ? (this.lagReads--, list.slice(0, -1)) : list;
+        return shown.length ? this.json(shown.map(({ _id, ...rest }) => ({ id: _id, ...rest }))) : new Response(`"No ${m[2]} found for this account"`, { status: 404 });
+      }
       if (typeof body!.amount !== 'number' || !Number.isInteger(body!.amount)) return new Response('"amount: value is not a valid integer"', { status: 400 });
       const rec: FakeRecord = { _id: this.id(), ...(body as Omit<FakeRecord, '_id'>) };
       book.set(m[1]!, [...list, rec]);
@@ -173,6 +178,35 @@ describe('the Nessie mirror', () => {
     await settle(mirror);
     expect(mirror.itemsOf('m1')[0]).toMatchObject({ status: 'confirmed', attempts: 2 });
     expect(fake.transferCount()).toBe(1);
+  });
+
+  it('a write that lands but shows up late in the listing is found on the second read, not sent twice', async () => {
+    const fake = new FakeNessie();
+    const { mirror } = mirrorOn(fake);
+    await settle(mirror);
+    fake.fail('timeout-after-write');
+    fake.lagReads = 1;
+    mirror.enqueue('m1', 1, [entry('r1-m1', 'city', 'builders', 8)], startCity().treasury);
+    await settle(mirror);
+    expect(mirror.itemsOf('m1')[0]).toMatchObject({ status: 'confirmed', attempts: 1 });
+    expect(fake.transferCount()).toBe(1);
+    expect(fake.calls.filter((c) => c.startsWith('GET') && c.endsWith('/transfers'))).toHaveLength(2);
+  });
+
+  it('a key that cannot see the accounts already mapped pauses the mirror instead of provisioning a second set', async () => {
+    const before = new FakeNessie();
+    const store = new MemoryBankStore();
+    const first = mirrorOn(before, store);
+    await settle(first.mirror);
+    expect(before.customers).toHaveLength(8);
+    // Same host, a different (mistyped) key: Nessie answers with an empty namespace, not an error.
+    const other = new FakeNessie();
+    const second = mirrorOn(other, store);
+    second.mirror.enqueue('m1', 1, [entry('r1-m1', 'city', 'builders', 8)], startCity().treasury);
+    await settle(second.mirror);
+    expect(second.mirror.status()).toMatchObject({ state: 'paused', paused: expect.stringMatching(/not visible with this key/) });
+    expect(other.writes()).toBe(0);
+    expect(second.mirror.itemsOf('m1')[0]!.status).toBe('pending');
   });
 
   it('a server error after the write is treated as unknown, never resent blindly', async () => {

@@ -26,7 +26,10 @@ export const useSound = create<{ on: boolean; toggle: () => void }>((set, get) =
       // Not remembered; still applies now.
     }
     if (on) unlockAudio();
-    else stopRain(0);
+    else {
+      stopRain(0);
+      stopAmbience(600);
+    }
   },
 }));
 
@@ -435,3 +438,187 @@ export const playBlocked = () => notes([[392, 0, 0.22], [262, 0.18, 0.4]], 'squa
 export const playReveal = () => notes([[659, 0, 0.9], [831, 0.03, 0.9], [988, 0.06, 0.9]], 'sine', 0.07);
 /** The last seconds of a clock. */
 export const playTick = () => notes([[1320, 0, 0.05]], 'square', 0.025);
+
+// ---------- The lagoon: a soothing ocean bed under every page, and a water "bloop" for buttons ----------
+
+let ambience: { nodes: AudioScheduledSourceNode[]; g: GainNode; timer: number | null } | null = null;
+let brown: AudioBuffer | null = null;
+
+/** Brown noise (deep, soft, like distant surf): 8 s, looped. */
+function brownBuffer(c: AudioContext): AudioBuffer {
+  if (brown && brown.sampleRate === c.sampleRate) return brown;
+  brown = c.createBuffer(1, c.sampleRate * 8, c.sampleRate);
+  const d = brown.getChannelData(0);
+  let last = 0;
+  for (let i = 0; i < d.length; i++) {
+    last = (last + 0.02 * (Math.random() * 2 - 1)) / 1.02;
+    d[i] = last * 3.5;
+  }
+  // Fade the loop's ends into each other so the seam does not click.
+  const n = Math.floor(c.sampleRate * 0.25);
+  for (let i = 0; i < n; i++) {
+    const k = i / n;
+    d[i] = d[i]! * k + d[d.length - n + i]! * (1 - k);
+  }
+  return brown;
+}
+
+/** One small bubble rising: a quick upward sine chirp, quiet. */
+function bubbleBlip(c: AudioContext, out: AudioNode, level: number) {
+  const t = c.currentTime;
+  const osc = c.createOscillator();
+  const g = c.createGain();
+  const f = 380 + Math.random() * 420;
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(f, t);
+  osc.frequency.exponentialRampToValueAtTime(f * (1.8 + Math.random()), t + 0.09);
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(level, t + 0.01);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
+  osc.connect(g).connect(out);
+  osc.start(t);
+  osc.stop(t + 0.15);
+}
+
+/**
+ * Start the ocean bed: slow swells of deep surf, a soft hiss of foam breathing on another tempo, and a bubble now
+ * and then. Persistent across pages; follows the sound toggle; fades in and out.
+ */
+export function startAmbience() {
+  const a = audio();
+  if (!a || ambience) return;
+  const { c, out } = a;
+  const t = c.currentTime;
+  const g = c.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(0.5, t + 3);
+  g.connect(out);
+  const nodes: AudioScheduledSourceNode[] = [];
+
+  // Deep swell: brown noise, low-passed, its level rising and falling like waves (about 9 s a wave).
+  const surf = c.createBufferSource();
+  surf.buffer = brownBuffer(c);
+  surf.loop = true;
+  const lp = c.createBiquadFilter();
+  lp.type = 'lowpass';
+  lp.frequency.value = 420;
+  const swell = c.createGain();
+  swell.gain.value = 0.16;
+  const lfo = c.createOscillator();
+  lfo.frequency.value = 0.11;
+  const depth = c.createGain();
+  depth.gain.value = 0.1;
+  lfo.connect(depth).connect(swell.gain);
+  surf.connect(lp).connect(swell).connect(g);
+
+  // Foam: white noise, band-passed high and quiet, breathing on a slower, offset cycle; its filter drifts too.
+  const foam = c.createBufferSource();
+  foam.buffer = noiseBuffer(c);
+  foam.loop = true;
+  const bp = c.createBiquadFilter();
+  bp.type = 'bandpass';
+  bp.frequency.value = 1100;
+  bp.Q.value = 0.5;
+  const foamGain = c.createGain();
+  foamGain.gain.value = 0.018;
+  const lfo2 = c.createOscillator();
+  lfo2.frequency.value = 0.07;
+  const depth2 = c.createGain();
+  depth2.gain.value = 0.014;
+  lfo2.connect(depth2).connect(foamGain.gain);
+  const drift = c.createOscillator();
+  drift.frequency.value = 0.05;
+  const driftDepth = c.createGain();
+  driftDepth.gain.value = 350;
+  drift.connect(driftDepth).connect(bp.frequency);
+  foam.connect(bp).connect(foamGain).connect(g);
+
+  for (const n of [surf, lfo, foam, lfo2, drift]) {
+    n.start(t);
+    nodes.push(n);
+  }
+  const state: { nodes: AudioScheduledSourceNode[]; g: GainNode; timer: number | null } = { nodes, g, timer: null };
+  // A bubble every few seconds, never on a beat.
+  const bubbles = () => {
+    if (ambience !== state || !ctx) return;
+    bubbleBlip(ctx, g, 0.02 + Math.random() * 0.02);
+    if (Math.random() < 0.35) setTimeout(() => ambience === state && ctx && bubbleBlip(ctx, g, 0.015), 120 + Math.random() * 160);
+    state.timer = window.setTimeout(bubbles, 2500 + Math.random() * 5500);
+  };
+  state.timer = window.setTimeout(bubbles, 2000);
+  ambience = state;
+}
+
+export function stopAmbience(fadeMs = 1200) {
+  if (!ambience || !ctx) return;
+  const { nodes, g, timer } = ambience;
+  ambience = null;
+  if (timer !== null) clearTimeout(timer);
+  const t = ctx.currentTime;
+  const end = t + Math.max(0.01, fadeMs / 1000);
+  g.gain.cancelScheduledValues(t);
+  g.gain.setValueAtTime(Math.max(0.0001, g.gain.value), t);
+  g.gain.exponentialRampToValueAtTime(0.0001, end);
+  for (const n of nodes) n.stop(end + 0.05);
+}
+
+/** A button press: a soft water "bloop" (a short sine dropping into a rounder note, with a whisper of splash). */
+export function playClick() {
+  const a = audio();
+  if (!a) return;
+  const { c, out } = a;
+  const t = c.currentTime;
+  const osc = c.createOscillator();
+  const g = c.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(980, t);
+  osc.frequency.exponentialRampToValueAtTime(520, t + 0.07);
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(0.09, t + 0.008);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
+  osc.connect(g).connect(out);
+  osc.start(t);
+  osc.stop(t + 0.2);
+  const splash = c.createBufferSource();
+  splash.buffer = noiseBuffer(c);
+  const hp = c.createBiquadFilter();
+  hp.type = 'highpass';
+  hp.frequency.value = 3000;
+  const sg = c.createGain();
+  sg.gain.setValueAtTime(0.0001, t);
+  sg.gain.exponentialRampToValueAtTime(0.025, t + 0.005);
+  sg.gain.exponentialRampToValueAtTime(0.0001, t + 0.06);
+  splash.connect(hp).connect(sg).connect(out);
+  splash.start(t, Math.random() * 2, 0.08);
+}
+
+let installed = false;
+
+/**
+ * Once per page: the first tap or key starts audio (browsers require a gesture) and the ocean bed; every button,
+ * link-button and summary plays the bloop; the bed follows the sound toggle and rests while the tab is hidden.
+ */
+export function installSoundscape() {
+  if (installed) return;
+  installed = true;
+  const wake = () => {
+    if (!useSound.getState().on || document.hidden) return;
+    unlockAudio();
+    startAmbience();
+  };
+  window.addEventListener('pointerdown', wake, { capture: true });
+  window.addEventListener('keydown', wake, { capture: true });
+  document.addEventListener('click', (e) => {
+    const el = (e.target as Element | null)?.closest?.('button, a.gel, [role="button"], summary');
+    if (!el || (el as HTMLButtonElement).disabled || el.getAttribute('aria-disabled') === 'true') return;
+    playClick();
+  }, { capture: true });
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) stopAmbience(400);
+    else if (audioRunning()) startAmbience();
+  });
+  useSound.subscribe((s) => {
+    if (s.on) wake();
+    else stopAmbience(600);
+  });
+}

@@ -2,13 +2,14 @@ import { Landing } from './routes/Landing';
 import { Play } from './routes/Play';
 import { Studio } from './routes/Studio';
 import { Link, matchPath, usePath } from './router';
+import { SoundToggle } from './ui/SoundToggle';
 
 export function App() {
   const path = usePath();
   let params: Record<string, string> | null;
 
-  if (matchPath('/', path)) return <Landing />;
-  if (matchPath('/studio', path)) return <Studio />;
+  if (matchPath('/', path)) return <><Landing /><SoundToggle /></>;
+  if (matchPath('/studio', path)) return <><Studio /><SoundToggle /></>;
   if ((params = matchPath('/play/:code', path))) return <Play key={params.code} code={(params.code ?? '').toUpperCase()} />;
 
   return (

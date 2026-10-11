@@ -860,3 +860,6 @@ input[type="range"].aero-range {
   .money-toasts { bottom: 56px; width: min(260px, calc(100% - 24px)); }
   .wallet-note { display: none; }
 }
+
+/* The sound switch on pages without the stage toolbar. */
+.sound-fab { position: fixed; right: 16px; bottom: 16px; z-index: 50; }

@@ -190,12 +190,12 @@ visual work follows the existing Aero Lagoon style.
 
 ### Known limitations and open bugs (as fix tasks)
 
-1. **Demo pace leaves little time to answer a deal.** In the browser the partnership was refused because the clock hit zero as
+1. **FIXED** (hold once for 10 s, `DEAL_HOLD_MS` in rooms.ts, tested). **Demo pace leaves little time to answer a deal.** In the browser the partnership was refused because the clock hit zero as
    Accept was clicked. Fix: hold the negotiation clock (or add 10 s once) while an agreement owned by a connected human is
    undecided, in `tick`/`enterNegotiate` (rooms.ts), with a test.
-2. **Reconcile-then-resend assumes reads see a landed write.** If Nessie reads lag behind writes, a write could land twice. Fix:
+2. **FIXED** (two reads a retry apart before a resend, `BankSync.checks`, tested with a lagging listing). **Reconcile-then-resend assumes reads see a landed write.** If Nessie reads lag behind writes, a write could land twice. Fix:
    wait one retry interval and read twice before resending, or mark it `failed` after one absent read and resend only by hand.
-3. **A mistyped key is not detected.** Nessie serves an empty namespace for any key. Fix: refuse to provision when `GET /customers`
+3. **FIXED** (the mirror pauses when the accounts it mapped for the host are not visible with the key, tested). **A mistyped key is not detected.** Nessie serves an empty namespace for any key. Fix: refuse to provision when `GET /customers`
    is empty but `cc_bank_accounts` (Tiger) already maps this host, and surface it in `/api/bank`.
 4. **Twist money is mirrored at the round's resolution,** not when the twist applies. Fix: push the `ledger` effect from
    `enterSelect` for `t` entries, or document it as intended.
@@ -209,6 +209,16 @@ visual work follows the existing Aero Lagoon style.
 9. **No reference image was provided**, so the figurines and bubbles follow the existing Aero Lagoon look; swap the art in
    `app/src/map/sprites.ts` (the mood classes and the base are the contract the CSS uses).
 
+### Follow-up (2026-10-11): fixes 1-3, sound
+
+- Fixes 1-3 above are done; 123 tests pass. Pushed to `origin/pratham/coastal-clash` at the user's request.
+- **Background audio:** a synthesized ocean bed (brown-noise swells about 9 s a wave, a breathing foam hiss, a bubble every few
+  seconds) on every page, and a soft water "bloop" on every button (`installSoundscape` in `app/src/ui/sound.ts`, called from
+  main.tsx). No audio files: nothing to load or fail. It starts on the first tap (browsers require a gesture), follows the sound
+  toggle (a floating 🔊 on the landing page, studio and lobby; the stage toolbar elsewhere), rests while the tab is hidden, and is
+  off by default on phones, as before. Checked in the browser by counting Web Audio nodes (the tab under automation reports itself
+  hidden, so the check overrode `document.hidden`).
+
 ### Next
 
-Fix tasks 1-3 above first (they touch the demo and the mirror's honesty), then playtest the money balance.
+Playtest the money balance (task 7), then tasks 4-6.

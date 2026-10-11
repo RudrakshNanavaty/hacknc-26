@@ -6,7 +6,10 @@
 // Invariants:
 // - Turns never wait on it, and it never changes a game outcome; its status is reported next to the outcome.
 // - An uncertain write (timeout, network, server error) is never retried blindly: the payer's records are read first,
-//   and our key in the description says whether it landed.
+//   and our key in the description says whether it landed. It is sent again only after TWO reads, a retry interval
+//   apart, both find nothing (a write that shows up late in the listing is not duplicated).
+// - A key that cannot see the accounts this server already mapped is refused (Nessie serves any unknown key an empty
+//   namespace instead of an error): the mirror pauses instead of provisioning a second set.
 // - Accounts are provisioned once and reused: eight fictional customers ("CoastalClash <Wallet>"), one account each,
 //   found by name before anything is created. Never more, however many matches are played. Pre-existing customers are
 //   never touched (only CoastalClash-named ones are read, and only ours are written to).
@@ -180,6 +183,11 @@ export class BankMirror {
     const host = this.o.client.host;
     this.accounts = await this.o.store.loadAccounts(host).catch(() => ({}));
     const customers = (await this.o.client.listCustomers()).filter((c) => c.first_name === 'CoastalClash');
+    // Accounts we mapped before, none of them visible now: almost certainly a different (mistyped) key.
+    const mapped = Object.values(this.accounts).filter(Boolean);
+    if (mapped.length && !mapped.some((a) => customers.some((c) => c._id === a!.customerId))) {
+      throw new NessieError('auth', `the ${mapped.length} accounts already mapped for ${host} are not visible with this key; check NESSIE_API_KEY (to provision a fresh set on purpose, clear cc_bank_accounts for this host)`);
+    }
     let changed = false;
     for (const w of WALLETS) {
       let customer = customers.find((c) => c.last_name === LAST_NAME[w]);
@@ -247,9 +255,11 @@ export class BankMirror {
     try {
       const records = it.kind === 'loan' ? await this.o.client.listLoans(this.home(it)) : await this.o.client.listTransfers(this.home(it));
       const found = records.find((r) => typeof r.description === 'string' && r.description.includes(marker(it.key)));
-      if (found) this.update(it, { status: 'confirmed', externalId: recordId(found), error: null });
-      // Read and absent: it never landed, so sending it is safe (still counted against the attempt limit).
-      else this.update(it, { status: 'pending', error: `not found after an uncertain write (${it.error ?? 'unknown'}); sending again` });
+      if (found) this.update(it, { status: 'confirmed', externalId: recordId(found), checks: 0, error: null });
+      // Absent on the first read: a listing can lag behind a write, so read once more on the next pass.
+      else if ((it.checks ?? 0) < 1) this.update(it, { checks: (it.checks ?? 0) + 1, error: `not found on the first read after an uncertain write (${it.error ?? 'unknown'}); reading again before sending` });
+      // Absent twice, a retry apart: it never landed, so sending it is safe (still counted against the attempt limit).
+      else this.update(it, { status: 'pending', checks: 0, error: 'not found on two reads; sending again' });
     } catch (err) {
       // Still cannot tell: stay uncertain and try reading again on a later pass.
       this.update(it, { error: `reconcile failed: ${(err as Error).message}` });
