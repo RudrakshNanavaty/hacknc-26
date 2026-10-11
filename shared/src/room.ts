@@ -7,10 +7,18 @@ import type { Board, CityState, FinalResult, NegotiationAction, Resolution } fro
 import type { AcceptedEvent, TableHint } from './game/director';
 import type { Bubble } from './game/living';
 import type { SessionKind } from './game/record';
+import type { PlanMine, PlanPublic } from './game/plan/state';
+import type { PlanRound } from './game/plan/types';
 
 export const MAX_PLAYERS = 4;
 
-export type RoomPhase = 'lobby' | 'crisis' | 'select' | 'reveal' | 'negotiate' | 'resolve' | 'final';
+export type RoomPhase =
+  | 'lobby' | 'crisis' | 'select' | 'reveal' | 'negotiate' | 'resolve' | 'final'
+  // Planning Edition: situation -> select (pick a card) -> propose (the Mayor puts one forward) -> deal (support, oppose, amend) -> vote -> result
+  | 'situation' | 'propose' | 'deal' | 'vote' | 'result';
+
+/** Which rules a room plays: the Planning Edition (default), or the earlier card game (kept so old records replay). */
+export type RulesMode = 'planning' | 'legacy';
 
 /**
  * How a match moves. `turns`: no clock, a step ends when everyone present is ready (the default).
@@ -36,6 +44,16 @@ export const SPRINT_STORM_MS = 6_000;
 export type RoundStep = 'play' | 'deal' | 'result';
 export const STEP_OF: Partial<Record<RoomPhase, RoundStep>> = {
   crisis: 'play', select: 'play', reveal: 'deal', negotiate: 'deal', resolve: 'result',
+  situation: 'play', propose: 'deal', deal: 'deal', vote: 'deal', result: 'result',
+};
+
+/** Planning Edition sprint deadlines per phase (ms): 14 + 4 + 10 + 6 + 6 = 40 s a round, so three rounds fit in about two minutes. */
+export const PLAN_SPRINT_MS: Record<'select' | 'propose' | 'deal' | 'vote' | 'result', number> = {
+  select: 14_000,
+  propose: 4_000,
+  deal: 10_000,
+  vote: 6_000,
+  result: 6_000,
 };
 
 /**
@@ -91,6 +109,9 @@ export interface RoomState {
    */
   endsAt: number | null;
   pace: Pace;
+  rules: RulesMode;
+  /** The Planning Edition's table state (null in the legacy game). */
+  plan: PlanPublic | null;
   serverNow: number;
   you: number | null;
   hostSeat: number;
@@ -124,12 +145,13 @@ export interface RoomState {
     selection: { card: CardId; district: string } | null;
     moved: boolean;
     responded: string | null;
+    plan: PlanMine | null;
   } | null;
 }
 
 export type ClientMsg =
   | { t: 'look' }
-  | { t: 'join'; name: string; persona: PersonaId; create?: boolean }
+  | { t: 'join'; name: string; persona: PersonaId; create?: boolean; /** Only when creating: play the earlier card game. */ rules?: RulesMode }
   | { t: 'resume'; playerId: string }
   | { t: 'persona'; persona: PersonaId }
   /** Host: fill an empty persona with a bot, or remove one. */
@@ -148,7 +170,22 @@ export type ClientMsg =
   | { t: 'respond'; choice: string }
   /** Negotiation only: a reaction on an area, relayed to the room (see Ping). */
   | { t: 'ping'; district: string; emote: PingEmote }
+  /** Planning Edition. Pick one of the three project cards. */
+  | { t: 'pick'; option: string }
+  /** The Mayor puts one of the submitted projects forward. */
+  | { t: 'lead'; option: string }
+  /** Support or oppose the leading proposal. */
+  | { t: 'stance'; stance: 'support' | 'oppose' }
+  /** Make a Deal: ask for one of the scenario's amendments. */
+  | { t: 'offer'; amendment: string }
+  /** The sponsor accepts or declines the amendment a seat offered. */
+  | { t: 'decide'; seat: number; accept: boolean }
+  | { t: 'vote'; yes: boolean }
+  /** Voluntary, outside your role, never scored. `before` is asked before the deal; `after` after the result. */
+  | { t: 'personal'; stage: 'before' | 'after'; option: string | null; reason?: string | null; moved?: boolean | null; comment?: string | null }
   | { t: 'again' };
+
+export type { PlanRound };
 
 export type ServerMsg =
   | { t: 'state'; state: RoomState }

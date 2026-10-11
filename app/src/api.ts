@@ -1,5 +1,5 @@
 // Calls to the server. Everything here fails soft: the caller gets null and the page says so.
-import type { AtlasInsights, CrisisKind, DataSource, MatchPlayer, MatchRecord, SessionKind, StudioSummary } from '@shared';
+import type { AtlasInsights, CrisisKind, DataSource, MatchPlayer, MatchRecord, PlanAtlas, PlanConfig, SessionKind, StudioSummary } from '@shared';
 
 export interface StudioMatch {
   id: string;
@@ -109,3 +109,14 @@ export async function explain(body: { kind: 'eligibility'; card: string; distric
   if (!res.ok) throw new Error(`explain ${res.status}`);
   return (await res.json()) as ExplainAnswer;
 }
+
+export interface PlanAtlasData {
+  store: 'tiger' | 'memory';
+  rulesVersion: string;
+  dataVersion: string;
+  dataMethod: string;
+  sources: DataSource[];
+  atlas: PlanAtlas;
+  matches: { id: string; roomCode: string; sessionKind: SessionKind; startedAt: string; endedAt: string | null; players: MatchPlayer[]; rounds: number; plan: PlanConfig[] | null }[];
+}
+export const planAtlas = (session: SessionKind | 'all', bots: boolean) => get<PlanAtlasData>(`/api/atlas/plan?session=${session}${bots ? '&bots=include' : ''}`);

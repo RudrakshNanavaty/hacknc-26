@@ -16,6 +16,7 @@ import { Link } from '../router';
 import { EvidenceMeter, Findings, Trend, CityOutcomes, DecisionLog, MatchList, Places, Preferences, Projects, Scenarios, Stakeholders } from '../atlas/sections';
 import { Stat, heat, pct } from '../atlas/parts';
 import { Timeline } from '../atlas/Timeline';
+import { PlanAtlasView } from '../atlas/PlanAtlas';
 
 const CITY = startCity();
 
@@ -36,6 +37,7 @@ const isTab = (v: string): v is Tab => TABS.some((t) => t.id === v);
 const DAY = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : 'n/a');
 
 export function Atlas() {
+  const [mode, setMode] = useState<'planning' | 'legacy'>(() => (location.hash === '#legacy' ? 'legacy' : 'planning'));
   const [q, setQ] = useState<AtlasQuery>({ session: 'all', bots: false, scenario: 'all', area: 'all' });
   const [tab, setTabState] = useState<Tab>(() => {
     const h = location.hash.replace('#', '');
@@ -141,21 +143,26 @@ export function Atlas() {
         </div>
       </header>
 
-      <p className="glass p-3 text-13">
+      <nav className="flex flex-wrap gap-1.5" aria-label="Which game">
+        <button type="button" className="aero-btn !py-1 text-13" aria-pressed={mode === 'planning'} onClick={() => { setMode('planning'); history.replaceState(null, '', location.pathname + location.search); }}>Planning Edition</button>
+        <button type="button" className="aero-btn !py-1 text-13" aria-pressed={mode === 'legacy'} onClick={() => { setMode('legacy'); history.replaceState(null, '', `${location.pathname}${location.search}#legacy`); }}>Earlier card game</button>
+      </nav>
+      {mode === 'planning' && <PlanAtlasView session={q.session} bots={q.bots} />}
+      {mode === 'legacy' && <p className="glass p-3 text-13">
         <b>Read with care:</b> proposals are <i>hypothetical persona role-play</i>, not public opinion. Personal picks come from a separate end-of-match question.
         Sessions are labelled <b>demo</b> (demonstration or playtest) or <b>community</b>; bots are {q.bots ? 'included' : 'left out'}.
         {q.session !== 'community' && a && a.scope.sessions.demo > 0 && <> This view includes {a.scope.sessions.demo} demo session{a.scope.sessions.demo > 1 ? 's' : ''}; filter to <button type="button" className="underline" onClick={() => setQ({ ...q, session: 'community' })}>Community</button> for real respondents only.</>}
-      </p>
+      </p>}
 
-      <nav className="flex flex-wrap gap-1.5" aria-label="Atlas sections">
+      {mode === 'legacy' && <nav className="flex flex-wrap gap-1.5" aria-label="Atlas sections">
         {TABS.map((t) => (
           <button key={t.id} type="button" className="aero-btn !py-1 text-13" aria-pressed={tab === t.id} onClick={() => setTab(t.id)}>{t.label}</button>
         ))}
-      </nav>
+      </nav>}
 
-      {data === 'loading' && <p className="glass p-6 text-18">Loading records...</p>}
-      {data === null && <p className="glass p-6 text-18">The atlas could not reach the server.</p>}
-      {a && data && data !== 'loading' && (
+      {mode === 'legacy' && data === 'loading' && <p className="glass p-6 text-18">Loading records...</p>}
+      {mode === 'legacy' && data === null && <p className="glass p-6 text-18">The atlas could not reach the server.</p>}
+      {mode === 'legacy' && a && data && data !== 'loading' && (
         <>
           {tab === 'overview' && (
             <>

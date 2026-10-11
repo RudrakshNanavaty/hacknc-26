@@ -10,6 +10,7 @@ import { spriteSvg } from '../map/sprites';
 import { usePortrait } from '../characters/portraits';
 import { useVoice } from '../ui/voice';
 import { TwistCard } from './insights';
+import { scenarioById2 } from '../plan/bits';
 import { EvidenceStrip, StoryPanel } from './story';
 
 const ANCHOR_SVG = spriteSvg('anchor');
@@ -84,6 +85,21 @@ export function CrisisBriefing({ state }: { state: RoomState }) {
 
 /** The drawer under the TV. */
 function NewsDetails({ state }: { state: RoomState }) {
+  if (state.plan) {
+    const sc = scenarioById2(state.plan.scenarioId);
+    return (
+      <>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="lchip lchip-sun">📰 {sc ? sc.title : 'Planning session'}</span>
+          {state.headline?.source === 'gemini' && <span className="lchip">✨ Anchor line by Gemini</span>}
+        </div>
+        {state.headline && <p className="frost p-2.5 text-15 font-bold">“{state.headline.text}”</p>}
+        {sc && <p className="text-15 font-semibold">{sc.situation}</p>}
+        {sc && <ul className="list-disc pl-5 text-13 font-semibold">{sc.facts.map((f) => <li key={f}>{f}</li>)}</ul>}
+        {sc && <p className="text-13 font-bold opacity-80">{sc.sources.length} sources, listed under “Play a Card”.</p>}
+      </>
+    );
+  }
   const c = state.crisis;
   const twist = state.event && state.event.round === state.round ? state.event : null;
   const headline = state.headline;
@@ -115,6 +131,16 @@ function NewsDetails({ state }: { state: RoomState }) {
 
 /** What runs across the top: short, from what the match already knows (no new numbers). */
 function crawlItems(state: RoomState): string[] {
+  if (state.plan) {
+    const sc = scenarioById2(state.plan.scenarioId);
+    const last = state.plan.rounds.at(-1);
+    return [
+      sc ? `Round ${state.round} of ${state.totalRounds}: ${sc.title}` : 'Coastal Clash planning session',
+      ...(sc ? sc.facts.slice(0, 3) : []),
+      last ? `Round ${last.round}: ${last.verdict}` : '',
+      'Real Miami Beach stories, sourced and checked',
+    ].filter(Boolean);
+  }
   const c = state.crisis;
   if (!c) return ['Live desk checking Miami Beach right now: tide gauge, flood thresholds, forecast, FEMA zones'];
   const twist = state.event && state.event.round === state.round ? state.event : null;
@@ -162,7 +188,7 @@ export function NewsTV({ state, open, setOpen, quiet = false }: { state: RoomSta
   const crisisPhase = state.phase === 'crisis';
   const headline = state.headline;
   // The crisis title leads while the crisis lands; after that the narrator's line is the news.
-  const text = (crisisPhase ? c?.title : headline?.text ?? c?.title) ?? 'Checking Miami Beach right now…';
+  const text = (crisisPhase ? c?.title : headline?.text ?? c?.title) ?? (state.plan ? 'Coastal Clash Live: the planning session is on' : 'Checking Miami Beach right now…');
   const live = !crisisPhase && headline?.source === 'gemini';
   const label = crisisPhase ? 'Breaking' : kind ? `${kind.label} alert` : 'Live desk';
 

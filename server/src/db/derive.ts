@@ -36,7 +36,21 @@ export interface CitySnapshotRow {
   built: { kind: string; district: string; round: number; persona: string }[];
 }
 
+/** A Planning Edition match: its rounds, points and plan live in `m.plan`. */
+function planSummaryRow(m: MatchRecord): MatchSummaryRow {
+  const plan = m.plan!;
+  return {
+    match_id: m.id, room_code: m.roomCode, session_kind: m.sessionKind, started_at: m.startedAt, ended_at: m.endedAt, completed: plan.final !== null, rounds: plan.rounds.length, players: m.players,
+    winners: plan.final?.winners ?? null, scores: plan.final ? Object.fromEntries(plan.final.totals.map((t) => [t.persona, t.total])) : null, viable: plan.simulated ? plan.simulated.stormHeld : null,
+    proposals: plan.rounds.filter((r) => r.leading).length, approved: plan.rounds.filter((r) => r.verdict === 'approved').length, stopped: plan.rounds.filter((r) => r.verdict !== 'approved').length,
+    twists: 0, combos: 0, responses: plan.personal.length, indicators_start: null, indicators_end: null,
+    stories: plan.rounds.map((r) => ({ round: r.round, id: r.scenarioId, title: r.scenarioId, years: '', sources: 0, verification: null })), scenario_source: 'fixed',
+    headlines: plan.rounds.map((r) => ({ round: r.round, headline: `${r.district}: ${r.verdict}` })),
+  };
+}
+
 export function matchSummaryRow(m: MatchRecord): MatchSummaryRow {
+  if (m.plan) return planSummaryRow(m);
   const outcomes = m.rounds.flatMap((r) => r.outcomes);
   const seenStories = new Set<string>();
   const stories = m.rounds.flatMap((r) => {

@@ -11,7 +11,7 @@ import { CityMap, FLOOD_COLORS, ZONING_FAMILIES, type Overlays } from '../map/Ci
 import { CrisisAlert } from '../map/CrisisAlert';
 import { CrisisFx, type CrisisStage } from '../map/CrisisFx';
 import { crisisIntensity } from '../map/intensity';
-import { savedPlayer, useRoom } from '../room/useRoom';
+import { savedPlayer, useRoom, type Room } from '../room/useRoom';
 import { Link } from '../router';
 import { useSound } from '../ui/sound';
 import { dropWaitingSpeech, enqueueSpeech, hush, useVoicePref, type VoiceName } from '../ui/voice';
@@ -31,6 +31,7 @@ import { LagoonBubbles, RoundDots } from '../game/ui';
 import { CrisisProvider } from '../game/story';
 import { RoundSteps, instructionFor } from '../game/Steps';
 import { StormFinale, stormOf, useResolveShow } from '../game/Climax';
+import { PlanStage } from '../plan/PlanStage';
 
 export function Legend({ overlays, setOverlays }: { overlays: Overlays; setOverlays: (o: Overlays) => void }) {
   return (
@@ -47,6 +48,12 @@ export function Legend({ overlays, setOverlays }: { overlays: Overlays; setOverl
 
 export function Play({ code }: { code: string }) {
   const room = useRoom(code);
+  // The Planning Edition has its own stage once the match starts; the lobby is shared.
+  if (room.state && room.state.rules === 'planning' && room.state.phase !== 'lobby' && room.state.you !== null && room.state.plan) return <PlanStage room={room} />;
+  return <LegacyPlay code={code} room={room} />;
+}
+
+function LegacyPlay({ code, room }: { code: string; room: Room }) {
   const { state } = room;
   const [map, setMap] = useState<MapLibreMap | null>(null);
   /** The area whose popover is open (selection phase). */

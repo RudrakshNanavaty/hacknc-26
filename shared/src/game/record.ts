@@ -5,6 +5,7 @@ import { CARDS, INDICATORS, PERSONA_INFO, PROJECTS, RULES_VERSION, START_INDICAT
 import { applyDirectorEvent, type AcceptedEvent, type TableHint } from './director';
 import { DATA_SOURCES, DATA_VERSION, DISTRICTS, districtById, type DataSource } from './districts';
 import type { Crisis, LiveConditions } from './scenario';
+import type { PlanRecord } from './plan/state';
 import { crisisFor, finalResult, resolveRound, startCity, type Attachment, type Compromise, type FinalResult, type NegotiationAction, type Outcome, type Proposal, type Resolution, type RuleEvent } from './engine';
 
 export type SessionKind = 'demo' | 'community';
@@ -100,6 +101,8 @@ export interface MatchRecord {
   live?: LiveConditions | null;
   /** Turn-based or sprint (absent on records made before sprints existed: turn-based). */
   pace?: 'turns' | 'sprint';
+  /** Planning Edition matches (rulesVersion planning-1.0.0) keep their rounds, deals, votes and personal answers here. */
+  plan?: PlanRecord;
 }
 
 export const SCENARIO_ID = 'miami-beach-coastal-2026';

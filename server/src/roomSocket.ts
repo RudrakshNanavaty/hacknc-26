@@ -12,10 +12,11 @@ import type { ScenarioWriter } from './ai/scenario';
 import type { CivicRecord } from './solana/civic';
 import { type EventLog, noEvents } from './db/events';
 import type { ArtService } from './cardArt';
-import { directorFacts, type Director } from './ai/director';
+import { directorFacts, type Director, type DirectorFacts } from './ai/director';
+import { planFacts } from './planFlow';
 import {
   RoomError, accept, again, applyDialogue, applyHints, applyScenario, choosePersona, done, findPlayer, getOrCreateRoom, getRoom, join, mapRoles, move,
-  ping, presence, proposeEarlyEvent, proposeEvent, publicState, respond, select, setBot, setPace, setSession, skip, start, sweep, tick, type Room,
+  ping, planDecide, planLead, planOffer, planPersonal, planPick, planStance, planVote, presence, proposeEarlyEvent, proposeEvent, publicState, respond, select, setBot, setPace, setSession, skip, start, sweep, tick, type Room,
 } from './rooms';
 
 const ROOM_PATH = /^\/ws\/rooms\/([A-Za-z]{4})$/;
@@ -31,6 +32,13 @@ function messagePayload(msg: ClientMsg): unknown {
     case 'persona': return { persona: msg.persona };
     case 'session': return { kind: msg.kind };
     case 'pace': return { pace: msg.pace };
+    case 'pick': return { option: msg.option };
+    case 'lead': return { option: msg.option };
+    case 'stance': return { stance: msg.stance };
+    case 'offer': return { amendment: msg.amendment };
+    case 'decide': return { seat: msg.seat, accept: msg.accept };
+    case 'vote': return { yes: msg.yes };
+    case 'personal': return { stage: msg.stage, option: msg.option, reason: msg.reason ?? null, moved: msg.moved ?? null };
     default: return undefined;
   }
 }
@@ -203,6 +211,17 @@ export function roomServer({ store, narrator, scenario, director = null, civic =
     const effects = room.effects.splice(0);
     let save = false;
     for (const e of effects) {
+      // The Planning Edition: no scenario desk or twists, but the news anchor and the characters still speak. Both only
+      // word what the rules already decided (planFacts); a line with a number outside those facts is dropped.
+      if (room.rules === 'planning') {
+        if (e.t === 'record') save = true;
+        else if (e.t === 'crisis' || e.t === 'resolved' || e.t === 'final') {
+          const facts = planFacts(room, e.t === 'crisis' ? 'select' : e.t);
+          if (director) direct(room, `plan dialogue ${e.key}`, () => director.dialogue(facts as unknown as DirectorFacts, mapRoles(room), e.key), (raw) => applyDialogue(room, e.key, Array.isArray(raw) ? raw : [], facts, Date.now()));
+          narrate(room, e.key, facts);
+        }
+        continue;
+      }
       if (e.t === 'crisis' || e.t === 'reveal' || e.t === 'resolved' || e.t === 'final') directMoment(room, e.key);
       // Prefetch the next round's twist while everyone reads the resolution.
       if (e.t === 'resolved' && director && e.round < TOTAL_ROUNDS && (EVENT_RULES.rounds as readonly number[]).includes(e.round + 1)) {
@@ -263,7 +282,7 @@ export function roomServer({ store, narrator, scenario, director = null, civic =
 
   function handle(conn: Conn, msg: ClientMsg) {
     const now = Date.now();
-    const room = msg.t === 'join' && msg.create ? getOrCreateRoom(conn.code, now) : getRoom(conn.code);
+    const room = msg.t === 'join' && msg.create ? getOrCreateRoom(conn.code, now, msg.rules === 'legacy' ? 'legacy' : 'planning') : getRoom(conn.code);
     if (msg.t === 'look') return send(conn.ws, { t: 'state', state: publicState(room, null, now) });
     if (msg.t === 'join') {
       const player = join(room, msg.name, msg.persona);
@@ -296,6 +315,13 @@ export function roomServer({ store, narrator, scenario, director = null, civic =
       case 'accept': accept(room, player, msg.compromiseId, now); break;
       case 'done': done(room, player, now); break;
       case 'respond': respond(room, player, msg.choice, now); break;
+      case 'pick': planPick(room, player, msg.option, now); break;
+      case 'lead': planLead(room, player, msg.option, now); break;
+      case 'stance': planStance(room, player, msg.stance, now); break;
+      case 'offer': planOffer(room, player, msg.amendment, now); break;
+      case 'decide': planDecide(room, player, msg.seat, msg.accept, now); break;
+      case 'vote': planVote(room, player, msg.yes, now); break;
+      case 'personal': planPersonal(room, player, msg, now); break;
       case 'again': again(room, player); break;
       case 'ping': {
         // Relayed to the room as it happens; no state changes, so no state broadcast.

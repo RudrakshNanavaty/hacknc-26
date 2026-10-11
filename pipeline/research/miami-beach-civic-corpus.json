@@ -1012,21 +1012,28 @@
       "area": "collins-mid-beach",
       "scope": "area",
       "category": "flooding",
-      "years": "2016-2019",
-      "summary": "Indian Creek Drive, a state road, floods at high tide. The city and FDOT partnered to raise the road and seawall, but costs rose and a seawall built too close to the water caused delays.",
+      "years": "2015-2019",
+      "summary": "Indian Creek Drive, a state road, floods at high tide. The city and FDOT partnered to raise the road and its seawall, but the cost rose from $25.4 million to $30 million and a seawall built too close to the water delayed the work by about two years.",
       "facts": [
-        "Roughly $25-30 million project",
-        "City paid about $5.4 million and advanced $20 million to FDOT (2016 agreement)",
-        "Tides about 2.2 ft put up to a foot of water over the seawall"
+        "Project cost rose from $25.4 million to $30 million (ENR, January 2018)",
+        "City pays about $5.4 million and advanced $20 million to FDOT under a September 2016 agreement (ENR)",
+        "Completion slipped from late 2017 to a target of late 2019 (ENR)",
+        "Tides about 2.2 ft put up to a foot of water over the seawall (ENR)",
+        "The road is a state road: in 2015 the city set up portable pumps and urged state officials to help (CBS Miami, October 2015)",
+        "Seawall segment between 41 and 29 Streets: $4.3 million budget (City of Miami Beach project page)"
       ],
       "sides": [
         {
-          "who": "City and FDOT",
-          "position": "Raise the road and seawall, add a greenway barrier"
+          "who": "City of Miami Beach",
+          "position": "Rebuild the road higher and raise the seawall; the city fronts the money and runs the project"
         },
         {
-          "who": "ENR reporting",
-          "position": "Engineering failure and permitting delays pushed completion back"
+          "who": "FDOT (state road owner)",
+          "position": "Owns the project; the city advanced $20 million and urged the state to do more"
+        },
+        {
+          "who": "Residents and drivers",
+          "position": "Tired of repeat high-tide flooding; portable pumps did not keep water off the road"
         }
       ],
       "tensions": [
@@ -1036,7 +1043,8 @@
       "concerns": [
         "flooding",
         "cost",
-        "construction-disruption"
+        "construction-disruption",
+        "local-vs-state"
       ],
       "card_ideas": [
         "drainage-upgrade",
@@ -1048,11 +1056,39 @@
           "outlet": "ENR",
           "url": "https://enr.com/articles/42497-discovery-of-engineering-failure-leads-miami-beach-to-flooding-fix",
           "kind": "news"
+        },
+        {
+          "title": "Seawall Snafu Latest Hit to A1A Flood-Mitigation Project",
+          "outlet": "ENR",
+          "url": "https://www.enr.com/articles/43855-seawall-snafu-latest-hit-to-a1a-flood-mitigation-project",
+          "kind": "news"
+        },
+        {
+          "title": "Indian Creek Drive Seawall Project",
+          "outlet": "City of Miami Beach",
+          "url": "https://www.miamibeachfl.gov/residents/neighborhood-affairs-division/active-projects/neighborhood-improvements/indian-creek-drive-seawall-project/",
+          "kind": "official"
+        },
+        {
+          "title": "Miami Beach Hopes To Avoid Flood Of Trouble During Autumn High Tides",
+          "outlet": "CBS Miami",
+          "url": "https://www.cbsnews.com/amp/miami/news/miami-beach-hopes-to-avoid-flood-of-trouble-during-autumn-high-tides",
+          "kind": "news"
+        },
+        {
+          "title": "Miami Beach Residents Say They're Tired Of Continued High Tide Flooding",
+          "outlet": "CBS Miami",
+          "url": "https://www.cbsnews.com/miami/news/miami-beach-residents-say-theyre-tired-of-continued-high-tide-flooding",
+          "kind": "news"
         }
       ],
       "verification": {
-        "status": "sources-checked",
-        "notes": []
+        "status": "resolved",
+        "notes": [
+          "Five sources (1 official, 4 news) re-checked 2026-10-11: ENR 42497 and 43855, City project page, CBS Miami 2015 and 2017.",
+          "The earlier '$25-30 million' range is now stated as $25.4 million rising to $30 million (ENR 43855)."
+        ],
+        "resolution": "Sources agree on the state-road ownership, the city's $5.4M share plus $20M advance, and the permitting delay."
       },
       "review_status": "unreviewed",
       "retrieved_at": "2026-10-11",
@@ -1061,13 +1097,13 @@
         "district": "collins-mid-beach",
         "roles": {
           "mayor": {
-            "counterpart": "City and FDOT",
+            "counterpart": "City of Miami Beach",
             "stance": "Raise Indian Creek Drive and its seawall while managing state coordination and project expenses.",
             "line": "We cannot let daily tides turn our state road into an impromptu canal.",
             "reaction": "negotiate"
           },
           "activist": {
-            "counterpart": "ENR reporting",
+            "counterpart": null,
             "stance": "Highlight engineering flaws and permit oversights while urging softer, natural greenway barrier alternatives.",
             "line": "Pouring concrete right against the tide line only invites more costly engineering setbacks.",
             "reaction": "worry"
@@ -2862,20 +2898,27 @@
     },
     {
       "id": "beach-renourishment",
-      "title": "Army Corps beach renourishment",
+      "title": "Miami Beach sand: renourishment, groins and dunes",
       "area": "collins-mid-beach",
       "scope": "area",
       "category": "environment",
       "years": "2021-2025",
-      "summary": "The Army Corps placed sand along eroded Miami Beach segments under a $40.4 million contract, and the federal project was reauthorized for 50 years from 2025.",
+      "summary": "The Army Corps placed sand along eroded Miami Beach segments under a $40.4 million contract, and the federal project was reauthorized for 50 years from 2025. The county is also studying breakwaters and groins to keep the sand from washing away.",
       "facts": [
         "$40.4 million contract (July 2021)",
-        "About 835,000 cubic yards of sand along about 11,400 ft of shoreline"
+        "About 835,000 cubic yards of sand along about 11,400 ft of shoreline",
+        "Federal project reauthorized for 50 years from 2025 (Miami Today)",
+        "County consultant recommends breakwaters and groins at several locations, including Miami Beach (Miami Today)",
+        "Competing needs: erosion protection, flood and surge protection, and rising seas (Miami Today)"
       ],
       "sides": [
         {
           "who": "Army Corps and county",
-          "position": "Renourish eroded segments; consider breakwaters and groins"
+          "position": "Renourish eroded segments with new sand and consider breakwaters and groins to hold it"
+        },
+        {
+          "who": "Miami-Dade environmental staff",
+          "position": "Weigh erosion protection against flood and surge protection and sea level rise"
         }
       ],
       "tensions": [
@@ -2885,7 +2928,8 @@
       "concerns": [
         "beach-access",
         "flooding",
-        "habitat"
+        "habitat",
+        "cost"
       ],
       "card_ideas": [
         "living-shoreline",
@@ -2897,11 +2941,27 @@
           "outlet": "Dredging Today",
           "url": "https://dredgingtoday.com/?p=82517",
           "kind": "industry"
+        },
+        {
+          "title": "Miami-Dade seeks new ways to retain vital beach sand",
+          "outlet": "Miami Today",
+          "url": "https://www.miamitodaynews.com/?p=76028",
+          "kind": "news"
+        },
+        {
+          "title": "Beach Renourishment",
+          "outlet": "Miami-Dade County Environmental Resources Management",
+          "url": "https://miamidade.gov/environment/beach-renourishment.asp",
+          "kind": "official"
         }
       ],
       "verification": {
-        "status": "sources-checked",
-        "notes": []
+        "status": "resolved",
+        "notes": [
+          "Three sources (1 official, 1 news, 1 industry) re-read 2026-10-11.",
+          "Dredging Today gives $40.4 million and 835,000 cubic yards; Miami Today gives $40.5 million and 830,000 cubic yards for the same project."
+        ],
+        "resolution": "Stated the Dredging Today figures and named the discrepancy; the county page describes the older 2016 work and was used only for its list of options (no action to breakwaters and groins)."
       },
       "review_status": "unreviewed",
       "retrieved_at": "2026-10-11",
@@ -4639,7 +4699,8 @@
       "facts": [
         "Tower over 500 ft (sources give 519 ft and 553 ft)",
         "3-acre park donated to the city",
-        "$10 million GO Bond for the bridge"
+        "$10 million GO Bond for the bridge",
+        "The trade: height for a public park (City Commission position)"
       ],
       "sides": [
         {

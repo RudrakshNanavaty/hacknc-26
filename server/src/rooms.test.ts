@@ -10,7 +10,7 @@ import {
 
 const fresh = (code = 'ABCD') => {
   rooms.delete(code);
-  return getOrCreateRoom(code, 0);
+  return getOrCreateRoom(code, 0, 'legacy');
 };
 
 describe('room state machine', () => {
@@ -317,7 +317,7 @@ describe('four browsers over WebSockets', () => {
     const personas: PersonaId[] = ['mayor', 'activist', 'resort', 'resident'];
     const c = personas.map(() => client('WXYZ'));
     await Promise.all(c.map((x) => x.open));
-    c[0]!.send({ t: 'join', name: 'Mae', persona: 'mayor', create: true });
+    c[0]!.send({ t: 'join', name: 'Mae', persona: 'mayor', create: true, rules: 'legacy' });
     await c[0]!.next((m) => m.t === 'joined');
     for (const [i, p] of personas.entries()) {
       if (i === 0) continue;

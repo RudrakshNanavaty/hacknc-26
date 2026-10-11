@@ -15,7 +15,7 @@ import { TigerStore, schemaStatements } from './tiger';
 
 function finishedMatch(): MatchRecord {
   rooms.delete('DBTX');
-  const room = getOrCreateRoom('DBTX', 0);
+  const room = getOrCreateRoom('DBTX', 0, 'legacy');
   const host = join(room, 'Ana', 'mayor');
   for (const p of ['activist', 'resort', 'resident'] as PersonaId[]) setBot(room, host, p, true);
   start(room, host, 1);

@@ -81,6 +81,33 @@ export function decisionRows(m: MatchRecord): DecisionRow[] {
       }));
     }
   }
+  // The Planning Edition: one row per card, stance, offer, vote, outcome and voluntary personal answer.
+  for (const r of m.plan?.rounds ?? []) {
+    const at = m.endedAt ?? m.startedAt;
+    const base = { at, round: r.round, district: r.district, card: null, proposal_id: `${r.scenarioId}:r${r.round}` };
+    for (const [seat, option] of Object.entries(r.picks)) {
+      out.push(row({ ...base, id: `${m.id}:pick:r${r.round}:${seat}`, kind: 'play', seat: Number(seat), project: option, status: null, detail: { rolePlay: true } }));
+    }
+    for (const [seat, stance] of Object.entries(r.stancesAfter)) {
+      out.push(row({ ...base, id: `${m.id}:stance:r${r.round}:${seat}`, kind: 'move', seat: Number(seat), project: r.leading?.option ?? null, status: stance, detail: { before: r.stancesBefore[Number(seat)] ?? null, after: stance } }));
+    }
+    for (const o of r.offers) {
+      out.push(row({ ...base, id: `${m.id}:offer:r${r.round}:${o.seat}`, kind: 'move', seat: o.seat, project: r.leading?.option ?? null, status: `amendment:${o.state}`, detail: { amendment: o.amendment } }));
+    }
+    for (const [seat, yes] of Object.entries(r.votes)) {
+      out.push(row({ ...base, id: `${m.id}:vote:r${r.round}:${seat}`, kind: 'move', seat: Number(seat), project: r.adopted.option, status: yes ? 'vote:yes' : 'vote:no', detail: null }));
+    }
+    out.push(row({
+      ...base, id: `${m.id}:outcome:r${r.round}`, kind: 'outcome', seat: r.leading?.sponsorSeat ?? null, project: r.adopted.option, status: r.verdict,
+      detail: { adopted: r.adopted, accepted: r.accepted, cost: r.cost, budget: r.budget, blockedBy: r.blockedBy, scores: r.scores.map((s) => ({ seat: s.seat, mandate: s.mandate, deal: s.deal, feasibility: s.feasibility })) },
+    }));
+  }
+  for (const p of m.plan?.personal ?? []) {
+    out.push(row({
+      id: `${m.id}:personal:r${p.round}:${p.seat}`, at: p.at, round: p.round, kind: 'preference', seat: p.seat, card: null, project: p.after ?? p.before, proposal_id: p.scenarioId, district: p.district,
+      status: p.reason, detail: { before: p.before, after: p.after, movedByAmendment: p.movedByAmendment, voluntary: true, notRolePlay: true },
+    }));
+  }
   for (const resp of m.responses) {
     out.push(row({ id: `${m.id}:preference:${resp.seat}`, at: resp.at, round: null, kind: 'preference', seat: resp.seat, card: null, project: resp.kind, proposal_id: resp.choice, district: resp.district, status: null, detail: null }));
   }

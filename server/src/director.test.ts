@@ -22,7 +22,7 @@ const tick = () => (clock += 1);
 
 function botRoom(code: string) {
   rooms.delete(code);
-  const room = getOrCreateRoom(code, 0);
+  const room = getOrCreateRoom(code, 0, 'legacy');
   const host = join(room, 'Ana', 'mayor');
   for (const p of ['activist', 'resort', 'resident'] as PersonaId[]) setBot(room, host, p, true);
   start(room, host, tick());
@@ -119,7 +119,7 @@ describe('the Director inside a room', () => {
 
   it('while the scenario desk is still writing, the crisis moment waits; it starts when the scenario arrives', () => {
     rooms.delete('WAZT');
-    const room = getOrCreateRoom('WAZT', 0);
+    const room = getOrCreateRoom('WAZT', 0, 'legacy');
     const host = join(room, 'Ana', 'mayor');
     start(room, host, tick());
     expect(room.crisis).toBeNull();
@@ -163,7 +163,7 @@ describe('the Director inside a room', () => {
     const down = () => Promise.reject(new Error('down'));
     const app = buildServer({ narrator: null, director: null, scenario: { live: async () => null, write: down } });
     rooms.delete('XPLN');
-    const room = getOrCreateRoom('XPLN', 0);
+    const room = getOrCreateRoom('XPLN', 0, 'legacy');
     const mayor = join(room, 'Mae', 'mayor');
     const activist = join(room, 'Kai', 'activist');
     start(room, mayor, tick());
@@ -204,7 +204,7 @@ describe('the Director inside a room', () => {
 
   it('hints are public, found by the engine, worded by the AI at most; novel combo ideas go to review', () => {
     rooms.delete('HNTS');
-    const room = getOrCreateRoom('HNTS', 0);
+    const room = getOrCreateRoom('HNTS', 0, 'legacy');
     const resort = join(room, 'Ana', 'resort');
     const activist = join(room, 'Ben', 'activist');
     const mayor = join(room, 'Cy', 'mayor');

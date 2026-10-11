@@ -13,3 +13,4 @@ export * from './game/proof';
 export * from './cardArt';
 export * from './game/atlas';
 export * from './game/simple';
+export * from './game/plan';

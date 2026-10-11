@@ -17,8 +17,11 @@ import {
   type AcceptedEvent, type CharacterDialogue, type DirectorLogEntry, type EventType, type RoleId, type RuleEvent, type TableHint,
   type Board, type CardId, type CityState, type Crisis, type FinalResult, type Headline, type MatchRecord, type NegotiationAction,
   type Bubble, type Ping, type PingEmote, type PersonaId, type Proposal, type Scenario, type RoomPhase, type RoomState, type RoundSummary, type SessionKind,
-  SPRINT_MS, SPRINT_STORM_MS, isPace, type Pace,
+  SPRINT_MS, SPRINT_STORM_MS, isPace, type Pace, type RulesMode,
 } from '@shared';
+import {
+  newPlanMatch, planAdvance, planDecide, planDone, planLead, planMine, planOffer, planPersonal, planPick, planPublic, planReady, planStance, planTick, planVote, startPlan, type PlanMatch,
+} from './planFlow';
 
 const ROOM_TTL_MS = 3 * 60 * 60 * 1000;
 /** A player who drops (a reloading tab) still counts this long before a phase stops waiting for them. */
@@ -58,6 +61,10 @@ export type Effect =
 
 export interface Room {
   code: string;
+  /** `planning`: the Planning Edition (default). `legacy`: the earlier card game, kept for its records and tests. */
+  rules: RulesMode;
+  /** The Planning Edition's match state (null in the lobby and in the legacy game). */
+  plan: PlanMatch | null;
   phase: RoomPhase;
   round: number;
   endsAt: number | null;
@@ -100,19 +107,20 @@ export const rooms = new Map<string, Room>();
 
 export function newRoom(code: string, now = Date.now()): Room {
   return {
-    code, phase: 'lobby', round: 0, endsAt: null, players: [], hostId: null, sessionKind: 'demo', pace: 'turns', touchedAt: now,
+    code, rules: 'planning', plan: null, phase: 'lobby', round: 0, endsAt: null, players: [], hostId: null, sessionKind: 'demo', pace: 'turns', touchedAt: now,
     matchId: null, record: null, city: startCity(), crisis: null, scenario: null, carried: [], board: null, actions: [], history: [], resolvedRound: 0,
     headline: null, bubbles: null, final: null, effects: [],
     event: null, eventApplied: null, firedEvents: [], hints: null, hintLog: new Map(), earlyEvent: null, directorLog: [],
   };
 }
 
-export function getOrCreateRoom(code: string, now = Date.now()): Room {
+export function getOrCreateRoom(code: string, now = Date.now(), rules: RulesMode = 'planning'): Room {
   const c = code.toUpperCase();
   if (!CODE_RE.test(c)) throw new RoomError('Room codes are 4 letters.');
   let room = rooms.get(c);
   if (!room) {
     room = newRoom(c, now);
+    room.rules = rules;
     rooms.set(c, room);
   }
   return room;
@@ -125,8 +133,8 @@ export function getRoom(code: string): Room {
 }
 
 const touch = (room: Room, now = Date.now()) => void (room.touchedAt = now);
-const humans = (room: Room) => room.players.filter((p) => !p.bot);
-const present = (room: Room, now: number) => room.players.filter((p) => p.bot || p.connected || (p.leftAt !== null && now - p.leftAt < RECONNECT_GRACE_MS));
+export const humans = (room: Room) => room.players.filter((p) => !p.bot);
+export const present = (room: Room, now: number) => room.players.filter((p) => p.bot || p.connected || (p.leftAt !== null && now - p.leftAt < RECONNECT_GRACE_MS));
 const hostSeat = (room: Room) => room.players.find((p) => p.id === room.hostId)?.seat ?? 0;
 const renumber = (room: Room) => room.players.forEach((p, i) => (p.seat = i));
 
@@ -185,6 +193,11 @@ export function choosePersona(room: Room, player: Player, persona: unknown): voi
   if (room.players.some((p) => p.bot && p.persona === persona)) freeFromBot(room, persona);
   player.persona = checkPersona(room, persona, player);
   touch(room);
+}
+
+/** The Planning Edition has its own moves (planFlow.ts); the card game's moves only work in a legacy room. */
+function legacyOnly(room: Room): void {
+  if (room.rules !== 'legacy') throw new RoomError('That move belongs to the earlier card game.');
 }
 
 const requireHost = (room: Room, player: Player) => {
@@ -258,6 +271,13 @@ export function start(room: Room, player: Player, now: number): void {
   for (const p of room.players) {
     p.influence = START_INFLUENCE;
     p.responded = null;
+  }
+  if (room.rules === 'planning') {
+    // The Planning Edition: fixed, source-linked scenarios; no scenario desk, no Director, no card art.
+    room.plan = newPlanMatch();
+    startPlan(room, now, (persona) => newPlayer(room.players.length, `${PERSONA_INFO[persona].title.split(/[ ,]/)[0]} (bot)`, persona, true));
+    room.effects.push({ t: 'record' });
+    return;
   }
   room.effects.push({ t: 'scenario' }, { t: 'record' });
   enterCrisis(room, now);
@@ -430,6 +450,7 @@ function enterSelect(room: Room, now: number): void {
 
 /** A stakeholder locks a card and a target. Final: one card per round. */
 export function select(room: Room, player: Player, card: unknown, district: unknown, now: number): void {
+  legacyOnly(room);
   if (room.phase !== 'select') throw new RoomError('Cards are played in the selection phase.');
   if (player.selection) throw new RoomError('Your card is already locked in.');
   const problem = checkPlay(player.persona, player.influence, card, district, room.round, room.crisis);
@@ -484,6 +505,7 @@ function enterNegotiate(room: Room, now: number): void {
 
 /** Negotiation: back, oppose or fund one proposal (one move per round). */
 export function move(room: Room, player: Player, mv: unknown, proposalId: unknown, now: number): void {
+  legacyOnly(room);
   if (room.phase !== 'negotiate' || !room.board) throw new RoomError('Moves are made during negotiation.');
   if (player.moved) throw new RoomError('You already made your move this round.');
   const problem = checkMove(room.board, player.seat, player.influence, mv, proposalId);
@@ -498,6 +520,7 @@ export function move(room: Room, player: Player, mv: unknown, proposalId: unknow
 
 /** Negotiation: the proposal's owner accepts a compromise offered to them. */
 export function accept(room: Room, player: Player, compromiseId: unknown, now: number): void {
+  legacyOnly(room);
   if (room.phase !== 'negotiate' || !room.board) throw new RoomError('Compromises are accepted during negotiation.');
   const problem = checkAccept(room.board, player.seat, compromiseId);
   if (problem) throw new RoomError(problem);
@@ -511,6 +534,7 @@ export const PING_GAP_MS = 1_500;
 
 /** A reaction on an area at the negotiating table. Returns null when it is dropped by the rate limit. */
 export function ping(room: Room, player: Player, district: unknown, emote: unknown, now: number): Ping | null {
+  legacyOnly(room);
   if (room.phase !== 'negotiate') throw new RoomError('Reactions are for the negotiating table.');
   if (typeof district !== 'string' || !DISTRICT_IDS.includes(district)) throw new RoomError('Unknown area.');
   if (!PING_EMOTES.includes(emote as PingEmote)) throw new RoomError('Unknown reaction.');
@@ -521,6 +545,7 @@ export function ping(room: Room, player: Player, district: unknown, emote: unkno
 
 /** Ready for the next step. The table moves on when every present player is: there is no clock. */
 export function done(room: Room, player: Player, now: number): void {
+  if (room.rules === 'planning') return planDone(room, player, now);
   if (!WAITING.includes(room.phase) || (room.phase === 'crisis' && !room.crisis)) throw new RoomError('Nothing to finish right now.');
   player.done = true;
   if (room.phase === 'negotiate') refreshHints(room);
@@ -611,6 +636,7 @@ export function skip(room: Room, player: Player, now: number): void {
 
 /** Move to the next phase. Returns false when there is no timed phase to leave. */
 function advance(room: Room, now: number): boolean {
+  if (room.rules === 'planning') return room.phase === 'lobby' || room.phase === 'final' ? false : planAdvance(room, now);
   switch (room.phase) {
     case 'crisis':
       // The live desk ran out of time: the authored scenario stands in.
@@ -639,6 +665,7 @@ function advance(room: Room, now: number): boolean {
 
 /** "Outside your assigned character, which proposal would you personally support?" */
 export function respond(room: Room, player: Player, choice: unknown, now: number): void {
+  legacyOnly(room);
   if (room.phase !== 'final' || !room.record) throw new RoomError('The question comes at the end of the match.');
   const id = String(choice ?? '');
   const proposal = room.history.flatMap((h) => h.board.proposals).find((p) => p.id === id);
@@ -672,6 +699,7 @@ export function again(room: Room, player: Player): void {
   room.city = startCity();
   room.matchId = null;
   room.record = null;
+  room.plan = null;
   touch(room);
 }
 
@@ -683,8 +711,11 @@ export function presence(room: Room, player: Player, connected: boolean, now = D
     const next = humans(room).find((p) => p.connected);
     if (next) room.hostId = next.id;
   }
-  maybeReveal(room, now);
-  maybeResolve(room, now);
+  if (room.rules === 'planning') planTick(room, now);
+  else {
+    maybeReveal(room, now);
+    maybeResolve(room, now);
+  }
   touch(room, now);
 }
 
@@ -695,6 +726,13 @@ export function presence(room: Room, player: Player, connected: boolean, now = D
  * by then is not played, a negotiation move not made is not made.
  */
 export function tick(room: Room, now: number): boolean {
+  if (room.rules === 'planning') {
+    const was = `${room.phase}:${room.round}`;
+    planTick(room, now);
+    if (`${room.phase}:${room.round}` !== was) return true;
+    if (room.endsAt !== null && now >= room.endsAt && room.phase !== 'lobby' && room.phase !== 'final' && (room.pace === 'sprint' || room.phase === 'propose')) return advance(room, now);
+    return false;
+  }
   const before = room.phase;
   maybeReveal(room, now);
   maybeResolve(room, now);
@@ -718,10 +756,12 @@ export function publicState(room: Room, viewer: Player | null, now: number): Roo
     hostSeat: hostSeat(room),
     sessionKind: room.sessionKind,
     pace: room.pace,
+    rules: room.rules,
+    plan: planPublic(room),
     matchId: room.matchId,
     players: room.players.map((p) => ({
       seat: p.seat, name: p.name, persona: p.persona, connected: p.bot || p.connected, bot: p.bot, influence: p.influence,
-      ready: room.phase === 'select' ? !!p.selection : room.phase === 'final' ? p.responded !== null : WAITING.includes(room.phase) ? p.done && (room.phase !== 'crisis' || !!room.crisis) : false,
+      ready: room.rules === 'planning' ? planReady(room, p) : room.phase === 'select' ? !!p.selection : room.phase === 'final' ? p.responded !== null : WAITING.includes(room.phase) ? p.done && (room.phase !== 'crisis' || !!room.crisis) : false,
     })),
     city: room.city,
     crisis: room.crisis,
@@ -736,9 +776,12 @@ export function publicState(room: Room, viewer: Player | null, now: number): Roo
     event: room.event,
     hints: room.phase === 'negotiate' ? room.hints : null,
     final: room.final,
-    mine: viewer ? { selection: viewer.selection, moved: viewer.moved, responded: viewer.responded } : null,
+    mine: viewer ? { selection: viewer.selection, moved: viewer.moved, responded: viewer.responded, plan: planMine(room, viewer) } : null,
   };
 }
+
+// The Planning Edition's moves, re-exported for the socket layer.
+export { planDecide, planLead, planOffer, planPersonal, planPick, planStance, planVote };
 
 export function sweep(now = Date.now()): void {
   for (const [code, room] of rooms) if (now - room.touchedAt > ROOM_TTL_MS) rooms.delete(code);

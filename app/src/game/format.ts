@@ -23,6 +23,11 @@ export const PHASE_LABEL: Record<RoomState['phase'], string> = {
   negotiate: 'Negotiate',
   resolve: 'Resolution',
   final: 'Session over',
+  situation: 'The situation',
+  propose: 'The Mayor chooses',
+  deal: 'Make a deal',
+  vote: 'Vote',
+  result: 'Result',
 };
 
 export const STATUS_STYLE = {

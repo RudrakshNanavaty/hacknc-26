@@ -1,31 +1,11 @@
 // The lobby: join as a stakeholder, see who is in, and (host) fill seats with bots, pick the session
 // type, then start.
 import { useState, type FormEvent } from 'react';
-import { PERSONAS, PERSONA_INFO, SPRINT_MS, handOf, type PersonaId, type RoomState } from '@shared';
+import { PERSONAS, PERSONA_INFO, PLAN_SCENARIOS, PLAN_SPRINT_MS, districtById, type PersonaId, type RoomState } from '@shared';
 import { Invite } from '../room/Invite';
 import type { Room } from '../room/useRoom';
-import { GameCard } from './GameCard';
 import { PersonaOrb } from './Players';
 import { unlockAudio } from '../ui/sound';
-
-/**
- * The chosen stakeholder's deck, fanned out like a hand held up to the light. It is a picture of the
- * deck, not a list of choices: tilted and overlapping in a tray, so it does not read as buttons.
- */
-function DeckFan({ persona }: { persona: PersonaId }) {
-  const cards = handOf(persona);
-  const mid = (cards.length - 1) / 2;
-  return (
-    <div className="deck-fan" key={persona} style={{ ['--tint' as string]: PERSONA_INFO[persona].color }} role="img" aria-label={`${PERSONA_INFO[persona].name} deck`}>
-      {cards.map((c, i) => (
-        <GameCard
-          key={c} id={c} size="lg"
-          style={{ ['--w' as string]: '118px', ['--r' as string]: `${(i - mid) * 7}deg`, ['--y' as string]: `${Math.abs(i - mid) ** 2 * 2.2}px`, ['--i' as string]: i }}
-        />
-      ))}
-    </div>
-  );
-}
 
 function PersonaPicker({ taken, value, onPick }: { taken: Map<PersonaId, { bot: boolean }>; value: PersonaId | null; onPick: (p: PersonaId) => void }) {
   return (
@@ -74,7 +54,7 @@ export function JoinForm({ room, create }: { room: Room; create: boolean }) {
       </fieldset>
       {persona && (
         <div className="flex flex-col gap-2">
-          <DeckFan persona={persona} />
+          <GoalPreview persona={persona} />
           <p className="max-w-[28rem] text-13 opacity-80">{PERSONA_INFO[persona].voice}</p>
         </div>
       )}
@@ -83,23 +63,37 @@ export function JoinForm({ room, create }: { room: Room; create: boolean }) {
   );
 }
 
+/** What this stakeholder wants in each of the three real situations. */
+function GoalPreview({ persona }: { persona: PersonaId }) {
+  return (
+    <ul className="goal-preview" style={{ ['--tint' as string]: PERSONA_INFO[persona].color }}>
+      {PLAN_SCENARIOS.map((sc, i) => (
+        <li key={sc.id}>
+          <b>{i + 1} · {districtById(sc.district).name}</b>
+          <span>🎯 {sc.mandates[persona].objective}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 /** The whole game in four lines, for someone who has never played. */
 export function HowToPlay() {
   return (
     <div className="how-to">
       <p className="vr text-18">How to play</p>
-      <p className="text-13 font-semibold">Four stakeholders, one real city, three rounds. Each round:</p>
+      <p className="text-13 font-semibold">Four stakeholders, three real Miami Beach fights, one plan. Each round is a true story from one area:</p>
       <ol className="how-steps">
-        <li><b>1 · Play a Card.</b> Pick one of your four cards, then a green area on the map.</li>
-        <li><b>2 · Make a Deal.</b> See what everyone played. Support it, oppose it, or make a deal.</li>
-        <li><b>3 · See What Happens.</b> Each project is approved or rejected, and the city changes.</li>
+        <li><b>1 · Play a Card.</b> Pick one of three projects. The Mayor puts one forward.</li>
+        <li><b>2 · Make a Deal.</b> Support it, oppose it, or ask for one change. Then vote: three of four approve.</li>
+        <li><b>3 · See What Happens.</b> Up to 6 points: your goal 0–3, your deal 0–2, a city that works 0–1.</li>
       </ol>
-      <p className="text-13 font-semibold">🌀 After round 3 a storm hits. Get flood safety to 50 or the city pays. Score points for your own goals.</p>
+      <p className="text-13 font-semibold">🌀 After round 3 a storm tests the plan you built, and a simulator compares it with other plans.</p>
     </div>
   );
 }
 
-const ROUND_S = Object.values(SPRINT_MS).reduce((a, b) => a + b, 0) / 1000;
+const ROUND_S = Object.values(PLAN_SPRINT_MS).reduce((a, b) => a + b, 0) / 1000;
 
 export function Lobby({ state, room }: { state: RoomState; room: Room }) {
   const me = state.you;
@@ -149,7 +143,7 @@ export function Lobby({ state, room }: { state: RoomState; room: Room }) {
             </div>
             <p className="text-13 opacity-80">
               {state.pace === 'sprint'
-                ? `Sprint: every step has a short clock, about ${ROUND_S} seconds a round, so the match takes under four minutes. Being ready early moves on at once.`
+                ? `Sprint: every step has a short clock, about ${ROUND_S} seconds a round, so the whole match is about two minutes. Being ready early moves on at once.`
                 : 'Turn by turn: no clock. Each step moves on when everyone is ready.'}
             </p>
             <p className="text-13 opacity-80">
@@ -168,7 +162,7 @@ export function Lobby({ state, room }: { state: RoomState; room: Room }) {
       </section>
       <aside className="wet flex flex-col gap-3 p-5 lg:w-[22rem]">
         <Invite code={state.code} />
-        <p className="text-13 opacity-80">Four stakeholders, three rounds, one real city. Every card you play is recorded as geographically linked planning feedback.</p>
+        <p className="text-13 opacity-80">Four stakeholders, three rounds, one real city. Your choices are recorded as geographically linked planning feedback, kept apart from what you say you would personally prefer. Empty seats are filled by bots.</p>
       </aside>
     </div>
   );

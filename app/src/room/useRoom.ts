@@ -41,6 +41,14 @@ export interface Room {
   done: () => void;
   respond: (choice: string) => void;
   again: () => void;
+  /** Planning Edition. */
+  pick: (option: string) => void;
+  lead: (option: string) => void;
+  stance: (stance: 'support' | 'oppose') => void;
+  offer: (amendment: string) => void;
+  decide: (seat: number, accept: boolean) => void;
+  vote: (yes: boolean) => void;
+  personal: (stage: 'before' | 'after', option: string | null, extra?: { reason?: string | null; moved?: boolean | null; comment?: string | null }) => void;
   /** Reactions on the map right now (negotiation), newest last. */
   pings: Ping[];
   ping: (district: string, emote: PingEmote) => void;
@@ -126,6 +134,13 @@ export function useRoom(code: string): Room {
     done: useCallback(() => send({ t: 'done' }), [send]),
     respond: useCallback((choice) => send({ t: 'respond', choice }), [send]),
     again: useCallback(() => send({ t: 'again' }), [send]),
+    pick: useCallback((option) => send({ t: 'pick', option }), [send]),
+    lead: useCallback((option) => send({ t: 'lead', option }), [send]),
+    stance: useCallback((stance) => send({ t: 'stance', stance }), [send]),
+    offer: useCallback((amendment) => send({ t: 'offer', amendment }), [send]),
+    decide: useCallback((seat, accept) => send({ t: 'decide', seat, accept }), [send]),
+    vote: useCallback((yes) => send({ t: 'vote', yes }), [send]),
+    personal: useCallback((stage, option, extra) => send({ t: 'personal', stage, option, ...extra }), [send]),
     pings,
     ping: useCallback((district, emote) => send({ t: 'ping', district, emote }), [send]),
   };

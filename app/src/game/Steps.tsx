@@ -25,7 +25,7 @@ export function useCountdown(endsAt: number | null, offset: number): number | nu
 
 export function RoundSteps({ state, offset }: { state: RoomState; offset: number }) {
   const step = STEP_OF[state.phase] ?? null;
-  const left = useCountdown(state.pace === 'sprint' && state.crisis ? state.endsAt : null, offset);
+  const left = useCountdown(state.pace === 'sprint' && (state.crisis || state.plan) ? state.endsAt : null, offset);
   useEffect(() => {
     if (left !== null && left > 0 && left <= 5) playTick();
   }, [left]);

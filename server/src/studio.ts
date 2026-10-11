@@ -4,7 +4,7 @@
 import type { FastifyInstance } from 'fastify';
 import {
   CRISIS_KINDS, DATA_METHOD, DATA_SOURCES, DATA_VERSION, DISTRICT_IDS, PREFERENCE_QUESTION, RULES_VERSION, atlasInsights, atlasTables, studioSummary, toCsv, toGeoJson,
-  type AtlasFilter, type CrisisKind, type SessionKind,
+  planAtlas, planCsv, PLAN_RULES_VERSION, type AtlasFilter, type CrisisKind, type SessionKind,
 } from '@shared';
 import { decisionRows } from './db/tiger';
 import { matchSummaryRow } from './db/derive';
@@ -58,6 +58,26 @@ export function registerStudio(app: FastifyInstance, store: MatchStore, gemini: 
         players: m.players, rounds: m.rounds.length, responses: m.responses.length, winners: m.final?.winners ?? null,
       })),
     };
+  });
+
+  // The Planning Edition's Civic Atlas: four views computed from the saved plan matches.
+  app.get<{ Querystring: { session?: string; bots?: string } }>('/api/atlas/plan', async (req) => {
+    const matches = await load(kindOf(req.query.session));
+    return {
+      store: store.kind,
+      rulesVersion: PLAN_RULES_VERSION,
+      dataVersion: DATA_VERSION,
+      dataMethod: DATA_METHOD,
+      sources: DATA_SOURCES,
+      atlas: planAtlas(matches, { sessionKind: kindOf(req.query.session), humansOnly: req.query.bots !== 'include' }),
+      matches: matches.filter((m) => m.plan).map((m) => ({ id: m.id, roomCode: m.roomCode, sessionKind: m.sessionKind, startedAt: m.startedAt, endedAt: m.endedAt, players: m.players, rounds: m.plan!.rounds.length, plan: m.plan!.final?.plan ?? null })),
+    };
+  });
+
+  app.get<{ Querystring: { session?: string } }>('/api/atlas/plan/export.csv', async (req, reply) => {
+    const matches = await load(kindOf(req.query.session));
+    const stamp = new Date().toISOString().slice(0, 10);
+    return reply.header('content-type', 'text/csv; charset=utf-8').header('content-disposition', `attachment; filename="coastal-clash-plan-${stamp}.csv"`).send(planCsv(matches));
   });
 
   app.get<{ Params: { id: string } }>('/api/matches/:id', async (req, reply) => {
