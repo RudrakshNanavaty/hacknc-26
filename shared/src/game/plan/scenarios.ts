@@ -7,7 +7,20 @@
 // checks every number in it against the story's cited facts and every source against the corpus.
 // Costs are ILLUSTRATIVE game units (a round has ROUND_BUDGET of them), never the real budgets quoted in the facts.
 import type { StorySource } from '../story';
-import { PLAN_ROUNDS, type PlanScenario } from './types';
+import { PLAN_ROUNDS, type Check, type Objective, type PlanScenario, type SimProfile } from './types';
+
+// Small builders for the objectives below (see Check in types.ts).
+const has = (...tags: string[]): Check => ({ has: tags });
+const is = (...options: string[]): Check => ({ is: options });
+const prof = (field: keyof SimProfile, min: number): Check => ({ prof: [field, min] });
+const cost = (max: number): Check => ({ cost: max });
+const stopped = (...options: string[]): Check => ({ stopped: options });
+const amend = (id: string): Check => ({ amend: id });
+const built: Check = { built: true };
+const not = (check: Check): Check => ({ not: check });
+const all = (...checks: Check[]): Check => ({ all: checks });
+const any = (...checks: Check[]): Check => ({ any: checks });
+const ob = (id: string, label: string, check: Check, points = 1): Objective => ({ id, label, points, check });
 
 const src = (storyId: string, list: Omit<StorySource, 'id'>[]): StorySource[] => list.map((s, i) => ({ ...s, id: `${storyId}#${i}` }));
 
@@ -89,28 +102,41 @@ const WEST_AVENUE: PlanScenario = {
   ],
   mandates: {
     mayor: {
-      objective: 'Cut flood risk and keep money in reserve.', concern: 'flooding',
-      grounding: "The city's stated aim: raising roads and adding drainage protects against king tide and storm flooding.", inferred: false,
-      base: { 'raise-roads': 2, 'improve-drainage': 1, 'elevate-properties': 1 },
-      bonus: { headroom: 2, label: 'Leave at least 2 units unspent' },
+      objective: 'Fix the flooding, keep a reserve and keep people able to get around.', concern: 'flooding',
+      grounding: "The city's stated aim: raising roads and adding drainage protects against king tide and storm flooding. A flood plan that does not hold is a failure whatever it costs.", inferred: false,
+      critical: { label: 'the street flooding is really addressed', check: any(prof('raiseFt', 2), prof('drainage', 0.8), prof('elevate', 0.8)) },
+      objectives: [
+        ob('strong', 'Strong protection: the street is raised or properly drained', any(prof('raiseFt', 2), prof('drainage', 0.8))),
+        ob('reserve', 'A reserve is kept: the plan costs 7 units or less', cost(7)),
+        ob('services', 'Homes and shops stay reachable', prof('access', 1)),
+      ],
     },
     activist: {
       objective: 'Keep pumped water from fouling Biscayne Bay.', concern: 'water-quality',
       grounding: 'Linked story: pumped floodwater carried fecal bacteria into the bay after king tides.', inferred: false,
-      base: { 'raise-roads': 1, 'improve-drainage': 0, 'elevate-properties': 2 },
-      bonus: { amendment: 'discharge-monitoring', label: 'Bay Discharge Monitoring in the plan' },
+      objectives: [
+        ob('tested', 'Pumped water is tested before it reaches the bay', amend('discharge-monitoring')),
+        ob('untested', 'Nothing new is pumped untested into the bay', all(built, not(all(is('improve-drainage'), not(amend('discharge-monitoring')))))),
+        ob('streets', 'The streets are not raised', all(built, not(is('raise-roads')))),
+      ],
     },
     resort: {
       objective: 'Keep shops open, reachable and parked.', concern: 'parking',
       grounding: 'Nearby businesses objected to lost parking and construction.', inferred: false,
-      base: { 'raise-roads': 0, 'improve-drainage': 2, 'elevate-properties': 1 },
-      bonus: { amendment: 'parking-relief', label: 'Parking & Construction Relief in the plan' },
+      objectives: [
+        ob('parking', 'Shops keep their parking', amend('parking-relief')),
+        ob('works', 'No big construction on the street (stopping it counts)', any(stopped('raise-roads'), all(built, not(is('raise-roads'))))),
+        ob('reach', 'Customers can still reach the shops', all(built, prof('access', 0))),
+      ],
     },
     resident: {
       objective: 'Stay dry and keep every home reachable.', concern: 'liability',
       grounding: 'Residents feared raised roads would push water onto private property and refused the liability agreements.', inferred: false,
-      base: { 'raise-roads': 2, 'improve-drainage': 1, 'elevate-properties': 1 },
-      bonus: { amendment: 'access-guarantee', label: 'Property Access Guarantee in the plan' },
+      objectives: [
+        ob('dry', 'The flooding is really addressed', any(prof('raiseFt', 2), prof('drainage', 0.8), prof('elevate', 0.8))),
+        ob('reach', 'Every home stays reachable', amend('access-guarantee')),
+        ob('above', 'No home is left below a raised street', all(built, not(has('homes-below-grade')))),
+      ],
     },
   },
   constraints: [
@@ -189,28 +215,41 @@ const SOUTH_POINTE: PlanScenario = {
   ],
   mandates: {
     mayor: {
-      objective: 'Get the public park and keep money in reserve.', concern: 'parks',
-      grounding: 'The City Commission traded height for a public park.', inferred: false,
-      base: { 'tower-for-park': 2, 'shorter-tower': 1, 'city-park': 0 },
-      bonus: { headroom: 5, label: 'Leave at least 5 units unspent' },
+      objective: 'Get the public park, keep a reserve and keep the city able to pay.', concern: 'parks',
+      grounding: 'The City Commission traded height for a public park; a $10 million bond already pays for the bridge.', inferred: false,
+      critical: { label: 'the public gets a park (or an unaffordable project is stopped)', check: any(has('public-park', 'small-park'), stopped('city-park')) },
+      objectives: [
+        ob('reserve', 'A reserve is kept: the plan costs 6 units or less', cost(6)),
+        ob('open', 'The park is guaranteed open to everyone', amend('park-open-to-all')),
+        ob('rain', 'The new park helps soak up rain', prof('drainage', 0.2)),
+      ],
     },
     activist: {
       objective: 'Keep the building low and the crowding down.', concern: 'density',
       grounding: 'Role inference: height and density are listed concerns in the story; no group is quoted.', inferred: true,
-      base: { 'tower-for-park': 0, 'shorter-tower': 2, 'city-park': 2 },
-      bonus: { amendment: 'cap-the-units', label: 'Cap the Number of Units in the plan' },
+      objectives: [
+        ob('low', 'The building stays low (stopping the tower counts)', any(is('shorter-tower', 'city-park'), stopped('tower-for-park'))),
+        ob('cap', 'The number of units is capped', amend('cap-the-units')),
+        ob('green', 'New green space is gained', all(built, has('public-park', 'small-park'))),
+      ],
     },
     resort: {
       objective: 'Get the tower approved, with a clear park deal.', concern: 'parks',
       grounding: 'The developer builds the tower and donates the park.', inferred: false,
-      base: { 'tower-for-park': 2, 'shorter-tower': 1, 'city-park': 0 },
-      bonus: { amendment: 'park-open-to-all', label: 'A signed, public park deal in the plan' },
+      objectives: [
+        ob('approved', 'The tower is approved', is('tower-for-park')),
+        ob('deal', 'A clear, public park deal is in writing', amend('park-open-to-all')),
+        ob('pays', 'The project can still pay for itself (no cap, step-back or smaller scheme)', all(built, not(has('density-capped', 'stepped-back', 'lower-height', 'city-funded')))),
+      ],
     },
     resident: {
       objective: 'A building that is not too tall, and a park I can use.', concern: 'height',
       grounding: 'Height, density and the park are the three concerns the story lists.', inferred: false,
-      base: { 'tower-for-park': 0, 'shorter-tower': 2, 'city-park': 1 },
-      bonus: { amendment: 'step-the-tower-back', label: 'Step the Tower Back in the plan' },
+      objectives: [
+        ob('low', 'The building is not too tall (stopping the tower counts)', any(is('shorter-tower', 'city-park'), stopped('tower-for-park'))),
+        ob('usable', 'The park is guaranteed usable', any(amend('park-open-to-all'), is('city-park'))),
+        ob('real', 'It is a real park, not a token one', has('public-park')),
+      ],
     },
   },
   constraints: [
@@ -300,28 +339,41 @@ const MID_BEACH: PlanScenario = {
   ],
   mandates: {
     mayor: {
-      objective: 'Protect the beach and let the federal share carry the cost.', concern: 'cost',
-      grounding: 'The federal project was reauthorized for 50 years from 2025; the city weighs competing needs on a limited budget.', inferred: false,
-      base: { 'more-sand': 2, 'groins-breakwaters': 1, 'dune-restore': 1 },
-      bonus: { amendment: 'use-the-federal-share', label: 'Use the Federal Project in the plan' },
+      objective: 'Protect the shoreline, keep a reserve and keep the beach public.', concern: 'cost',
+      grounding: 'The federal project was reauthorized for 50 years from 2025; the county weighs competing needs on a limited budget. Hard structures that cost the most and shut the public out fail the city.', inferred: false,
+      critical: { label: 'the shoreline is really protected (or an unaffordable hard structure is stopped)', check: any(all(built, prof('raiseFt', 0.6)), stopped('groins-breakwaters')) },
+      objectives: [
+        ob('reserve', 'A reserve is kept: the plan costs 5 units or less', cost(5)),
+        ob('federal', 'The federal project carries part of the cost', amend('use-the-federal-share')),
+        ob('access', 'The public beach stays open to everyone', prof('access', 3)),
+      ],
     },
     activist: {
       objective: 'Keep the beach natural: dunes and habitat first.', concern: 'habitat',
       grounding: 'Habitat and nature-versus-hard-structures are the story’s listed tensions.', inferred: false,
-      base: { 'more-sand': 1, 'groins-breakwaters': 0, 'dune-restore': 2 },
-      bonus: { amendment: 'habitat-safeguards', label: 'Habitat Safeguards in the plan' },
+      objectives: [
+        ob('nature', 'The fix is nature-based', has('nature-based')),
+        ob('habitat', 'Habitat is protected during the work', amend('habitat-safeguards')),
+        ob('soft', 'No hard structures on the beach (stopping them counts)', any(stopped('groins-breakwaters'), all(built, not(has('hard-structures'))))),
+      ],
     },
     resort: {
       objective: 'A wide, open beach for visitors.', concern: 'beach-access',
       grounding: 'Beach access and tourism-versus-residents are listed concerns and tensions.', inferred: false,
-      base: { 'more-sand': 2, 'groins-breakwaters': 0, 'dune-restore': 1 },
-      bonus: { amendment: 'keep-access-paths', label: 'Keep Beach Paths Open in the plan' },
+      objectives: [
+        ob('wide', 'A wide, natural beach', has('renourish')),
+        ob('paths', 'Public paths to the water stay open', amend('keep-access-paths')),
+        ob('visitors', 'The beach is not narrowed for visitors', prof('access', 3)),
+      ],
     },
     resident: {
       objective: 'Keep storm waves and surge away from homes.', concern: 'flooding',
       grounding: 'Flood and surge protection is one of the competing needs the county lists.', inferred: false,
-      base: { 'more-sand': 1, 'groins-breakwaters': 2, 'dune-restore': 1 },
-      bonus: { amendment: 'worst-blocks-first', label: 'Worst Blocks First in the plan' },
+      objectives: [
+        ob('strong', 'Strong protection against waves and surge', prof('raiseFt', 1.5)),
+        ob('worst', 'The most exposed blocks come first', amend('worst-blocks-first')),
+        ob('now', 'Work starts on the city’s own schedule, with no federal wait', all(built, not(amend('use-the-federal-share')))),
+      ],
     },
   },
   constraints: [],

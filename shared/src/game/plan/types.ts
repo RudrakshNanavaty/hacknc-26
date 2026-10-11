@@ -57,7 +57,36 @@ export interface Amendment {
   sim: Partial<SimProfile>;
 }
 
-/** What a stakeholder wants from this situation, as an inspectable table (0..2 for the option, +1 for a bonus: max 3). */
+/**
+ * A yes/no test of what the table ended up with, written as data so a player can read it. It sees the plan that
+ * actually stands (the status quo if the vote failed, the plan was delayed, or it was not funded) and which project,
+ * if any, was put forward.
+ */
+export type Check =
+  | { has: string[] }                         // the plan that stands carries one of these tags
+  | { is: string[] }                          // the plan that stands is one of these projects
+  | { prof: [keyof SimProfile, number] }      // the stands-plan's simulator profile is at least this
+  | { cost: number }                          // the plan that stands costs at most this (the status quo costs nothing)
+  | { stopped: string[] }                     // one of these projects was put forward and did NOT go ahead
+  | { amend: string }                         // this amendment is in the plan that stands
+  | { built: true }                           // something actually went ahead
+  | { not: Check }
+  | { all: Check[] }
+  | { any: Check[] };
+
+export interface Objective {
+  id: string;
+  /** What it means, in a few plain words ("Real flood protection is built"). */
+  label: string;
+  points: number;
+  check: Check;
+}
+
+/**
+ * What a stakeholder is trying to get from a situation: up to three one-point objectives (so a mandate is 0 to 3),
+ * and optionally a critical objective that must be met or the mandate is 0 whatever else went well. Blocking a
+ * project can meet an objective (`stopped`), so stopping a harmful or unaffordable plan can be a real success.
+ */
 export interface Mandate {
   objective: string;
   /** The documented concern this stakeholder carries (a deal that answers it earns deal-making points). */
@@ -65,9 +94,8 @@ export interface Mandate {
   /** Where the objective comes from: the story's own concerns, or marked as an inference for the role. */
   grounding: string;
   inferred: boolean;
-  base: Record<string, 0 | 1 | 2>;
-  /** +1 when this amendment is part of the plan, or when the plan leaves this much budget unspent. */
-  bonus: { amendment?: string; headroom?: number; label: string };
+  critical?: { label: string; check: Check };
+  objectives: Objective[];
 }
 
 export interface Constraint {

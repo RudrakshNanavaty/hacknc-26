@@ -7,7 +7,7 @@
 import type { PersonaId } from '../content';
 import {
   ROUND_BUDGET, VOTES_TO_APPROVE,
-  type Amendment, type Constraint, type Mandate, type AmendmentOffer, type PlanConfig, type PlanOption, type PlanRound, type PlanScenario, type RoundScore,
+  type Amendment, type Check, type Constraint, type Mandate, type AmendmentOffer, type PlanConfig, type PlanOption, type PlanRound, type PlanScenario, type RoundScore,
   type PlanScorePart, type SimProfile, type Stance, type PlanVerdict,
 } from './types';
 
@@ -73,17 +73,78 @@ export interface MandatePoints {
   parts: PlanScorePart[];
 }
 
-/** A stakeholder's mandate for a configuration: option table (0-2) plus the bonus (+1): an inspectable payoff table. */
-export function mandatePoints(sc: PlanScenario, persona: PersonaId, c: PlanConfig, budget = ROUND_BUDGET): MandatePoints {
+/** What happened, as far as a mandate is concerned: the plan that stands, which project was put forward, and how it ended. */
+export interface MandateOutcome {
+  /** The configuration that stands (the status quo when nothing went ahead). */
+  stands: PlanConfig;
+  /** The project that was put forward, if any (null: nothing was put forward). */
+  proposed: string | null;
+  verdict: PlanVerdict;
+}
+
+/** The outcome of a plan that is approved as it stands. */
+export const approvedOutcome = (c: PlanConfig): MandateOutcome => ({ stands: c, proposed: c.option, verdict: c.option ? 'approved' : 'rejected' });
+/** The outcome of putting `option` forward and having it fail (rejected, delayed or not funded): the status quo stands. */
+export const blockedOutcome = (option: string | null): MandateOutcome => ({ stands: STATUS_QUO, proposed: option, verdict: 'rejected' });
+
+/** Evaluate a check against what happened. */
+export function checkHolds(sc: PlanScenario, check: Check, o: MandateOutcome): boolean {
+  const tags = configTags(sc, o.stands);
+  const prof = configProfile(sc, o.stands);
+  if ('has' in check) return check.has.some((t) => tags.includes(t));
+  if ('is' in check) return !!o.stands.option && check.is.includes(o.stands.option);
+  if ('prof' in check) return !!o.stands.option && prof[check.prof[0]] >= check.prof[1];
+  if ('cost' in check) return configCost(sc, o.stands) <= check.cost;
+  if ('stopped' in check) return o.verdict !== 'approved' && !!o.proposed && check.stopped.includes(o.proposed);
+  if ('amend' in check) return o.stands.amendment === check.amend;
+  if ('built' in check) return !!o.stands.option;
+  if ('not' in check) return !checkHolds(sc, check.not, o);
+  if ('all' in check) return check.all.every((c) => checkHolds(sc, c, o));
+  return check.any.some((c) => checkHolds(sc, c, o));
+}
+
+/** The amendment a stakeholder's objectives ask for, if one of them names an amendment. */
+export function wantedAmendment(sc: PlanScenario, persona: PersonaId): string | null {
+  const find = (c: Check): string | null => {
+    if ('amend' in c) return c.amend;
+    for (const x of 'all' in c ? c.all : 'any' in c ? c.any : []) {
+      const f = find(x);
+      if (f) return f;
+    }
+    return null;
+  };
+  for (const ob of sc.mandates[persona].objectives) {
+    const f = find(ob.check);
+    if (f) return f;
+  }
+  return null;
+}
+
+/**
+ * A stakeholder's mandate for an outcome, 0 to 3: the objectives they met, unless their critical objective failed (then 0).
+ * Every line says what was met or missed, so a player can see exactly why.
+ */
+export function outcomePoints(sc: PlanScenario, persona: PersonaId, o: MandateOutcome): MandatePoints {
   const m: Mandate = sc.mandates[persona];
-  const o = optionOf(sc, c.option);
-  if (!o) return { points: 0, parts: [{ points: 0, because: `${sc.statusQuo.name}: nothing was built, so no objective is met.` }] };
   const parts: PlanScorePart[] = [];
-  const base = m.base[o.id] ?? 0;
-  parts.push({ points: base, because: `${o.name} ${base === 2 ? 'fits' : base === 1 ? 'partly fits' : 'does not fit'} the goal: ${m.objective}` });
-  const hit = m.bonus.amendment ? c.amendment === m.bonus.amendment : m.bonus.headroom !== undefined ? budget - configCost(sc, c) >= m.bonus.headroom : false;
-  if (hit) parts.push({ points: 1, because: m.bonus.label });
-  return { points: Math.min(3, parts.reduce((s, p) => s + p.points, 0)), parts };
+  if (m.critical && !checkHolds(sc, m.critical.check, o)) {
+    parts.push({ points: 0, because: `✘ Critical: ${m.critical.label}. Without it this goal scores 0.` });
+    for (const ob of m.objectives) parts.push({ points: 0, because: `✘ ${ob.label}` });
+    return { points: 0, parts };
+  }
+  if (m.critical) parts.push({ points: 0, because: `✔ Critical: ${m.critical.label}` });
+  let total = 0;
+  for (const ob of m.objectives) {
+    const met = checkHolds(sc, ob.check, o);
+    if (met) total += ob.points;
+    parts.push({ points: met ? ob.points : 0, because: `${met ? '✔' : '✘'} ${ob.label}` });
+  }
+  return { points: Math.min(3, total), parts };
+}
+
+/** A stakeholder's mandate if this configuration is approved and goes ahead (a preview, and what bots weigh). */
+export function mandatePoints(sc: PlanScenario, persona: PersonaId, c: PlanConfig): MandatePoints {
+  return outcomePoints(sc, persona, approvedOutcome(c));
 }
 
 // ---------- Offers and the vote ----------
@@ -150,7 +211,7 @@ export function resolvePlanRound(input: RoundInput): RoundOutcome {
   const feasible = verdict === 'approved';
 
   const scores = players.map<RoundScore>(({ seat, persona }) => {
-    const mandate = mandatePoints(sc, persona, adopted, budget);
+    const mandate = outcomePoints(sc, persona, { stands: adopted, proposed: leading?.option ?? null, verdict });
     const deal: PlanScorePart[] = [];
     if (verdict === 'approved' && accepted) {
       const a = amendmentOf(sc, accepted.amendment)!;
@@ -182,41 +243,53 @@ export function previewScore(sc: PlanScenario, persona: PersonaId, c: PlanConfig
   const k = unmetConstraint(sc, c);
   const cost = configCost(sc, c);
   return {
-    mandate: mandatePoints(sc, persona, c, budget).points,
+    mandate: mandatePoints(sc, persona, c).points,
     feasible: !!c.option && cost <= budget && !k,
     cost,
     blockedBy: !c.option ? null : cost > budget ? `It costs ${cost} and the round has ${budget}.` : k?.because ?? null,
   };
 }
 
-// ---------- Bots: they play their own mandate, nothing cleverer ----------
+// ---------- Bots: they play their own objectives, nothing cleverer ----------
 
-const byBase = (sc: PlanScenario, persona: PersonaId) => (a: PlanOption, b: PlanOption) => (sc.mandates[persona].base[b.id] ?? 0) - (sc.mandates[persona].base[a.id] ?? 0) || a.cost - b.cost || a.id.localeCompare(b.id);
-
-export function botPick(sc: PlanScenario, persona: PersonaId): string {
-  return [...sc.options].sort(byBase(sc, persona))[0]!.id;
+/** Every configuration of a project (plain, and with each amendment that fits) that could actually go ahead. */
+function goable(sc: PlanScenario, option: string, budget: number): PlanConfig[] {
+  return allConfigs(sc).filter((c) => c.option === option && isFeasible(sc, c, budget));
 }
 
-/** The Mayor's choice among the submitted cards: their own mandate first, then how many players picked it, then cost. */
+/** The best a stakeholder could do with this project: the highest mandate over the ways it could go ahead. */
+export function botValue(sc: PlanScenario, persona: PersonaId, option: string, budget = ROUND_BUDGET): number {
+  return Math.max(0, ...goable(sc, option, budget).map((c) => mandatePoints(sc, persona, c).points));
+}
+
+const byValue = (sc: PlanScenario, persona: PersonaId) => (a: PlanOption, b: PlanOption) => botValue(sc, persona, b.id) - botValue(sc, persona, a.id) || a.cost - b.cost || a.id.localeCompare(b.id);
+
+export function botPick(sc: PlanScenario, persona: PersonaId): string {
+  return [...sc.options].sort(byValue(sc, persona))[0]!.id;
+}
+
+/** The Mayor's choice among the submitted cards: what serves the Mayor's objectives best, then how many players picked it, then cost. */
 export function botMayorChoice(sc: PlanScenario, picks: Record<number, string>): string | null {
   const ids = [...new Set(Object.values(picks))];
   if (!ids.length) return null;
   const count = (id: string) => Object.values(picks).filter((x) => x === id).length;
-  return ids.map((id) => optionOf(sc, id)!).sort((a, b) => (sc.mandates.mayor.base[b.id] ?? 0) - (sc.mandates.mayor.base[a.id] ?? 0) || count(b.id) - count(a.id) || a.cost - b.cost || a.id.localeCompare(b.id))[0]!.id;
+  return ids.map((id) => optionOf(sc, id)!).sort((a, b) => botValue(sc, 'mayor', b.id) - botValue(sc, 'mayor', a.id) || count(b.id) - count(a.id) || a.cost - b.cost || a.id.localeCompare(b.id))[0]!.id;
 }
 
-/** The amendment a bot would ask for: the one in its own mandate, or one that unblocks the project. */
+/** The amendment a bot would ask for: the one that lifts its own mandate most (it must lift it), else one that clears a blocker. */
 export function botOffer(sc: PlanScenario, persona: PersonaId, leadingOption: string, budget = ROUND_BUDGET): string | null {
-  const wanted = sc.mandates[persona].bonus.amendment;
-  const unblock = sc.constraints.find((k) => k.option === leadingOption);
-  const fixes = unblock ? sc.amendments.find((a) => a.addTags.includes(unblock.requires) && a.appliesTo.includes(leadingOption)) : undefined;
-  const candidates = [wanted, fixes?.id].filter((x): x is string => !!x);
-  for (const id of candidates) {
-    const a = amendmentOf(sc, id);
-    const o = optionOf(sc, leadingOption);
-    if (a && o && a.appliesTo.includes(leadingOption) && o.cost + a.cost <= budget) return id;
-  }
-  return null;
+  const o = optionOf(sc, leadingOption);
+  if (!o) return null;
+  const base: PlanConfig = { option: leadingOption, amendment: null };
+  const baseline = mandatePoints(sc, persona, base).points;
+  const fits = sc.amendments.filter((a) => a.appliesTo.includes(leadingOption) && o.cost + a.cost <= budget);
+  const wanted = wantedAmendment(sc, persona);
+  const ranked = fits
+    .map((a) => ({ a, gain: mandatePoints(sc, persona, { option: leadingOption, amendment: a.id }).points - baseline, wanted: a.id === wanted }))
+    .filter((x) => x.gain > 0)
+    .sort((x, y) => y.gain - x.gain || Number(y.wanted) - Number(x.wanted) || x.a.id.localeCompare(y.a.id));
+  if (ranked[0]) return ranked[0].a.id;
+  return fits.find((a) => !!unmetConstraint(sc, base) && !unmetConstraint(sc, { option: leadingOption, amendment: a.id }))?.id ?? null;
 }
 
 /** A sponsor bot accepts an amendment that fits the budget and does not lower its own mandate, or that clears a blocker. */
@@ -227,12 +300,26 @@ export function botAccepts(sc: PlanScenario, sponsor: PersonaId, leadingOption: 
   const without: PlanConfig = { option: leadingOption, amendment: null };
   const withIt: PlanConfig = { option: leadingOption, amendment };
   if (unmetConstraint(sc, without) && !unmetConstraint(sc, withIt)) return true;
-  return mandatePoints(sc, sponsor, withIt, budget).points >= mandatePoints(sc, sponsor, without, budget).points;
+  return mandatePoints(sc, sponsor, withIt).points >= mandatePoints(sc, sponsor, without).points;
 }
 
-export const botStance = (sc: PlanScenario, persona: PersonaId, c: PlanConfig): Stance => (mandatePoints(sc, persona, c).points >= 2 ? 'support' : 'oppose');
-/** A bot votes yes when the plan gives it anything at all (the table needs 3 of 4, so a plan one side loves and another side hates can still pass). */
-export const botVote = (sc: PlanScenario, persona: PersonaId, c: PlanConfig): boolean => mandatePoints(sc, persona, c).points >= 1;
+/** What this stakeholder would score if the plan on the table were put forward and then stopped (the status quo stands). */
+export const pointsIfStopped = (sc: PlanScenario, persona: PersonaId, option: string | null): number => outcomePoints(sc, persona, blockedOutcome(option)).points;
+
+/** The honest comparison a voter makes: what the plan really gives them (nothing, if a constraint would delay it) against what stopping it gives. */
+function voteEdge(sc: PlanScenario, persona: PersonaId, c: PlanConfig): { goes: number; stops: number } {
+  const stops = pointsIfStopped(sc, persona, c.option);
+  const goes = unmetConstraint(sc, c) || !c.option ? stops : mandatePoints(sc, persona, c).points;
+  return { goes, stops };
+}
+
+export const botStance = (sc: PlanScenario, persona: PersonaId, c: PlanConfig): Stance => {
+  const { goes, stops } = voteEdge(sc, persona, c);
+  return goes > stops || (goes === stops && goes >= 2) ? 'support' : 'oppose';
+};
+
+/** A bot votes yes when going ahead serves it better than stopping would, or equally well and well enough. */
+export const botVote = (sc: PlanScenario, persona: PersonaId, c: PlanConfig): boolean => botStance(sc, persona, c) === 'support';
 
 /** For a record: a one-line summary of a round's adopted plan. */
 export const describeConfig = (sc: PlanScenario, c: PlanConfig): string => {

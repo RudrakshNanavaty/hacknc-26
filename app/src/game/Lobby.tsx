@@ -1,7 +1,7 @@
 // The lobby: join as a stakeholder, see who is in, and (host) fill seats with bots, pick the session
 // type, then start.
 import { useState, type FormEvent } from 'react';
-import { PERSONAS, PERSONA_INFO, PLAN_SCENARIOS, PLAN_SPRINT_MS, districtById, type PersonaId, type RoomState } from '@shared';
+import { PERSONAS, PERSONA_INFO, PLAN_SCENARIOS, districtById, type PersonaId, type RoomState } from '@shared';
 import { Invite } from '../room/Invite';
 import type { Room } from '../room/useRoom';
 import { PersonaOrb } from './Players';
@@ -93,8 +93,6 @@ export function HowToPlay() {
   );
 }
 
-const ROUND_S = Object.values(PLAN_SPRINT_MS).reduce((a, b) => a + b, 0) / 1000;
-
 export function Lobby({ state, room }: { state: RoomState; room: Room }) {
   const me = state.you;
   const host = me !== null && me === state.hostSeat;
@@ -128,35 +126,12 @@ export function Lobby({ state, room }: { state: RoomState; room: Room }) {
         </ul>
         {host ? (
           <div className="flex flex-col gap-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-13 font-bold">Session</span>
-              {(['demo', 'community'] as const).map((k) => (
-                <button key={k} type="button" className="aero-btn !py-1 text-13" aria-pressed={state.sessionKind === k} onClick={() => room.session(k)}>
-                  {k === 'demo' ? 'Demo / playtest' : 'Community session'}
-                </button>
-              ))}
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-13 font-bold">Pace</span>
-              <button type="button" className="aero-btn !py-1 text-13" aria-pressed={state.pace === 'turns'} onClick={() => room.pace('turns')}>Turn by turn (no clock)</button>
-              <button type="button" className="aero-btn !py-1 text-13" aria-pressed={state.pace === 'sprint'} onClick={() => room.pace('sprint')}>⏱ Sprint (~{ROUND_S} s a round)</button>
-            </div>
-            <p className="text-13 opacity-80">
-              {state.pace === 'sprint'
-                ? `Sprint: every step has a short clock, about ${ROUND_S} seconds a round, so the whole match is about two minutes. Being ready early moves on at once.`
-                : 'Turn by turn: no clock. Each step moves on when everyone is ready.'}
-            </p>
-            <p className="text-13 opacity-80">
-              {state.sessionKind === 'community'
-                ? 'Community session: records are marked as real community participants in the Civic Atlas.'
-                : 'Demo session: records are marked as demonstration participants, kept apart from community input.'}
-            </p>
             <button type="button" className="aero-btn aero-btn-go aero-btn-lg self-start pulse" onClick={() => { unlockAudio(); room.start(); }}>
               Start the session ▶
             </button>
           </div>
         ) : (
-          <p className="text-15">Waiting for the host to start ({state.pace === 'sprint' ? `sprint: about ${ROUND_S} s a round` : 'turn by turn, no clock'}). Empty seats can be filled by bots.</p>
+          <p className="text-15">Waiting for the host to start. Empty seats are filled by bots.</p>
         )}
         <HowToPlay />
       </section>

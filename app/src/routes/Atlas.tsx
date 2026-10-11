@@ -119,11 +119,6 @@ export function Atlas() {
           </p>
         </div>
         <div className="glass flex flex-wrap items-center gap-2 p-2">
-          {(['all', 'community', 'demo'] as const).map((k) => (
-            <button key={k} type="button" className="aero-btn !py-1 text-13" aria-pressed={q.session === k} onClick={() => setQ({ ...q, session: k as SessionKind | 'all' })}>
-              {k === 'all' ? 'All sessions' : k === 'community' ? 'Community' : 'Demo / playtest'}
-            </button>
-          ))}
           <label className="flex items-center gap-1 px-1 text-13 font-bold">
             Crisis
             <select className="aero-input !w-auto !py-1 text-13" value={q.scenario} onChange={(e) => setQ({ ...q, scenario: e.target.value as CrisisKind | 'all' })}>
@@ -143,10 +138,6 @@ export function Atlas() {
         </div>
       </header>
 
-      <nav className="flex flex-wrap gap-1.5" aria-label="Which game">
-        <button type="button" className="aero-btn !py-1 text-13" aria-pressed={mode === 'planning'} onClick={() => { setMode('planning'); history.replaceState(null, '', location.pathname + location.search); }}>Planning Edition</button>
-        <button type="button" className="aero-btn !py-1 text-13" aria-pressed={mode === 'legacy'} onClick={() => { setMode('legacy'); history.replaceState(null, '', `${location.pathname}${location.search}#legacy`); }}>Earlier card game</button>
-      </nav>
       {mode === 'planning' && <PlanAtlasView session={q.session} bots={q.bots} />}
       {mode === 'legacy' && <p className="glass p-3 text-13">
         <b>Read with care:</b> proposals are <i>hypothetical persona role-play</i>, not public opinion. Personal picks come from a separate end-of-match question.

@@ -88,7 +88,7 @@ describe('Planning Edition: one round, step by step', () => {
     const r = room.plan!.rounds[0]!;
     expect(r.adopted).toEqual({ option: 'raise-roads', amendment: 'access-guarantee' });
     expect(r.cost).toBe(9);
-    expect(r.scores.find((x) => x.persona === 'resident')).toMatchObject({ mandate: 3, deal: 2, feasibility: 1, total: 6 });
+    expect(r.scores.find((x) => x.persona === 'resident')).toMatchObject({ mandate: 2, deal: 2, feasibility: 1, total: 5 });
     expect(r.scores.every((x) => x.total <= 6)).toBe(true);
     expect(room.record!.plan!.rounds[0]).toBe(r);
   });
@@ -277,16 +277,16 @@ describe('Planning Edition: a bot sponsor settles at the end of the deal', () =>
     expect(d.offers.filter((o) => o.state === 'accepted').length).toBeLessThanOrEqual(1);
   });
 
-  it('takes a person\'s offer over a bot\'s when both would clear the same blocker', () => {
-    const { room, me } = table('QZRB', 'resident');
+  it('takes a person\'s offer over a bot\'s when both are acceptable', () => {
+    const { room, me } = table('QZRB', 'resort');
     start(room, me, T0);
-    planPick(room, me, 'raise-roads', T0 + 2); // the Mayor bot's mandate puts raise-roads forward
+    planPick(room, me, 'improve-drainage', T0 + 2); // the Mayor bot's objectives put drainage forward
     tick(room, T0 + 3 + PROPOSE_BEAT_MS);
-    expect(room.plan!.cur!.leading!.option).toBe('raise-roads');
-    planOffer(room, me, 'access-guarantee', T0 + 4);
+    expect(room.plan!.cur!.leading!.option).toBe('improve-drainage');
+    planOffer(room, me, 'parking-relief', T0 + 4);
     done(room, me, T0 + 5);
     const r = room.plan!.cur!;
-    expect(r.accepted).toEqual({ amendment: 'access-guarantee', bySeat: me.seat });
+    expect(r.accepted).toEqual({ amendment: 'parking-relief', bySeat: me.seat });
     expect(r.offers.find((o) => o.seat !== me.seat && o.state === 'accepted')).toBeUndefined();
   });
 });

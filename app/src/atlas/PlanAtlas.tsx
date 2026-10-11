@@ -38,13 +38,11 @@ export function PlanAtlasView({ session, bots }: { session: SessionKind | 'all';
   const s = a.scope;
   return (
     <>
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-4">
         <Stat label="Matches" value={s.matches} note={`${s.completed} finished`} />
         <Stat label="Human seats" value={s.humanSeats} note={`${s.botSeats} bot seats`} />
         <Stat label="Sessions" value={s.sessions.community} note={`${s.sessions.demo} demo / playtest`} />
-        <Stat label="Personal answers" value={s.personalAnswers} note="voluntary, outside the role" />
         <Stat label="Plans tried" value={a.explorer.distinctPlans} note={`of ${a.explorer.feasiblePlans} feasible`} />
-        <Stat label="Rules" value="planning-1.0.0" note={data.store === 'tiger' ? 'Tiger Data' : 'local store'} />
       </div>
       {s.matches > 0 && s.matches < MIN_N && <p className="glass p-3 text-13"><b>Small sample:</b> {s.matches} match{s.matches > 1 ? 'es' : ''}. Everything below is a lead to check, not a finding. {s.sessions.demo > 0 && 'Demo and playtest sessions are included unless you filter to Community.'}</p>}
       {s.matches === 0 && <p className="glass p-3 text-13">No Planning Edition matches have been saved yet. The issues below are the real situations players will face.</p>}

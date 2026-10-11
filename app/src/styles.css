@@ -1299,3 +1299,5 @@ button.tc:hover { transform: translateY(-4px); }
 .plan-table li { min-width: 0; overflow: hidden; }
 .plan-table .plan-badge { flex: none; max-width: 50%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .plan-table .plan-badge .lchip { max-width: 100%; overflow: hidden; text-overflow: ellipsis; padding: 2px 8px; }
+
+.plan-why-box { padding: 6px 10px; margin: 0; border-radius: 12px; background: rgba(255,255,255,.7); box-shadow: 0 0 0 1px var(--a-edge); }

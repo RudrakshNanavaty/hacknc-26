@@ -6,7 +6,7 @@
 //   result   verdict, the points with a reason for each, and your own optional after-answer
 import { useEffect, useState } from 'react';
 import {
-  PERSONAL_REASONS, PERSONA_INFO, REASON_LABEL, ROUND_BUDGET, VOTES_TO_APPROVE, amendmentOf, configCost, mandatePoints, optionOf, previewScore, unmetConstraint,
+  PERSONAL_REASONS, PERSONA_INFO, REASON_LABEL, ROUND_BUDGET, VOTES_TO_APPROVE, amendmentOf, configCost, mandatePoints, optionOf, pointsIfStopped, previewScore, unmetConstraint,
   type PersonalReason, type PlanRound, type PlanScenario, type RoomState,
 } from '@shared';
 import type { Room } from '../room/useRoom';
@@ -128,7 +128,7 @@ function Deal({ sc, state, room }: { sc: PlanScenario; state: RoomState; room: R
       <h2 className="vr plan-title">{option.name}{accepted ? ` + ${amendmentOf(sc, accepted.amendment)?.name}` : ''}</h2>
       <BudgetBar used={option.cost} pending={cost - option.cost} />
       {blocked && <p className="warn-line">🚧 {blocked.because}</p>}
-      <p className="plan-now" title="Points you would get if this passes now">If it passes now: 🎯 <Stars n={now.mandate} /> · 🏙️ {now.feasible ? '+1' : '0'}{!accepted && !sponsor && ' · 🤝 up to +2 if your change gets in'}</p>
+      <p className="plan-now" title="Points you would get if this passes now, and if it is stopped">If it passes: 🎯 <Stars n={now.mandate} /> · 🏙️ {now.feasible ? '+1' : '0'}{!accepted && !sponsor && ' · 🤝 up to +2 if your change gets in'}<small className="block opacity-80">If it is stopped: 🎯 <Stars n={pointsIfStopped(sc, me.persona, option.id)} /> for you</small></p>
       <Table state={state} badge={(seat) => (plan.stances[seat] ? <span className={`lchip ${plan.stances[seat] === 'support' ? 'lchip-lime' : 'lchip-coral'}`} title={STANCE_ICON[plan.stances[seat]!]}>{plan.stances[seat] === 'support' ? '👍' : '👎'}</span> : <span className="opacity-60">…</span>)} />
       <div className="plan-chips">
         <button type="button" className={`gel gel-sm ${stance === 'support' ? 'gel-lime' : ''}`} onClick={() => room.stance('support')}>👍 Support</button>
@@ -200,7 +200,8 @@ function Vote({ sc, state, room }: { sc: PlanScenario; state: RoomState; room: R
       <h2 className="vr plan-title">{describe(sc, config)}</h2>
       <BudgetBar used={pv.cost} />
       {pv.blockedBy && <p className="warn-line">🚧 Even if it passes: {pv.blockedBy}</p>}
-      <p className="plan-now">If it passes: 🎯 <Stars n={pv.mandate} /> · 🏙️ {pv.feasible ? '+1' : '0'}<small className="block opacity-75">{mandatePoints(sc, me.persona, config).parts.map((p) => p.because).join(' ')}</small></p>
+      <p className="plan-now">If it passes: 🎯 <Stars n={pv.mandate} /> · 🏙️ {pv.feasible ? '+1' : '0'} <span className="opacity-80">· if it is stopped: 🎯 <Stars n={pointsIfStopped(sc, me.persona, config.option)} /></span></p>
+      <ul className="plan-why plan-why-box">{mandatePoints(sc, me.persona, config).parts.map((p, i) => <li key={i}>{p.because}</li>)}</ul>
       <Table state={state} badge={(seat) => (plan.voted.includes(seat) ? <span className="lchip lchip-aqua">✓ voted</span> : <span className="opacity-60">…</span>)} />
       {voted === null || voted === undefined ? (
         <div className="plan-chips">

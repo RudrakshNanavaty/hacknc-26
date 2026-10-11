@@ -3,9 +3,9 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { isDistrictId } from '../districts';
 import { checkSpoken, strayNumbers } from '../director';
-import { PERSONAS } from '../content';
+import { PERSONAS, type PersonaId } from '../content';
 import {
-  FUTURES, MODEL, PLAN_SCENARIOS, ROUND_BUDGET, STATUS_QUO, alternatives, allConfigs, areaOutcome, beatsShare, botAccepts, botMayorChoice, botOffer, botPick,
+  FUTURES, MODEL, PLAN_SCENARIOS, approvedOutcome, blockedOutcome, botValue, botVote, outcomePoints, ROUND_BUDGET, STATUS_QUO, alternatives, allConfigs, areaOutcome, beatsShare, botAccepts, botMayorChoice, botOffer, botPick,
   checkOffer, configCost, divergence, enumeratePlans, isFeasible, mandatePoints, planOutcome, resolvePlanRound, scenarioById, stormResult, unmetConstraint,
   type AmendmentOffer, type PlanConfig, type PlanScenario,
 } from './index';
@@ -81,19 +81,41 @@ describe('the three scenarios', () => {
     }
   });
 
-  it('give every stakeholder a mandate that reads every option, and a bonus that can be earned', () => {
+  it('give every stakeholder explicit objectives that add up to three points, with a real 0 and a real 3 in reach', () => {
     for (const s of PLAN_SCENARIOS) {
+      const outs = [
+        ...allConfigs(s).filter((c) => c.option && isFeasible(s, c)).map(approvedOutcome),
+        ...s.options.map((o) => blockedOutcome(o.id)),
+        blockedOutcome(null),
+      ];
       for (const p of PERSONAS) {
         const m = s.mandates[p];
         expect(s.concerns).toContain(m.concern);
-        for (const o of s.options) expect([0, 1, 2]).toContain(m.base[o.id]);
-        if (m.bonus.amendment) expect(s.amendments.some((a) => a.id === m.bonus.amendment)).toBe(true);
-        // not everything pays the same: there is real conflict
-        expect(new Set(s.options.map((o) => m.base[o.id])).size).toBeGreaterThan(1);
+        expect(m.objectives).toHaveLength(3);
+        expect(m.objectives.reduce((n, o) => n + o.points, 0)).toBe(3);
+        for (const o of m.objectives) expect(o.label.length).toBeGreaterThan(8);
+        const pts = outs.map((o) => outcomePoints(s, p, o).points);
+        expect(Math.min(...pts), `${s.district} ${p} can score 0`).toBe(0);
+        expect(Math.max(...pts), `${s.district} ${p} can score 3`).toBe(3);
       }
-      // the stakeholders do not all want the same option
-      const favourite = PERSONAS.map((p) => [...s.options].sort((a, b) => s.mandates[p].base[b.id]! - s.mandates[p].base[a.id]!)[0]!.id);
-      expect(new Set(favourite).size).toBeGreaterThan(1);
+      // real conflict: no single plan gives all four stakeholders the full 3
+      const everyoneHappy = allConfigs(s).filter((c) => c.option && isFeasible(s, c)).filter((c) => PERSONAS.every((p) => mandatePoints(s, p, c).points === 3));
+      expect(everyoneHappy).toEqual([]);
+      // and the stakeholders do not all pick the same project
+      const favourites = new Set(PERSONAS.map((p) => botPick(s, p)));
+      expect(favourites.size).toBeGreaterThan(1);
+    }
+  });
+
+  it('measure the Mayor against citywide objectives that are not the shared City point', () => {
+    for (const s of PLAN_SCENARIOS) {
+      const m = s.mandates.mayor;
+      expect(m.critical).toBeDefined();
+      // financial responsibility is a reserve held back, strictly below the round budget the City point checks
+      const reserve = m.objectives.find((o) => 'cost' in o.check);
+      expect(reserve && 'cost' in reserve.check && reserve.check.cost).toBeLessThan(ROUND_BUDGET);
+      // and nothing in the mandate is "the plan was approved": that is the City point's job
+      expect(m.objectives.some((o) => o.label.toLowerCase().includes('approved'))).toBe(false);
     }
   });
 
@@ -108,23 +130,57 @@ describe('the three scenarios', () => {
 });
 
 describe('mandate points', () => {
-  it('follow the inspectable table: option 0-2 plus a bonus of 1, never above 3', () => {
-    expect(mandatePoints(WEST, 'resident', { option: 'raise-roads', amendment: null }).points).toBe(2);
-    expect(mandatePoints(WEST, 'resident', { option: 'raise-roads', amendment: 'access-guarantee' }).points).toBe(3);
-    expect(mandatePoints(WEST, 'resort', { option: 'raise-roads', amendment: null }).points).toBe(0);
-    expect(mandatePoints(WEST, 'resort', { option: 'improve-drainage', amendment: 'parking-relief' }).points).toBe(3);
-    for (const s of PLAN_SCENARIOS) for (const p of PERSONAS) for (const c of allConfigs(s)) expect(mandatePoints(s, p, c).points).toBeLessThanOrEqual(3);
+  const pts = (sc: PlanScenario, p: PersonaId, c: PlanConfig) => mandatePoints(sc, p, c).points;
+
+  it('score what the plan that stands actually does, never above 3', () => {
+    expect(pts(WEST, 'mayor', { option: 'improve-drainage', amendment: 'parking-relief' })).toBe(3);
+    expect(pts(WEST, 'mayor', { option: 'raise-roads', amendment: 'access-guarantee' })).toBe(2);
+    expect(pts(WEST, 'resident', { option: 'elevate-properties', amendment: 'access-guarantee' })).toBe(3);
+    expect(pts(WEST, 'activist', { option: 'improve-drainage', amendment: 'discharge-monitoring' })).toBe(3);
+    expect(pts(WEST, 'resort', { option: 'improve-drainage', amendment: 'parking-relief' })).toBe(3);
+    for (const s of PLAN_SCENARIOS) for (const p of PERSONAS) for (const c of allConfigs(s)) expect(pts(s, p, c)).toBeLessThanOrEqual(3);
   });
 
-  it('give nothing for the status quo', () => {
-    for (const s of PLAN_SCENARIOS) for (const p of PERSONAS) expect(mandatePoints(s, p, STATUS_QUO).points).toBe(0);
+  it('give nothing for doing nothing to a stakeholder who needed something built', () => {
+    for (const s of PLAN_SCENARIOS) for (const p of PERSONAS) expect(pts(s, p, STATUS_QUO)).toBe(0);
   });
 
-  it('pay the headroom bonus only when the budget is left over', () => {
-    expect(mandatePoints(WEST, 'mayor', { option: 'improve-drainage', amendment: null }).points).toBe(2);
-    // 7 of 10 spent leaves 3 (bonus); with the 2-unit guarantee 9 is spent and only 1 is left (no bonus)
-    expect(mandatePoints(WEST, 'mayor', { option: 'raise-roads', amendment: null }).points).toBe(3);
-    expect(mandatePoints(WEST, 'mayor', { option: 'raise-roads', amendment: 'access-guarantee' }).points).toBe(2);
+  it('can zero the Mayor on a plan the Mayor controls and the city approves', () => {
+    // Mid-Beach: groins and breakwaters are approved, protect the shore, and still fail the Mayor's reserve, federal-share and open-beach objectives
+    const g: PlanConfig = { option: 'groins-breakwaters', amendment: null };
+    expect(isFeasible(MID, g)).toBe(true);
+    const r = resolvePlanRound({ scenario: MID, players, leading: { option: 'groins-breakwaters', sponsorSeat: 0 }, offers: [], votes: yes(4) });
+    expect(r.verdict).toBe('approved');
+    expect(r.scores.find((s) => s.persona === 'mayor')).toMatchObject({ mandate: 0, feasibility: 1 });
+    // ...and the critical objective zeroes it when the problem is not addressed at all
+    expect(pts(WEST, 'mayor', { option: 'elevate-properties', amendment: null })).toBe(1);
+    const failed = outcomePoints(WEST, 'mayor', blockedOutcome('improve-drainage'));
+    expect(failed.points).toBe(0);
+    expect(failed.parts[0]!.because).toMatch(/Critical/);
+  });
+
+  it('score a failed proposal by what it did to each stakeholder', () => {
+    const stopped = (sc: PlanScenario, p: PersonaId, option: string | null) => outcomePoints(sc, p, blockedOutcome(option)).points;
+    // stopping a harmful or unaffordable project is a real success for some, and a failure for others
+    expect(stopped(MID, 'activist', 'groins-breakwaters')).toBe(1);
+    expect(stopped(MID, 'mayor', 'groins-breakwaters')).toBe(1);
+    expect(stopped(MID, 'resort', 'groins-breakwaters')).toBe(0);
+    expect(stopped(WEST, 'resort', 'raise-roads')).toBe(1);
+    expect(stopped(WEST, 'mayor', 'raise-roads')).toBe(0);
+    expect(stopped(POINTE, 'activist', 'tower-for-park')).toBe(1);
+    expect(stopped(POINTE, 'resident', 'tower-for-park')).toBe(1);
+    expect(stopped(POINTE, 'resort', 'tower-for-park')).toBe(0);
+    expect(stopped(POINTE, 'mayor', 'city-park')).toBe(1);
+    expect(stopped(POINTE, 'mayor', 'tower-for-park')).toBe(0);
+    // nothing put forward at all
+    for (const s of PLAN_SCENARIOS) for (const p of PERSONAS) expect(stopped(s, p, null)).toBe(0);
+  });
+
+  it('tell the player which objective was met and which was missed', () => {
+    const r = mandatePoints(WEST, 'mayor', { option: 'raise-roads', amendment: 'access-guarantee' });
+    expect(r.parts.some((p) => p.because.startsWith('✔'))).toBe(true);
+    expect(r.parts.some((p) => p.because.startsWith('✘'))).toBe(true);
+    expect(r.parts.map((p) => p.points).reduce((a, b) => a + b, 0)).toBe(r.points);
   });
 });
 
@@ -138,11 +194,11 @@ describe('the round: vote, verdict and 3+2+1', () => {
     expect(r.adopted).toEqual({ option: 'raise-roads', amendment: 'access-guarantee' });
     expect(r.cost).toBe(9);
     const resident = r.scores.find((s) => s.persona === 'resident')!;
-    expect(resident).toMatchObject({ mandate: 3, deal: 2, feasibility: 1, total: 6 });
+    expect(resident).toMatchObject({ mandate: 2, deal: 2, feasibility: 1, total: 5 });
     const mayor = r.scores.find((s) => s.persona === 'mayor')!;
     expect(mayor).toMatchObject({ mandate: 2, deal: 1, feasibility: 1, total: 4 });
     const resort = r.scores.find((s) => s.persona === 'resort')!;
-    expect(resort).toMatchObject({ mandate: 0, deal: 0, feasibility: 1 });
+    expect(resort).toMatchObject({ mandate: 1, deal: 0, feasibility: 1 });
     for (const s of r.scores) {
       expect(s.total).toBeLessThanOrEqual(6);
       expect(s.parts.mandate.length + s.parts.deal.length + s.parts.feasibility.length).toBeGreaterThanOrEqual(3);
@@ -150,11 +206,13 @@ describe('the round: vote, verdict and 3+2+1', () => {
     }
   });
 
-  it('needs three of four votes, otherwise the status quo stands and nobody scores', () => {
+  it('needs three of four votes, otherwise the status quo stands and each role scores what that means for them', () => {
     const r = resolvePlanRound({ scenario: WEST, players, leading, offers: accepted, votes: yes(2) });
     expect(r.verdict).toBe('rejected');
     expect(r.adopted).toEqual(STATUS_QUO);
-    expect(r.scores.every((s) => s.total === 0)).toBe(true);
+    // no deal and no city point, but stopping the road works is a success for the Resort Owner and nobody else
+    expect(r.scores.every((s) => s.deal === 0 && s.feasibility === 0)).toBe(true);
+    expect(Object.fromEntries(r.scores.map((s) => [s.persona, s.mandate]))).toEqual({ mayor: 0, activist: 0, resort: 1, resident: 0 });
   });
 
   it('delays a plan that passes the vote but breaks a constraint, and applies the status quo', () => {
@@ -162,7 +220,9 @@ describe('the round: vote, verdict and 3+2+1', () => {
     expect(r.verdict).toBe('delayed');
     expect(r.blockedBy).toMatch(/liability|property-access/i);
     expect(r.adopted).toEqual(STATUS_QUO);
-    expect(r.scores.every((s) => s.total === 0)).toBe(true);
+    expect(r.scores.every((s) => s.feasibility === 0 && s.deal === 0)).toBe(true);
+    // a delayed plan is a stopped plan for scoring: the Resort Owner, who wanted the road works stopped, still gets that
+    expect(r.scores.find((s) => s.persona === 'resort')!.mandate).toBe(1);
   });
 
   it('pays deal-making only to an author whose own concern the amendment answers', () => {
@@ -211,26 +271,34 @@ describe('offering an amendment', () => {
   });
 });
 
-describe('bots play their mandate', () => {
-  it('pick the card their table likes best', () => {
+describe('bots play their own objectives', () => {
+  it('pick the project that serves them best', () => {
     expect(botPick(WEST, 'resort')).toBe('improve-drainage');
-    expect(botPick(WEST, 'activist')).toBe('elevate-properties');
+    expect(botPick(WEST, 'resident')).toBe('elevate-properties');
     expect(botPick(MID, 'mayor')).toBe('more-sand');
+    expect(botPick(MID, 'activist')).not.toBe('groins-breakwaters');
   });
-  it('the Mayor bot puts forward the submitted card it likes best', () => {
-    expect(botMayorChoice(WEST, { 0: 'raise-roads', 1: 'elevate-properties', 2: 'improve-drainage', 3: 'raise-roads' })).toBe('raise-roads');
-    // a tie on the Mayor's mandate goes to the cheaper project
-    expect(botMayorChoice(WEST, { 1: 'elevate-properties', 2: 'improve-drainage' })).toBe('improve-drainage');
+  it('the Mayor bot puts forward the submitted card that serves the Mayor best', () => {
+    expect(botMayorChoice(WEST, { 0: 'raise-roads', 1: 'elevate-properties', 2: 'improve-drainage', 3: 'raise-roads' })).toBe('improve-drainage');
+    expect(botMayorChoice(WEST, { 1: 'elevate-properties', 3: 'raise-roads' })).toBe('raise-roads');
     expect(botMayorChoice(WEST, {})).toBeNull();
   });
-  it('offer the amendment that fixes their concern or unblocks the project, and sponsors accept sensible ones', () => {
+  it('ask for the amendment that lifts their own score, and sponsors accept sensible ones', () => {
     expect(botOffer(WEST, 'resident', 'raise-roads')).toBe('access-guarantee');
-    expect(botOffer(POINTE, 'resident', 'tower-for-park')).toBe('step-the-tower-back');
+    expect(botOffer(POINTE, 'resident', 'tower-for-park')).toBe('park-open-to-all');
     expect(botOffer(POINTE, 'mayor', 'tower-for-park')).toBe('park-open-to-all');
     expect(botAccepts(WEST, 'mayor', 'raise-roads', 'access-guarantee')).toBe(true);
     expect(botAccepts(POINTE, 'mayor', 'tower-for-park', 'park-open-to-all')).toBe(true);
     // an amendment that does not fit the project is never accepted
     expect(botAccepts(POINTE, 'mayor', 'shorter-tower', 'step-the-tower-back')).toBe(false);
+  });
+  it('vote on what a plan really does against what stopping it does', () => {
+    // the Activist would rather see the tower stopped than approved with only a park guarantee
+    expect(botVote(POINTE, 'activist', { option: 'tower-for-park', amendment: 'park-open-to-all' })).toBe(false);
+    // the Resort Owner wants it
+    expect(botVote(POINTE, 'resort', { option: 'tower-for-park', amendment: 'park-open-to-all' })).toBe(true);
+    // a plan that cannot go ahead is judged as a stopped plan: the Mayor gains nothing from it
+    expect(botVote(WEST, 'mayor', { option: 'raise-roads', amendment: null })).toBe(false);
   });
 });
 
