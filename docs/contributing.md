@@ -92,11 +92,11 @@ app/src/
   routes/Play.tsx           the stage: the map is the whole board, with the HUD over it and your hand along the bottom
   room/useRoom.ts, Invite.tsx   the WebSocket client (state, clock offset, one function per ClientMsg, pings); the room QR
   game/NewsTV.tsx           the news: a crawl across the top edge and the anchor card in the top-right (headline, details drawer); CrisisBriefing
-  game/HandDeck.tsx         your hand, fanned along the bottom: dealt cards in plain words (select) or Support / Oppose / Make a Deal / Pass
-                            (negotiate); moves.ts (dealFor, moveBlocker) on top of checkMove
+  game/HandDeck.tsx         Advanced: your hand, fanned along the bottom (select); one benefit and the cost on each face
+  game/moves.ts             move words and moveBlocker on top of checkMove
+  game/Beginner.tsx         Beginner Mode: the conflict card, the 2-3 card tray, the end screen (goals, storm, personal question)
   game/Steps.tsx            the round in three steps (Play a Card, Make a Deal, See What Happens), the sprint countdown, the storm goal
-  game/Plain.tsx            a card in plain words for the area popover: good, bad, and city money before -> after (projectPreview)
-  game/Climax.tsx           step 3's payoff: one big APPROVED / REJECTED stamp per proposal, then the storm scene after round 3
+  game/Climax.tsx           step 3: outcomeSentence (one plain line per project) and the storm scene after round 3
   game/DistrictPopover.tsx  click an area: your dealt hand, illegal cards greyed with the reason, two-step deploy
   game/CaseFile.tsx         reveal + negotiation, pinned to the proposal's area (moves, deals, hints, reactions)
   game/ResultOverlay.tsx    the round's result (side) and the podium (center), with the story's evidence
@@ -115,6 +115,7 @@ app/src/
   characters/render.ts, portraits.ts   the GLB figures in app/public/characters rendered once into transparent portraits (three.js, lazy)
   atlas/                    Civic Atlas sections, parts and the match timeline; routes/Atlas.tsx is the page
   routes/Verify.tsx         the public check of a match: fingerprint, Merkle proof, memos read from a devnet RPC node
+  routes/Plan.tsx           /plan/:matchId: the shareable city plan, replayed from the record (Documented / Simulated / Decided)
   ui/                       sound (Web Audio), voice (one speech queue, calls /api/tts), spoken (what the anchor reads), Bubbles
   styles.css, tokens.ts     Frutiger Aero theme (Tailwind v4 tokens live in styles.css)
 ```

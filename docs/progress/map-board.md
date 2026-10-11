@@ -1,83 +1,94 @@
-# `rdx/map-board`: where things stand
+# Map-board line of work: where things stand (handoff)
 
-The working notes for this branch. Read this after `AGENTS.md` and before you change anything; update it at the end of each piece
-of work. The older notes for milestones M1-M5 are in [`coastal-clash-evolution.md`](coastal-clash-evolution.md) (history only).
+The working notes for the map-board branches. Read this after `AGENTS.md` and before you change anything; update it at the end of each
+piece of work. Design decisions with their reasons are in [`coastal-clash-evolution.md`](coastal-clash-evolution.md) (history + rationale).
+Last updated 2026-10-11.
 
-## Where to work
+## The branches (all in the `map-board/` git worktree of `github.com/RudrakshNanavaty/hacknc-26`)
 
-- Branch `rdx/map-board`, checked out in the `map-board/` folder (a git worktree of `github.com/RudrakshNanavaty/hacknc-26`).
-- Work only here. Do not pull, merge or push other branches unless asked.
+```
+rdx/map-board                      891e7fc  the map-board game (baseline, see "What rdx/map-board is" below)
+├─ pratham/map-board-onboarding    d6b311f  + three round steps, plain cards, Sprint pace, readable-at-a-glance UI   (pushed)
+│  └─ pratham/beginner-mode        95799ca  + Beginner Mode, city plan page, personal question          (pushed, newest)
+└─ pratham/intro                   (local)  + the 3D cinematic intro on the landing page                (NOT pushed)
+```
 
-## What this branch is
+- **`pratham/beginner-mode` is the most complete branch** and contains the onboarding work. Start new work from it unless told otherwise.
+- **`pratham/intro`** branches from `rdx/map-board`, not from the others: it does not have Sprint or Beginner Mode, and they do not
+  have the intro. It touches `App.tsx`, `routes/Landing.tsx`, `game/Lobby.tsx` and `ui/sound.ts`; merging it into `pratham/beginner-mode`
+  should conflict only lightly in `Lobby.tsx` (both read a saved name) and `App.tsx` (both add a route).
+- No branch has been merged into `rdx/map-board`. Do not merge, push or pull other branches unless the person you work with asks.
+- `Coastal Clash_ Animated Game Intro Guide.png` at the worktree root is an untracked storyboard image (not used yet, not committed).
 
-`rdx/map-board` starts from `pratham/coastal-clash` (`8790e0e`, the five milestones and the merge of `aum/coastal-clash`) and adds
-40 commits on top. In order:
+## How to run (this machine)
 
-1. **The map is the whole board** (desktop only): crisis on the map (`CrisisFx`, `CrisisAlert`, FEMA water clipped per area by
-   `pipeline/flood-by-area.ts`), `DistrictPopover`, `CaseFile`, `ResultOverlay`, the hand fanned along the bottom (`HandDeck`), negotiation
-   pings (protocol change in `room.ts`), the news as a crawl plus an anchor card (`NewsTV`). Phone layouts, the deck tray and
-   drag-to-deploy were removed.
-2. **Real civic stories** (merged `aum/civic-stories`): the 38-story cited corpus, the Snowflake loader, the Gemini casting agent, story
-   hands, names and scripts.
-3. **Public record on Solana** (merged `aum/solana-record`): match fingerprints, Merkle batches, devnet memos, `/verify/:matchId`.
-4. **Tiger Data for the whole app**: gameplay timeline, match summaries, city snapshots, studio history, the civic record.
-5. **Turn-based play**: no phase clock or pace; steps move on when everyone present is ready; the host can move on without someone.
-   Story sources and verification are shown on the crisis card, the results and the final screen.
-6. **Cards**: trading-card layout with a picture painted by Gemini in one matte clay-diorama house style, painted ahead of play from the lobby.
-7. **Civic Atlas** replaces Planning Studio (`/atlas`; `/studio` still opens it), with `server/scripts/simulate.ts` for sandbox matches.
-8. **3D characters**: five GLB figures rendered into portraits for the map, player bubbles, lobby seats and the news anchor.
-9. **Voice**: ElevenLabs voices per character, one speech queue, the anchor nods to the real audio.
-10. The Fisherman is no longer on the map or a speaker.
-11. **First-time players and Sprint** (2026-10-11, not yet committed): see the section below.
+- Bun 1.4.3 is in `~/.bun/bin`; use fnm's Node 22.23 (`%APPDATA%/fnm/node-versions/v22.23.3/installation`), not the default 22.11
+  (the WebSocket test crashes on it). In Git Bash: `export PATH="$HOME/.bun/bin:$APPDATA/fnm/node-versions/v22.23.3/installation:$PATH"`.
+- `bun run dev` (app http://localhost:5173, server :8787 is the API only), `bun run typecheck`, `bun run test`.
+- After switching branches, stop the dev server and delete `app/node_modules/.vite` if the page looks stale.
 
-## Status (2026-10-11)
+## Status
 
-- **Rules:** `coastal-clash-rules/2.0.0`, the same rules and the same `districts.json` as `pratham/coastal-clash` at `8790e0e`.
-  `pratham/coastal-clash` has since moved to a money/agreements rules 3.0.0 that this branch does **not** have.
-- **Tests:** `bun run test` passes on 2026-10-11: 17 files, all green (Bun 1.4.3, Node 22.23 via fnm; the default Node 22.11 crashes the
-  WebSocket test, so put fnm's Node first on PATH). `bun run typecheck` is clean.
-- **Toolchain:** Bun 1.4.2 workspaces (`bun.lock`); TypeScript 7, Vite 8, Vitest 5. `npm` instructions in older notes no longer apply.
-- **Docs:** brought up to date on 2026-10-11 (this file, `README.md`, `AGENTS.md`, `docs/contributing.md`, `docs/coastal-clash.md`, the skill).
+| Branch | Rules | Tests (2026-10-11) | Checked in a browser |
+|---|---|---|---|
+| `pratham/beginner-mode` | Advanced `coastal-clash-rules/2.0.0` + Beginner `coastal-clash-beginner/1.0.0` | 174 pass, 18 files; typecheck clean | Beginner turn by turn 1440×900, Beginner Sprint 1280×720 (135 s), plan page |
+| `pratham/map-board-onboarding` | 2.0.0 | 157 pass | Advanced turn by turn 1440×900 and 1280×720, Sprint 1280×720 (156 s) |
+| `pratham/intro` | 2.0.0 | 149 of 151 (the 2 failures are the Windows `/dev/null` store bug fixed on the onboarding branch) | intro at 1440×900, 1280×720, 390 px; skip, mute, reduced motion, no WebGL, missing model |
 
-## First-time players and Sprint (2026-10-11)
+- `pratham/coastal-clash` has moved to a money/agreements rules 3.0.0 that none of these branches have.
+- The Gemini key returned HTTP 402 (credits depleted) all day: card pictures are placeholders and narration is the templates.
 
-Goal: a beginner understands the game quickly and can finish a match in under four minutes. Rules unchanged (still 2.0.0).
+## What each branch adds
 
-- **Three steps a round**, tracked at the top of the map (`app/src/game/Steps.tsx`, `STEP_OF` in `shared/src/room.ts`): Play a Card
-  (crisis + select), Make a Deal (reveal + negotiate), See What Happens (resolve). The tracker also shows the storm goal (flood vs 50).
-- **Cards in plain words** (`shared/src/game/simple.ts`, tested in `simple.test.ts`): ✅ good, ⚠️ bad, 💲 city money on every hand card;
-  the area popover shows a plain card and "City money $30M → $22M" from `projectPreview` (`app/src/game/Plain.tsx`). The full card and
-  its rules are under "More detail".
-- **Negotiation as Support / Oppose / Make a Deal** (`app/src/game/moves.ts`): Make a Deal accepts the compromise offered on your own
-  proposal (free), otherwise pays the proposal's bill (`fund`). Same engine moves; the case file and hints use the same words.
-- **Verdicts and the storm** (`app/src/game/Climax.tsx`): one big APPROVED / REJECTED (/ DELAYED / NO MONEY) stamp per proposal in the
-  middle of the screen, then after round 3 the storm scene (rain, thunder, flood gauge against the 50 line, "The city held!" or the damage);
-  if the city falls short, the real FEMA flood zones fill across every area. The old instant storm overlay in `LivingLayer` is gone.
-- **Sprint pace** (protocol change: `RoomState.pace`, `ClientMsg {t:'pace'}`, `MatchRecord.pace`): host picks it in the lobby; each phase
-  gets a server deadline (`SPRINT_MS`, 60 s a round, +6 s for the storm). Turn-by-turn stays the default and never times out.
-- Lobby: pace picker and a "How to play" box. Statuses read "Rejected" (was "Voted down").
-- Verified: typecheck, 159 tests (incl. new sprint/turns room tests, `simple.test.ts`, `dealFor` tests); a bot-filled match played in the browser
-  turn by turn at 1440×900 and as a sprint at 1280×720 (141 s start to podium, the timers advancing every step).
-- Not verified: the storm-damage branch (flood under 50) on screen; every test match ended with flood 52-62. The code path is the
-  crisis map effect with kind `flood` on all areas.
+### `pratham/beginner-mode`: Beginner Mode (the default for new tables)
+Code: `shared/src/game/beginner.ts`, engine rules C5/O8 in `engine.ts`, `server/src/rooms.ts` (`setMode`), `app/src/game/Beginner.tsx`,
+`app/src/routes/Plan.tsx`. Tests: `shared/src/game/beginner.test.ts`, the "Beginner Mode rooms" block in `server/src/rooms.test.ts`.
+- One conflict a round (one project, proposer, district). A documented story is used only when its own deal is legal in its own
+  district and its text names the project (`storyIsAbout`); else a labelled authored scenario. 20 of 31 approved stories qualify.
+- 2-3 cards each, picked for the conflict; no influence; one card and one table move a round.
+- Support / Oppose / Suggest a Change (a real engine rule: accepted +1 support and its effect, refused +1 opposition; built once).
+- Bots argue authored agendas (`AGENDA`) so a human choice changes a real result; a test checks every seat of every authored round.
+- End: city viability, the storm, one line per stakeholder goal; Advanced points folded away. `/plan/:matchId`: shareable plan
+  (Documented / Simulated / Decided). One optional personal yes/no/not-sure question, stored apart (`PreferenceResponse.stance`).
+- Contracts: `RoomState.mode/conflict`, `ClientMsg {t:'mode'}`, `respond.stance`, `MatchRecord.mode`, `NegotiationMove 'suggest'`,
+  `CompromiseKind 'change'`, CSV `stance` column. Server default is Advanced; the lobby switches new tables to Beginner once.
 
-## Known loose ends in the code
+### `pratham/map-board-onboarding`: readable Advanced Mode and Sprint
+- The round as three steps with one short instruction (`app/src/game/Steps.tsx`); Flood safety and City money in the HUD, the rest in a
+  City drawer; cards show one benefit and the cost, the downside on the held card (`shared/src/game/simple.ts`); a compact confirm with
+  Lock it in / Change area / Change card; the case file lists only valid moves with engine previews (Support, Oppose, Pay for it,
+  Accept deal); one sentence per result; the storm after round 3 (`app/src/game/Climax.tsx`); news and bubbles quiet while you decide.
+- Sprint (`setPace`, `SPRINT_MS` in `shared/src/room.ts`): 60 s a round on server deadlines; turn by turn stays the default.
+- `/fx-lab?storm=win|loss` plays the storm from an engine fixture. Fix: `MemoryCivicStore` no longer writes a file.
 
-- Fixed 2026-10-11: `MemoryCivicStore` wrote to `/dev/null/coastal-clash-civic-memory.json`, which on Windows is the real file
-  `C:\dev\null\coastal-clash-civic-memory.json`, so test runs shared state and `db.test.ts` / `civic.test.ts` failed from the
-  second run on. It now keeps no file. A leftover copy of that file from earlier runs is harmless and can be deleted.
+### `pratham/intro`: the cinematic intro
+`app/src/intro/`: name entry, a ~12 s three.js film (dock, the Fisherman Hero with a jointed rod, the catch, the fish into the camera,
+bubble, logo, reveal), one master timeline, Skip, mute, short path for reduced motion / no WebGL / missing model. First visit only;
+`?intro=1` or "Replay intro" plays it again. `app/public/characters/fisherman.glb` is a static mesh (no rig): whole-body motion only.
+The Fisherman stays intro-only.
 
-- `app/src/api.ts` and the Atlas exports still call the `/api/studio*` routes (they work; the names are historical).
-- `render.yaml` does not list `SNOWFLAKE_*` or `SOLANA_*`; set them by hand on the host if the deployment should use them.
+### `rdx/map-board` (baseline)
+The map is the whole board; real civic stories (Snowflake corpus, Gemini casting); Solana public record (`/verify/:matchId`); Tiger
+Data for the whole app; turn-based play; Gemini card art; Civic Atlas (`/atlas`); 3D GLB portraits; ElevenLabs voices.
+
+## Known loose ends
+
+- Card art and live narration need a Gemini key with credit; Beginner could ship static art for its ~15 cards.
+- Beginner reveal step swaps to the Advanced case file (style jump); a compact "who played what" strip would fit better.
+- Only 20 of 31 stories fit Beginner; a `project` field in the research corpus would replace the keyword check.
+- Beginner bots accept every suggested change; letting a bot refuse a change that costs its own goal would make suggestions riskier.
+- `/plan/:matchId` needs the match on the server; no print stylesheet yet.
+- The intro's rod floats near the hand (no grip pose); its 3D bubbles look a little like frosted balls.
+- `app/src/api.ts` and the Atlas exports still call `/api/studio*` (they work; historical names). `render.yaml` lacks `SNOWFLAKE_*`/`SOLANA_*`.
 
 ## Open questions for humans
 
-- The Gemini key: on 2026-10-11 it returned HTTP 402 ("prepayment credits are depleted"). Check it before a demo; everything falls back to templates.
-- Balance numbers for the cards, combo bonuses, upkeep and twist magnitudes are first guesses (illustrative values) and need playtesting.
-- Whether `rdx/map-board` should take the rules 3.0.0 money work from `pratham/coastal-clash`. Not decided; do not merge without asking.
+- Which branch becomes the demo build, and whether `pratham/intro` should be rebased onto `pratham/beginner-mode` and pushed.
+- Whether these branches should take the rules 3.0.0 money work from `pratham/coastal-clash`. Not decided; do not merge without asking.
+- Card balance, combo bonuses, upkeep, twist sizes, and the Beginner `AGENDA` and `SUGGESTED_CHANGES` are first guesses; playtest them.
 
 ## Next steps
 
-1. Playtest the beginner flow with someone new: can they finish a sprint without help? Watch the deal step most.
-2. Play a bot-filled match at 1440×900 and 1280×720 with and without keys (Gemini, ElevenLabs, Snowflake), and note what each fallback looks like.
-3. Fix the loose ends above.
+1. Run the 5-question Beginner usability test (script in `coastal-clash-evolution.md`) with two or three first-time players.
+2. Decide the demo branch; bring the intro onto it (rebase `pratham/intro` onto `pratham/beginner-mode`, fix `Lobby.tsx`/`App.tsx`).
+3. Top up the Gemini key, then replay one Beginner match with live stories, narration and card art.
