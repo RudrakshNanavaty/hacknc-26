@@ -57,7 +57,9 @@ function overBudget(ip: string, now = Date.now()) {
   return false;
 }
 const TIMEOUT_MS = 20_000;
-const CACHE = process.env.TTS_CACHE_DIR || join(dirname(fileURLToPath(import.meta.url)), '..', '.cache', 'tts');
+const DEFAULT_CACHE = join(dirname(fileURLToPath(import.meta.url)), '..', '.cache', 'tts');
+/** Read on use, not at import, so a test can point it somewhere throwaway. */
+const cacheDir = () => process.env.TTS_CACHE_DIR || DEFAULT_CACHE;
 /** Statuses that mean "not this voice" (a library voice on the free plan answers 402). */
 const REFUSED = new Set([400, 401, 402, 403, 404, 422]);
 /** Voice ids ElevenLabs refused since the server started: they go straight to the default. */
@@ -71,7 +73,7 @@ export const voiceReady = () => !!process.env.ELEVENLABS_API_KEY;
 /** The cache file for one clip. English at normal pace keeps the original key, so old clips still hit. */
 function cacheFile(id: string, voice: Voice, text: string) {
   const extra = LANG[voice] !== 'en' || SPEED[voice] !== 1 ? `|${LANG[voice]}|${SPEED[voice]}` : '';
-  return join(CACHE, `${createHash('sha256').update(`${id}|${model()}|${text}${extra}`).digest('hex')}.mp3`);
+  return join(cacheDir(), `${createHash('sha256').update(`${id}|${model()}|${text}${extra}`).digest('hex')}.mp3`);
 }
 
 function requestBody(voice: Voice, text: string) {
@@ -126,7 +128,7 @@ export function registerVoice(app: FastifyInstance) {
           break;
         }
         const audio = Buffer.from(await res.arrayBuffer());
-        await mkdir(CACHE, { recursive: true });
+        await mkdir(cacheDir(), { recursive: true });
         await writeFile(cacheFile(id, voice, text), audio).catch(() => {});
         return reply.header('content-type', 'audio/mpeg').header('x-tts-cache', 'miss').send(audio);
       } catch (err) {
