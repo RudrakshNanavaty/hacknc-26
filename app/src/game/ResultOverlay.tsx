@@ -49,7 +49,7 @@ function OutcomeCard({ o, state, events, i }: { o: Outcome; state: RoomState; ev
       </div>
       {o.status === 'approved' && <Blooms delta={o.delta} />}
       {o.conditions.length > 0 && <p className="flex flex-wrap gap-1">{o.conditions.map((c) => <span key={c} className="lchip lchip-sun">🤝 {c}</span>)}</p>}
-      <button type="button" className="self-start text-[12px] font-black text-[#0a6f9a] underline" onClick={() => setOpen(!open)}>{open ? 'Hide' : 'Show'} the rules that decided it</button>
+      <button type="button" className="self-start text-[12px] font-black text-[#7fd6ff] underline" onClick={() => setOpen(!open)}>{open ? 'Hide' : 'Show'} the rules that decided it</button>
       {open && <ol className="flex flex-col gap-1">{o.rules.map((id) => events.find((e) => e.id === id)).filter(Boolean).map((e) => <Rule key={e!.id} e={e!} />)}</ol>}
       {open && <WhyButton label="Explain in plain words" ask={() => explain({ kind: 'outcome', code: state.code, proposalId: o.proposalId })} />}
     </div>
@@ -123,7 +123,7 @@ function FinalScreen({ state, room }: { state: RoomState; room: Room }) {
             </button>
           ))}
           <button type="button" className={`gel gel-sm justify-start ${answered === 'none' ? 'gel-lime' : ''}`} onClick={() => room.respond('none')}>None of these</button>
-          {answered && <p className="text-13 font-black text-[#2f7a0e]">Thanks: recorded for the planners.</p>}
+          {answered && <p className="text-13 font-black text-[#b6f07a]">Thanks: recorded for the planners.</p>}
         </div>
       )}
       <Link to={`/studio${state.matchId ? `?match=${state.matchId}` : ''}`} className="gel gel-lime gel-big">Open Planning Studio →</Link>

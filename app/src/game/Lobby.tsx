@@ -24,7 +24,7 @@ function PersonaPicker({ taken, value, onPick }: { taken: Map<PersonaId, { bot: 
             <span className="min-w-0 text-left">
               <span className="block font-display text-18 leading-tight font-black">{p.name}</span>
               <span className="block text-13 leading-snug opacity-80">{p.goal}</span>
-              {t && <span className="mt-1 block text-[12px] font-bold text-aqua-deep">{t.bot ? 'A bot is playing: take its seat' : 'Taken'}</span>}
+              {t && <span className="mt-1 block text-[12px] font-bold text-[#7fd6ff]">{t.bot ? 'A bot is playing: take its seat' : 'Taken'}</span>}
             </span>
           </button>
         );

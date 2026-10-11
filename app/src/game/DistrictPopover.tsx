@@ -80,7 +80,7 @@ export function DistrictPopover({ state, room, map, district, setDistrict, onCar
                 <span className="hand-art" aria-hidden>{c.art}</span>
                 <span className="min-w-0 flex-1 text-left">
                   <span className="vr block text-[16px] leading-tight">{c.name}</span>
-                  <span id={`why-${id}`} className={`block text-[12px] leading-snug ${why ? 'font-black text-[#b0123a]' : 'font-semibold opacity-80'}`}>{why ?? c.text}</span>
+                  <span id={`why-${id}`} className={`block text-[12px] leading-snug ${why ? 'font-black text-[#ff9cae]' : 'font-semibold opacity-80'}`}>{why ?? c.text}</span>
                 </span>
                 <span className="hand-go" aria-hidden>{why ? '' : '›'}</span>
               </button>
@@ -98,7 +98,7 @@ export function DistrictPopover({ state, room, map, district, setDistrict, onCar
     <MapAnchor map={map} district={district} label={`${CARDS[card].name} in ${d.name}`} onClose={close} width={400}>
       <div className="flex flex-col gap-2">
         {header}
-        <button type="button" className="self-start text-[12px] font-black text-[#0a6f9a] underline" onClick={() => setCard(null)}>‹ All your cards</button>
+        <button type="button" className="self-start text-[12px] font-black text-[#7fd6ff] underline" onClick={() => setCard(null)}>‹ All your cards</button>
         <CharacterCard id={card} quip={state.quips[card]} note={why} compact />
         <div className="frost p-3"><CardExtras id={card} /></div>
         {preview && <PreviewBox p={preview} />}

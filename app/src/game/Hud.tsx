@@ -28,7 +28,7 @@ export function Meters({ state }: { state: RoomState }) {
             key={k} tone={low ? 'coral' : TONE[k]} value={v[k]} max={k === 'budget' ? 40 : 100}
             className={crunch && k === 'budget' ? 'tube-shake' : ''}
             title={`${info.label}: ${k === 'budget' ? `$${v[k]}M (hypothetical)` : v[k]}${low ? ` (below ${VIABILITY_FLOOR}: the city is at risk)` : ''}`}
-            label={<><span>{info.icon}</span><span className="nm">{info.short}</span><span className={`v ${low ? 'text-[#d0103a]' : ''}`}><Count k={k} value={v[k]} /></span></>}
+            label={<><span>{info.icon}</span><span className="nm">{info.short}</span><span className={`v ${low ? 'text-[#ff8fa3]' : ''}`}><Count k={k} value={v[k]} /></span></>}
           />
         );
       })}

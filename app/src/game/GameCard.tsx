@@ -73,7 +73,7 @@ export function CharacterCard({ id, quip, note, compact = false }: {
       <div className="flex items-center justify-between">
         <span className="lchip">{p.emoji} {p.name}</span>
         <span className="flex gap-1">
-          <span className="lchip" style={{ color: `color-mix(in srgb, ${FAMILY_INFO[c.family].color} 60%, #0b3d5c)` }}>{FAMILY_INFO[c.family].label}</span>
+          <span className="lchip" style={{ color: `color-mix(in srgb, ${FAMILY_INFO[c.family].color} 70%, #fff)` }}>{FAMILY_INFO[c.family].label}</span>
           <span className={`lchip ${CATEGORY_TONE[c.category]}`}>{CATEGORY[c.category]}</span>
         </span>
       </div>
@@ -92,7 +92,7 @@ export function CharacterCard({ id, quip, note, compact = false }: {
         </div>
         {quip && <p className="quip">“{quip}”</p>}
         <p className="text-13 font-semibold opacity-85">{c.rule}</p>
-        {note && <p className="text-13 font-black text-[#c0392b]">{note}</p>}
+        {note && <p className="text-13 font-black text-[#ff9c8c]">{note}</p>}
       </div>
     </article>
   );
