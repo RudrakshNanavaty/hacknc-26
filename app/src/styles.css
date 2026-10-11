@@ -746,7 +746,7 @@ input[type="range"].aero-range {
 /* ===================== Living city: avatars, bubbles, ghosts, effects ===================== */
 
 /* No `position` here: MapLibre's .maplibregl-marker is position:absolute, and overriding it stacks markers. */
-.avatar { width: 60px; height: 75px; pointer-events: auto; cursor: default; }
+.avatar { width: 66px; height: 82px; pointer-events: auto; cursor: default; }
 .avatar-figure { position: absolute; inset: 0; transform-origin: 50% 100%; animation: av-breathe 2.6s ease-in-out infinite; }
 .avatar-svg { width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 2px 0 #fff) drop-shadow(0 4px 6px rgba(0, 30, 60, 0.45)); }
 .avatar-shadow { position: absolute; left: 50%; bottom: -3px; width: 46px; height: 11px; translate: -50% 0; border-radius: 50%; background: radial-gradient(ellipse, color-mix(in srgb, var(--tint) 55%, rgba(0, 30, 60, 0.6)), transparent 70%); z-index: -1; }
@@ -1039,3 +1039,11 @@ button.tc:hover { transform: translateY(-4px); }
 .dist-med { position: absolute; top: 0; bottom: 0; width: 3px; background: #0b3d5c; }
 .dist-start { position: absolute; top: -3px; bottom: -3px; width: 0; border-left: 2px dashed #c0392b; }
 .atlas-title { color: #06324f; text-shadow: 0 1px 0 rgba(255, 255, 255, .85), 0 0 18px rgba(255, 255, 255, .55); }
+
+/* The 3D characters: portraits rendered from the models stand in for the drawn sprites. */
+.avatar-3d { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; object-position: 50% 100%; filter: drop-shadow(0 3px 3px rgba(0, 30, 60, .35)); pointer-events: none; user-select: none; }
+.face-orb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.tv-anchor-3d img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 0; display: block; }
+.tv-anchor-3d[data-talking="true"] { animation: anchor-nod .5s ease-in-out infinite alternate; }
+@keyframes anchor-nod { from { transform: rotate(-1.4deg) translateY(0); } to { transform: rotate(1.4deg) translateY(-2px); } }
+@media (prefers-reduced-motion: reduce) { .tv-anchor-3d[data-talking="true"] { animation: none; } }

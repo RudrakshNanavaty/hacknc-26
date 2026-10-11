@@ -185,3 +185,10 @@ change in the city), who helps and hinders whom (alliance matrix), regulatory ve
 comparison is only called real when a two-proportion test passes on enough cases; findings are ranked by evidence and marked strong, moderate or
 indicative. Filters (session, crisis, area, bots) apply everywhere; each table exports as CSV beside the decision log, GeoJSON and full records.
 It is not public opinion: proposals are role-play, personal picks are a separate answer, demo and community sessions are never merged silently.
+
+## Characters (3D)
+The five characters (mayor, activist, resort owner, resident, news anchor) are GLB models in `app/public/characters/`. They are single-mesh,
+unrigged figures, so the game renders each once, off screen (`app/src/characters/render.ts`, three.js loaded lazily), into transparent
+portraits (full body, face, and a bust for the anchor) that the map avatars, player bubbles, lobby seats and the news desk use as plain images
+(`portraits.ts`). The drawn sprites in `app/src/map/sprites.ts` remain as the fallback until a portrait is ready, or when WebGL is unavailable.
+Moods are CSS motion on the figure (jump, shake, lean), and the anchor nods while talking. `/glb-lab` (dev only) shows every portrait.

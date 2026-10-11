@@ -7,10 +7,18 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { CRISIS_KIND_INFO, INDICATOR_INFO, PERSONA_INFO, districtById, districtFacts, type RoomState } from '@shared';
 import { spriteSvg } from '../map/sprites';
+import { usePortrait } from '../characters/portraits';
 import { TwistCard } from './insights';
 import { EvidenceStrip, StoryPanel } from './story';
 
 const ANCHOR_SVG = spriteSvg('anchor');
+
+/** The anchor: the 3D character's bust once rendered, the drawn one until then. Talking is a nod, or the mouth on the sprite. */
+function AnchorFigure({ talking }: { talking: boolean }) {
+  const p = usePortrait('anchor');
+  if (p) return <span className="tv-anchor tv-anchor-3d" data-talking={talking ? 'true' : 'false'}><img src={p.bust} alt="" draggable={false} /></span>;
+  return <span className="tv-anchor" data-talking={talking ? 'true' : 'false'} dangerouslySetInnerHTML={{ __html: ANCHOR_SVG }} />;
+}
 /** The card shows this many lines; a longer headline pans like a teleprompter. */
 const LINES = 6;
 /** The crawl's speed and the gap between its items. */
@@ -185,7 +193,7 @@ export function NewsTV({ state, open, setOpen }: { state: RoomState; open: boole
               <svg className="tv-skyline" viewBox="0 0 320 70" preserveAspectRatio="none">
                 <path d="M0 70V48h18V30h14v18h10V38h16V22h12v26h14V34h12v14h16V26h14v22h12V40h18V18h14v30h12V36h16v12h14V30h12v18h16V42h18v28Z" fill="#fff" />
               </svg>
-              <span className="tv-anchor" data-talking={talking ? 'true' : 'false'} dangerouslySetInnerHTML={{ __html: ANCHOR_SVG }} />
+              <AnchorFigure talking={talking} />
               <span className="tv-live"><i />LIVE</span>
               <span className="tv-net">Coastal Clash News</span>
             </span>

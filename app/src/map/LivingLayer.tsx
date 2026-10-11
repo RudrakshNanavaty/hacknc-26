@@ -10,6 +10,7 @@ import {
   type Board, type Bubble, type Card, type Mood, type OutcomeStatus, type RoleId, type RoomState,
 } from '@shared';
 import { spriteSvg } from './sprites';
+import { onPortrait } from '../characters/portraits';
 
 /** Screen offset of each role around an area's center (px), clear of the area's chip. */
 const SLOT: Record<RoleId, [number, number]> = {
@@ -122,6 +123,13 @@ export function LivingLayer({ map, state, onFocusProposal }: {
       el.title = `${info.name}: ${'title' in info ? info.title : ''}`;
       const marker = new Marker({ element: el, anchor: 'bottom', offset: slot(role) });
       made.set(role, { marker, el, at: null, stop: () => {} });
+      // The 3D character replaces the drawn sprite once its portrait is rendered (moods are CSS on the figure).
+      const figure = el.querySelector('.avatar-figure');
+      if (figure && role !== 'fisherman') {
+        onPortrait(role, (p) => {
+          figure.innerHTML = `<img class="avatar-3d" src="${p.full}" alt="" draggable="false">`;
+        });
+      }
     }
     for (const [role, a] of made) a.el.style.display = roles.includes(role) ? '' : 'none';
   }, [map, roles]);
