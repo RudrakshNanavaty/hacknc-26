@@ -121,7 +121,7 @@ export function Play({ code }: { code: string }) {
     );
   }
 
-  const focus = phase === 'crisis' ? state.crisis?.spotlight[0] ?? null : phase === 'negotiate' ? hottest : null;
+  const focus = phase === 'crisis' ? state.crisis?.spotlight[0] ?? null : phase === 'select' ? target : phase === 'negotiate' ? hottest : null;
   const pickArea = phase === 'select' && card && !state.mine?.selection ? (id: string) => cardEligibility(card, id).ok && setTarget(id) : undefined;
   const panel =
     phase === 'crisis' ? <CrisisPanel state={state} />

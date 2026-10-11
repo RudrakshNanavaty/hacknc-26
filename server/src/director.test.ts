@@ -1,7 +1,7 @@
 // The Game Director end to end, with Gemini mocked: fallbacks (no key, timeout, malformed JSON),
 // validation inside the room, public hints, the review queue, and deterministic replays.
 import { describe, expect, it } from 'vitest';
-import { replayMatch, type CardId, type PersonaId } from '@shared';
+import { replayMatch, studioSummary, type CardId, type PersonaId } from '@shared';
 import { Gemini, type GenerateClient } from './ai/gemini';
 import { directorFacts, geminiDirector } from './ai/director';
 import { accept, applyDialogue, applyHints, done, getOrCreateRoom, join, proposeEarlyEvent, proposeEvent, publicState, rooms, select, setBot, skip, start, type Player, type Room } from './rooms';
@@ -86,6 +86,12 @@ describe('the Director inside a room', () => {
     const replay = replayMatch(record);
     expect(replay.mismatches).toEqual([]);
     expect(replay.final.scores).toEqual(room.final!.scores);
+
+    // Planning Studio counts the Director's work apart from opinion data.
+    const studio = studioSummary([record], { humansOnly: false });
+    expect(studio.director.twists.map((t) => t.source)).toEqual(['gemini', 'template']);
+    expect(studio.director.proposals).toEqual({ accepted: 0, clamped: 1, rejected: 1 });
+    expect(studio.findings.some((f) => /twist|AI|Gemini/i.test(f.text))).toBe(false);
 
     // The stored twist is what drives the replay: change it and the replay no longer matches.
     const tampered = structuredClone(record);

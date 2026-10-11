@@ -405,6 +405,28 @@ export function ResolvePanel({ state }: { state: RoomState }) {
   );
 }
 
+/** Three rounds at a glance: what was built, combos, twists. */
+function Recap({ state }: { state: RoomState }) {
+  return (
+    <ol className="recap">
+      {state.history.map((h) => {
+        const built = h.resolution.outcomes.filter((o) => o.status === 'approved');
+        return (
+          <li key={h.round} className="recap-round">
+            <span className="recap-n">{h.round}</span>
+            <span className="min-w-0 flex-1 text-13">
+              <b>{h.board.crisis.title}</b>
+              {built.length ? ` · built ${built.map((o) => `${PROJECTS[o.kind].marker} ${districtById(o.district).name}`).join(', ')}` : ' · nothing built'}
+              {(h.resolution.combos ?? []).map((c) => <span key={c.event} className="recap-tag">✨ {COMBOS[c.combo].name}</span>)}
+              {h.event && <span className="recap-tag is-twist" title="Game event (fictional)">🎲 {h.event.title}{h.event.source === 'gemini' ? ' ✦' : ''}</span>}
+            </span>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
 export function FinalPanel({ state, room }: { state: RoomState; room: Room }) {
   const f = state.final;
   const me = state.players.find((p) => p.seat === state.you);
@@ -420,6 +442,7 @@ export function FinalPanel({ state, room }: { state: RoomState; room: Room }) {
   return (
     <div className="flex flex-col gap-3">
       <h2 className="font-display text-32 leading-tight font-black">{f.viable ? 'Miami Beach holds' : 'Miami Beach is in trouble'}</h2>
+      <Recap state={state} />
       <ol className="flex flex-col gap-2">
         {ranked.map((s, i) => {
           const p = state.players.find((x) => x.persona === s.persona);

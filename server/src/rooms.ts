@@ -475,7 +475,7 @@ function enterResolve(room: Room, now: number): void {
   room.city = resolution.city;
   room.carried = resolution.carried;
   const headline = resolutionHeadline(resolution);
-  room.history.push({ round: room.round, headline, resolution, board: room.board, actions: room.actions });
+  room.history.push({ round: room.round, event: room.eventApplied ? room.event : null, headline, resolution, board: room.board, actions: room.actions });
   room.record?.rounds.push({
     round: room.round, crisis: room.board.crisis.id, proposals: room.board.proposals, attachments: room.board.attachments,
     compromises: room.board.compromises, actions: room.actions, outcomes: resolution.outcomes, events: resolution.events,

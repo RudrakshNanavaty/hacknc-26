@@ -180,7 +180,19 @@ export interface StudioSummary {
   preferences: { label: string; kind: ProjectKind | null; district: string | null; personal: number; inRole: number }[];
   /** Personas whose players personally preferred something other than what they proposed in role. */
   crossovers: { persona: PersonaId; played: string; preferred: string; count: number }[];
+  /** Authored combos completed (rules, not opinion). */
+  combos: { combo: ComboId; count: number }[];
+  /** What the AI Game Director did. Game fiction and coaching: never public opinion, never findings. */
+  director: DirectorSummary;
   findings: Finding[];
+}
+
+export interface DirectorSummary {
+  twists: { matchId: string; round: number; type: string; title: string; district: string; magnitude: number; source: 'gemini' | 'template' }[];
+  /** Every proposal the model made, by what validation did with it. */
+  proposals: Record<'accepted' | 'clamped' | 'rejected', number>;
+  hints: { shown: number; aiWorded: number; followed: number };
+  reviewQueue: (ReviewItem & { matchId: string })[];
 }
 
 const OBJECTION_RULES: Record<string, string> = {
@@ -277,6 +289,22 @@ export function studioSummary(all: MatchRecord[], f: StudioFilter = {}): StudioS
     }
   }
 
+  const combos = new Map<ComboId, number>();
+  const director: DirectorSummary = { twists: [], proposals: { accepted: 0, clamped: 0, rejected: 0 }, hints: { shown: 0, aiWorded: 0, followed: 0 }, reviewQueue: [] };
+  for (const m of matches) {
+    for (const r of m.rounds) {
+      for (const c of r.combos ?? []) combos.set(c.combo, (combos.get(c.combo) ?? 0) + 1);
+      const d = r.director;
+      if (!d) continue;
+      if (d.event) director.twists.push({ matchId: m.id, round: r.round, type: d.event.type, title: d.event.title, district: d.event.district, magnitude: d.event.magnitude, source: d.event.source });
+      for (const l of d.log) if (l.source === 'gemini') director.proposals[l.status] += 1;
+      director.hints.shown += d.hints.length;
+      director.hints.aiWorded += d.hints.filter((h) => h.source === 'gemini').length;
+      director.hints.followed += d.hints.filter((h) => h.followed).length;
+    }
+    for (const q of m.reviewQueue ?? []) director.reviewQueue.push({ ...q, matchId: m.id });
+  }
+
   const summary: StudioSummary = {
     matches: matches.length,
     completed: matches.filter((m) => m.final).length,
@@ -289,6 +317,8 @@ export function studioSummary(all: MatchRecord[], f: StudioFilter = {}): StudioS
     compromises: [...compromises.values()],
     preferences: [...prefs.values()].sort((a, b) => b.personal - a.personal || b.inRole - a.inRole),
     crossovers: [...crossovers.values()].sort((a, b) => b.count - a.count),
+    combos: [...combos.entries()].map(([combo, count]) => ({ combo, count })).sort((a, b) => b.count - a.count),
+    director,
     findings: [],
   };
   summary.findings = findings(summary, matches);

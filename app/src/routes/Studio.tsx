@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Marker, type Map as MapLibreMap } from 'maplibre-gl';
 import {
-  CARDS, PERSONA_INFO, PROJECTS, districtById, startCity, type MatchRecord, type SessionKind,
+  CARDS, COMBOS, PERSONA_INFO, PROJECTS, districtById, replayMatch, startCity, type MatchRecord, type SessionKind,
 } from '@shared';
 import { brief as fetchBrief, match as fetchMatch, studio as fetchStudio, type StudioData } from '../api';
 import { CityMap } from '../map/CityMap';
@@ -46,12 +46,26 @@ function Bars({ rows, color = IN_ROLE }: { rows: { label: string; value: number;
 
 function Timeline({ m }: { m: MatchRecord }) {
   const name = (seat: number) => m.players.find((p) => p.seat === seat);
+  const replay = useMemo(() => replayMatch(m), [m]);
   return (
     <ol className="flex flex-col gap-3">
+      <li className={`rounded-2xl p-2 text-13 font-bold ${replay.matches ? 'bg-leaf/20' : 'bg-coral/20'}`}>
+        {replay.matches ? '✓ Replay check: the engine reproduces this match from the record alone (no AI calls).' : `⚠ Replay differs: ${replay.mismatches.join(', ')}`}
+      </li>
       {m.rounds.map((r) => (
         <li key={r.round} className="rounded-2xl bg-white/60 p-3">
           <p className="font-display text-18 font-black">Round {r.round} · {r.crisis.replace('-', ' ')}</p>
           <p className="text-13 italic">“{r.headline}”</p>
+          {r.director?.event && (
+            <p className="mt-1 rounded-xl bg-lilac/20 p-2 text-13">
+              🎲 <b>Game event (fictional):</b> {r.director.event.title}, {districtById(r.director.event.district).name}, magnitude {r.director.event.magnitude} · {deltaText(r.director.event.delta)}
+              <span className="chip ml-1 text-[11px]">{r.director.event.source === 'gemini' ? 'AI-proposed, rules-checked' : 'authored'}</span>
+            </p>
+          )}
+          {(r.combos ?? []).map((c) => <p key={c.combo + c.district} className="text-13">✨ Combo: {COMBOS[c.combo].name}, {districtById(c.district).name}</p>)}
+          {r.director && r.director.hints.length > 0 && (
+            <p className="text-[12px] opacity-80">💡 Table hints: {r.director.hints.length} shown ({r.director.hints.filter((h) => h.source === 'gemini').length} AI-worded), {r.director.hints.filter((h) => h.followed).length} followed by a player.</p>
+          )}
           <ul className="mt-2 flex flex-col gap-1 text-13">
             {r.proposals.filter((p) => !p.carried).map((p) => <li key={p.id}>🃏 {name(p.seat)?.name} ({PERSONA_INFO[p.persona].name}) proposed {PROJECTS[p.kind].name} in {districtById(p.district).name}</li>)}
             {r.attachments.map((a) => <li key={a.seat}>🃏 {name(a.seat)?.name} played {CARDS[a.card].name} in {districtById(a.district).name}</li>)}
@@ -222,6 +236,35 @@ export function Studio() {
                   );
                 })}
               </ul>
+            </section>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_1.6fr]">
+            <section className="glass flex flex-col gap-2 p-4">
+              <h2 className="font-display text-18 font-black">Combos completed</h2>
+              <p className="text-[12px] opacity-70">Authored pairings in the rules (not opinion data).</p>
+              <Bars rows={s.combos.map((c) => ({ label: `✨ ${COMBOS[c.combo].name}`, value: c.count }))} />
+            </section>
+            <section className="glass flex flex-col gap-2 border-2 border-dashed border-lilac p-4">
+              <h2 className="font-display text-18 font-black">AI Game Director</h2>
+              <p className="text-[12px] font-bold">Game fiction and coaching. Not public opinion, not part of the findings above.</p>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                <Stat label="Twists" value={s.director.twists.length} note={`${s.director.twists.filter((t) => t.source === 'gemini').length} AI-proposed, ${s.director.twists.filter((t) => t.source === 'template').length} authored`} />
+                <Stat label="AI proposals" value={s.director.proposals.accepted + s.director.proposals.clamped + s.director.proposals.rejected} note={`${s.director.proposals.accepted} accepted · ${s.director.proposals.clamped} clamped · ${s.director.proposals.rejected} rejected`} />
+                <Stat label="Hints shown" value={s.director.hints.shown} note={`${s.director.hints.aiWorded} AI-worded`} />
+                <Stat label="Hints followed" value={s.director.hints.followed} note="a player then made that move" />
+              </div>
+              {s.director.twists.length > 0 && (
+                <ul className="flex flex-col gap-1 text-13">
+                  {s.director.twists.slice(0, 6).map((t) => <li key={`${t.matchId}-${t.round}`}>🎲 {t.title}, {districtById(t.district).name} (round {t.round}, magnitude {t.magnitude}) <span className="opacity-70">· {t.source === 'gemini' ? 'AI-proposed' : 'authored'}</span></li>)}
+                </ul>
+              )}
+              {s.director.reviewQueue.length > 0 && (
+                <div className="rounded-xl bg-white/60 p-2 text-13">
+                  <p className="font-bold">Designer review queue (AI combo ideas, never played)</p>
+                  <ul className="list-disc pl-5">{s.director.reviewQueue.slice(0, 5).map((q, i) => <li key={i}>{q.idea}</li>)}</ul>
+                </div>
+              )}
             </section>
           </div>
 

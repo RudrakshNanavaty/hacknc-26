@@ -34,6 +34,8 @@ export interface Headline {
 
 export interface RoundSummary {
   round: number;
+  /** The twist applied at the start of play this round, if any. */
+  event?: AcceptedEvent | null;
   headline: string;
   resolution: Resolution;
   board: Board;
