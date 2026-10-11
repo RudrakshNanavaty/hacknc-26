@@ -8,25 +8,23 @@ Coastal Clash is a multiplayer strategy game about real coastal planning decisio
 
 Built for **HackNC 2026**, with a Frutiger Aero + Liquid Glass interface: ocean scenery, small floating bubbles, glossy green buttons, glass panels, and animated 3D characters.
 
-This overview follows the team's [Devpost project context](docs/devpost.md), the primary source for the project story, research workflow, integrations, and roadmap. [Implementation notes](docs/implementation-notes.md) document the scope and verification of this checkout.
-
 ![Stakeholder selection: four roles and their goals, on frosted glass over an underwater seascape](docs/images/stakeholder-selection.png)
 
-[Quick start](#quick-start) · [How to play](#how-to-play) · [Civic Atlas](#what-stays-after-the-match) · [How we built it](#how-we-built-it) · [Full Devpost context](docs/devpost.md)
+[Quick start](#quick-start) · [How to play](#how-to-play) · [Civic Atlas](#what-stays-after-the-match) · [How we built it](#how-we-built-it)
 
 ## Inspiration
 
 More than **100 million people** have played GeoGuessr, exploring places they have never visited because it is fun. Strategy games get people to spend evenings deciding things for imaginary cities. Engaging people in real decisions about their own neighborhood is harder.
 
-The Devpost context brings together examples of that challenge: Rio Rancho's professionally run 2025 survey reached 3,000 randomly selected households and received an **11% response**, while University of Michigan researchers found **65% of Michigan local jurisdictions** struggled to engage people beyond repeat participants. These figures describe participation challenges, not a claim that surveys are broken.
+Rio Rancho's professionally run 2025 survey reached 3,000 randomly selected households and received an **11% response**, while University of Michigan researchers found **65% of Michigan local jurisdictions** struggled to engage people beyond repeat participants. These figures describe participation challenges, not a claim that surveys are broken.
 
 Engagement also takes resources. Seattle advertised an estimated **$250,000** contract for broad community stewardship and engagement around its I-5 lid studies, not one survey. An American Planning Association interview described one regional council sending about 20,000 survey invitations and offering **$125 gift cards** for longer follow-up interviews.
 
-People do show up when taking part is easy. Boston's first citywide participatory budgeting cycle held 19 idea workshops and three visioning forums, worked in six languages, and collected **4,462 votes** in January 2025. **131,527 New Yorkers** voted in The People's Money in 2025. [Source descriptions supplied with the Devpost context](docs/devpost.md#sources).
+People do show up when taking part is easy. Boston's first citywide participatory budgeting cycle held 19 idea workshops and three visioning forums, worked in six languages, and collected **4,462 votes** in January 2025. **131,527 New Yorkers** voted in The People's Money in 2025.
 
 Our question is what happens **before** someone votes yes or no. A resident might support raising a flood-prone road **only if** the city guarantees access to their front door. A business owner might back a different design. Someone else might want the project stopped. That “only if” is the information we wanted to collect.
 
-Miami Beach gave us a real place to try it. The submission cites its 2025 Sea Level Rise Adaptation Plan's **67,000-plus vulnerable assets**, supported by a **$454,000 Resilient Florida grant** and **$100,000 city match**. It cites a **$100,229,771** published budget for [West Avenue Neighborhood Improvements](https://www.miamibeachfl.gov/projects/west-avenue-neighborhood-improvements-project-phase-ii/): raised roads, pumping, utilities, and harmonization, connecting raised public streets to existing private properties.
+Miami Beach gave us a real place to try it. Its 2025 Sea Level Rise Adaptation Plan identified **67,000-plus vulnerable assets**, with the underlying work supported by a **$454,000 Resilient Florida grant** and **$100,000 city match**. [West Avenue Neighborhood Improvements](https://www.miamibeachfl.gov/projects/west-avenue-neighborhood-improvements-project-phase-ii/) has a **$100,229,771** published budget: raised roads, pumping, utilities, and harmonization, connecting raised public streets to existing private properties.
 
 That is a real, expensive, complicated decision about a neighborhood. We wondered what it would be like to play that conflict as a card game, something like a round of Clash Royale. That became Coastal Clash.
 
@@ -51,7 +49,7 @@ The map contains South Pointe, West Avenue, Collins/Mid-Beach, and North Beach O
 
 These cards are simplified options authored for the game. They do not imply that the city put exactly three choices on a ballot. Costs use hypothetical game budget units.
 
-The underlying stories are concrete: safe access beside raised streets on West Avenue; a tower over 500 feet tall in exchange for a developer-donated three-acre park at South Pointe; and roughly 835,000 cubic yards of sand under a $40.4 million beach-renourishment contract, alongside debate over structures to retain it. The [Devpost sources](docs/devpost.md#sources) and [research corpus](pipeline/research/miami-beach-civic-corpus.json) preserve differences in reported tower height, sand volume, and project cost.
+The underlying stories are concrete: safe access beside raised streets on West Avenue; a tower over 500 feet tall in exchange for a developer-donated three-acre park at South Pointe; and roughly 835,000 cubic yards of sand under a $40.4 million beach-renourishment contract, alongside debate over structures to retain it. The [research corpus](pipeline/research/miami-beach-civic-corpus.json) preserves differences in reported tower height, sand volume, and project cost.
 
 ### 1. Play a Card
 
@@ -133,7 +131,7 @@ The server owns proposals, amendments, voting, budgets, and scoring. Shared Type
 
 ### The research swarm
 
-Planning information is public but scattered across board agendas, project pages, hearings, public comments, budgets, GIS layers, and local news. The Devpost describes the team's multi-agent civic research desk:
+Planning information is public but scattered across board agendas, project pages, hearings, public comments, budgets, GIS layers, and local news. The team's multi-agent civic research workflow divides that work into these roles:
 
 | Role | Responsibility |
 | --- | --- |
@@ -150,7 +148,7 @@ Repository entry points: [research corpus](pipeline/research/miami-beach-civic-c
 
 ### Tracks we are entering
 
-The submission describes these uses across the project:
+Each track connects to a different part of the project:
 
 | Track / technology | Contribution |
 | --- | --- |
@@ -166,13 +164,13 @@ The submission describes these uses across the project:
 
 ### Public records and contribution incentives
 
-The project's public-ledger workflow, described in the Devpost submission, fingerprints role-play decisions with **SHA-256**, writes a plain-language outcome summary as a **Solana memo**, and anchors batches as a **Merkle root**. Each match keeps its proof; a verify page recomputes the fingerprint and checks it against the chain. Names and voluntary personal answers are excluded: the public record concerns seats, roles, and game decisions.
+The project's public-ledger design fingerprints role-play decisions with **SHA-256**, writes a plain-language outcome summary as a **Solana memo**, and anchors batches as a **Merkle root**. Each covered match keeps its proof; a verify page recomputes the fingerprint and checks it against the chain. Names and voluntary personal answers are excluded: the public record concerns seats, roles, and game decisions.
 
 The service is designed to fail softly: a slow chain or an unfunded key does not block a match, and failed memos can be retried. Solana is **not part of the live demo**.
 
 Recording input is one part of participation; giving people a reason to contribute is another. The incentive layer, first explored in **Mayday Mayor**, is a collectible **non-transferable contribution card** on Solana. A city or planning partner acts as collection authority and recognizes useful input, such as a compromise or a previously missed concern. Cards cannot be traded or bought, and partners can verify them and honor perks off chain.
 
-As stated in the submission, this incentive layer is a **design and devnet prototype with simulated authority**, not a live city program or part of the demo. See [checkout implementation notes](docs/implementation-notes.md#research-ledger-and-incentives) for the code paths and integration scope available here.
+This incentive layer is a **design and devnet prototype with simulated authority**, not a live city program or part of the demo.
 
 ## Quick start
 
@@ -195,7 +193,7 @@ All API keys are optional. To enable integrations, copy `.env.example` to `.env`
 | `ELEVENLABS_API_KEY` | Spoken headlines and character lines; otherwise captions without generated speech. |
 | `DATABASE_URL` | Tiger Data/PostgreSQL; otherwise records persist in `server/.cache/matches.json`. |
 | `SNOWFLAKE_ACCOUNT`, `SNOWFLAKE_TOKEN`, `SNOWFLAKE_WAREHOUSE`, `SNOWFLAKE_ROLE` | Research feed; the Planning Edition's committed scenarios remain playable without it. |
-| `SOLANA_PAYER_SECRET_KEY`, `SOLANA_RPC_URL` | Optional devnet ledger configuration; see the implementation notes for supported record types. |
+| `SOLANA_PAYER_SECRET_KEY`, `SOLANA_RPC_URL` | Optional devnet ledger configuration. |
 | `PUBLIC_URL` | Public base URL for room QR links; otherwise the host's LAN address is used locally. |
 
 Optional integrations fail independently so a missing key does not block the game. See [the developer guide](docs/contributing.md) for configuration and troubleshooting.
@@ -214,7 +212,7 @@ bun run start        # serves the built client, API, and WebSockets on :8787
 
 ## Verification and developer notes
 
-The default game is **Planning Edition**, rules `coastal-clash-rules/planning-1.0.0`. The public project narrative is maintained in [Devpost context](docs/devpost.md); code-specific integration scope is maintained in [implementation notes](docs/implementation-notes.md).
+The default game is **Planning Edition**, rules `coastal-clash-rules/planning-1.0.0`.
 
 - Three-round play, bots, explicit scoring, amendment negotiation, the simulator, and Planning Edition Atlas are implemented.
 - **215 automated tests across 20 files** pass, along with workspace typechecking and the production build, as of October 11, 2026.
@@ -242,7 +240,7 @@ Details: [Planning Edition](docs/planning-edition.md), [UI verification](docs/pr
 - A research-to-scenario workflow that keeps source documents accessible to players.
 - A simulator that compares all 1,400 feasible plans with its assumptions in the open.
 - A Civic Atlas that preserves the distinction between role-play and personal answers and shows sample sizes.
-- A project-level public-ledger workflow and a contribution-card incentive design, described in the Devpost context.
+- A project-level public-ledger workflow and a contribution-card incentive design.
 - A Frutiger Aero look people want to click before they discover it is civic technology.
 
 ## What we learned
@@ -257,7 +255,9 @@ Run a participatory planning workshop with residents and planning researchers. C
 
 ## Sources and further reading
 
-The [full Devpost context and source list](docs/devpost.md#sources) is the primary narrative reference, including the engagement examples from GeoGuessr, Rio Rancho, the University of Michigan, Seattle, the American Planning Association, Boston, and New York City. Scenario sources are clickable in the game and recorded in the [civic corpus](pipeline/research/miami-beach-civic-corpus.json). Start with:
+The engagement examples draw on GeoGuessr's company overview, Rio Rancho's 2025 Citizen Survey, the University of Michigan's Michigan Public Policy Survey, Seattle's I-5 lid engagement solicitation, the American Planning Association's *Why Paid Community Engagement Is Worth the Investment*, Boston's first participatory budgeting cycle, and New York City's 2025 People's Money results.
+
+Scenario sources are clickable in the game and recorded in the [civic corpus](pipeline/research/miami-beach-civic-corpus.json). Start with:
 
 - [City of Miami Beach: West Avenue Neighborhood Improvements](https://www.miamibeachfl.gov/projects/west-avenue-neighborhood-improvements-project-phase-ii/).
 - [Miami Today: 44-story limit on the Alton Road site](https://www.miamitodaynews.com/breaking/beach-commission-hear-44-story-limit-alton-road-site/).

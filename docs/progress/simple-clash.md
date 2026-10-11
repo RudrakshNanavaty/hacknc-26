@@ -7,6 +7,8 @@ Last updated 2026-10-11.
 
 ## Devpost narrative alignment (2026-10-11)
 
+- Follow-up: removed all Devpost-context and implementation-notes references from the main README at the user's request.
+  The supporting documents remain in `docs/`; the README presents the project directly.
 - At the user's request, `docs/devpost.md` preserves the supplied Devpost context as the primary source for public-facing project information.
   The README now follows that source for inspiration and participation figures, the research swarm, sponsor tracks, public ledger,
   contribution incentives, accomplishments, lessons, and roadmap.
