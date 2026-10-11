@@ -33,7 +33,16 @@ pratham/map-board-onboarding   d6b311f   three round steps, plain cards, Sprint 
 - The Gemini key returns HTTP 402 (credits depleted): narration uses templates and card pictures are placeholders.
 - Planning Edition's own verification notes are in `planning-edition.md` ("Verified and not verified").
 
-## UI consistency pass (2026-10-11, working tree)
+## Main comparison and merge check (2026-10-11)
+
+- At the user's request, fetched `origin/main` and compared its history and tree with this branch.
+- Remote `main` is `31f3040` (`Initial Commit`), the original Next.js starter, already an ancestor of this branch.
+  There are no main-only commits. Its old `src/`, root `public/`, Next.js configuration and starter dependencies have already
+  been removed/replaced in this branch; nothing obsolete was reintroduced or needed further deletion.
+- Saved the UI work as `b75c47b`, then ran `git merge --no-edit origin/main`: `Already up to date.` No conflicts or merge commit.
+- Typechecking, all 215 tests, and the production build pass. No remote branch was modified or pushed.
+
+## UI consistency pass (2026-10-11, `b75c47b`)
 
 - Landing, onboarding, loading, and lobby now share `ui/CoastalShell.tsx`: the same header, glossy wordmark, seascape,
   and 78% desktop content width (maximum 1440px), with tablet/mobile gutters.
