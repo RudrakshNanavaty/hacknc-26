@@ -22,7 +22,7 @@
 
 ## Run it
 
-Requires Node 20+.
+Requires Node 20.19+ or 22.12+. New to the repo? Start with [`docs/contributing.md`](docs/contributing.md).
 
 ```bash
 npm install

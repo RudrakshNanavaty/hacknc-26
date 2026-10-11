@@ -5,6 +5,8 @@ Several people and coding agents work in this repo during HackNC 2026. Follow th
 ## Read first
 1. `AGENTS.md` (this file).
 2. `docs/coastal-clash.md`: the product, the code audit, the architecture, the rules and the demo script.
+3. `docs/contributing.md`: setup, the code map, recipes for common changes, the done checklist, troubleshooting.
+   Agents: `docs/skills/coastal-clash/SKILL.md` is the same as a skill (copy it to `.claude/skills/` to load it in Claude Code).
 
 ## Architecture
 ```
