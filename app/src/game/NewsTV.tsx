@@ -129,8 +129,9 @@ function crawlItems(state: RoomState): string[] {
 }
 
 /** The strip across the top: an alert label, then the items crawling left, looped. */
-function Crawl({ state, label }: { state: RoomState; label: string }) {
-  const text = crawlItems(state).join('  ◆  ');
+function Crawl({ state, label, quiet }: { state: RoomState; label: string; quiet: boolean }) {
+  // While a player decides, the crawl holds still on one line instead of competing with the instruction.
+  const text = quiet ? 'Your move: the news waits. Tap the TV to read it.' : crawlItems(state).join('  ◆  ');
   const probe = useRef<HTMLSpanElement>(null);
   const [fit, setFit] = useState({ reps: 2, ms: 60000 });
   useLayoutEffect(() => {
@@ -144,18 +145,18 @@ function Crawl({ state, label }: { state: RoomState; label: string }) {
   return (
     <div className="crawl" aria-hidden>
       <span className="crawl-tag"><i />{label}</span>
-      <span className="crawl-view">
+      {quiet ? <span className="crawl-view"><span className="crawl-item">{text}</span></span> : <span className="crawl-view">
         <span ref={probe} className="crawl-probe">{text}</span>
         <span key={text} className="crawl-track" style={{ ['--crawl-ms' as string]: `${fit.ms}ms` }}>
           {half}
           {half}
         </span>
-      </span>
+      </span>}
     </div>
   );
 }
 
-export function NewsTV({ state, open, setOpen }: { state: RoomState; open: boolean; setOpen: (open: boolean) => void }) {
+export function NewsTV({ state, open, setOpen, quiet = false }: { state: RoomState; open: boolean; setOpen: (open: boolean) => void; quiet?: boolean }) {
   const c = state.crisis;
   const kind = c ? CRISIS_KIND_INFO[c.kind] : null;
   const crisisPhase = state.phase === 'crisis';
@@ -187,8 +188,8 @@ export function NewsTV({ state, open, setOpen }: { state: RoomState; open: boole
 
   return (
     <>
-      <Crawl state={state} label={label} />
-      <div className="tv-zone">
+      <Crawl state={state} label={label} quiet={quiet} />
+      <div className={`tv-zone ${quiet ? 'is-quiet' : ''}`}>
         <button
           type="button" className="tv hud-block" onClick={() => setOpen(!open)} aria-expanded={open} aria-controls="news-drawer"
           aria-label="Coastal Clash Live news desk. Show details"

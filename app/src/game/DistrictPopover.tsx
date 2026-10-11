@@ -1,15 +1,16 @@
-// Click an area, see what you can do there. The popover lists the four cards this crisis dealt you:
-// the ones the real zoning and FEMA layers allow here are lit, the rest are greyed with the reason.
-// Pick one to read it in full, with the before/after preview, then deploy it. A deployment is final.
+// Confirm a card on the map. Pick a card, click a green area, and this small card pins to that area:
+// what it does here (benefit, downside, city money before -> after), then Lock it in, or change the area
+// or the card first. Locking is final for the round. Clicking an area with no card in hand lists the
+// cards you could play there instead. The full card, its rules and "Why here?" sit under More.
 import { useEffect, useState } from 'react';
 import type { Map as MapLibreMap } from 'maplibre-gl';
-import { CARDS, DISTRICT_IDS, cardEligibility, cardName, dealtHand, districtById, projectPreview, type CardId, type RoomState } from '@shared';
+import { CARDS, DISTRICT_IDS, cardEligibility, cardName, dealtHand, districtById, projectPreview, simpleCard, type CardId, type RoomState } from '@shared';
 import type { Room } from '../room/useRoom';
 import { explain } from '../api';
 import { MapAnchor } from '../map/MapAnchor';
 import { playDeal } from '../ui/sound';
 import { CharacterCard } from './GameCard';
-import { CardExtras, PreviewBox, WhyButton } from './insights';
+import { CardExtras, WhyButton } from './insights';
 import { CardArt } from './CardArt';
 
 /** Why a card cannot be played in an area right now (null: it can). */
@@ -20,14 +21,14 @@ export function blocker(id: CardId, district: string, influence: number): string
   return null;
 }
 
-/** How many of your cards you could play in each area (the chips show it). */
+/** How many of your cards you could play in an area. */
 export function playableCount(state: RoomState, district: string): number {
   const me = state.players.find((p) => p.seat === state.you);
   if (!me) return 0;
   return dealtHand(me.persona, state.round, state.crisis).filter((id) => !blocker(id, district, me.influence)).length;
 }
 
-export function DistrictPopover({ state, room, map, district, setDistrict, onCard, initialCard = null }: {
+export function DistrictPopover({ state, room, map, district, setDistrict, onCard, onArm, initialCard = null }: {
   state: RoomState;
   room: Room;
   map: MapLibreMap | null;
@@ -35,6 +36,8 @@ export function DistrictPopover({ state, room, map, district, setDistrict, onCar
   setDistrict: (d: string | null) => void;
   /** The card being read: the map lights up the other areas it may go to. */
   onCard: (c: CardId | null) => void;
+  /** Hold a card in the hand (Change area keeps it; Change card drops it). */
+  onArm: (c: CardId | null) => void;
   /** A card already held in the hand: open straight to it here. */
   initialCard?: CardId | null;
 }) {
@@ -44,46 +47,26 @@ export function DistrictPopover({ state, room, map, district, setDistrict, onCar
   useEffect(() => () => onCard(null), [onCard]);
   if (!me) return null;
   const d = districtById(district);
-  const resilience = state.city.districts[district]?.resilience ?? 0;
-  const hand = dealtHand(me.persona, state.round, state.crisis);
   const close = () => setDistrict(null);
 
-  const header = (
-    <div className="flex items-start gap-2">
-      <div className="min-w-0 flex-1">
-        <p className="vr text-18 leading-tight">{d.name}</p>
-        <span className="mt-1 flex items-center gap-2 text-[12px] font-black">
-          <span className="map-chip-meter !w-24"><span style={{ width: `${resilience}%` }} /></span>
-          Resilience {resilience}
-        </span>
-      </div>
-      <span className="lchip">Influence {me.influence}</span>
-      <button type="button" className="hint-x" aria-label="Close" onClick={close}>✕</button>
-    </div>
-  );
-
   if (!card) {
+    const hand = dealtHand(me.persona, state.round, state.crisis);
     return (
-      <MapAnchor map={map} district={district} label={`Your cards for ${d.name}`} onClose={close}>
-        <div className="flex flex-col gap-2">
-          {header}
-          <p className="text-[11px] font-black tracking-wide uppercase opacity-75">Your cards this round</p>
+      <MapAnchor map={map} district={district} label={`Your cards for ${d.name}`} onClose={close} width={330}>
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center gap-2">
+            <p className="vr min-w-0 flex-1 text-18 leading-tight">{d.name}</p>
+            <button type="button" className="hint-x" aria-label="Close" onClick={close}>✕</button>
+          </div>
           {hand.map((id) => {
-            const c = CARDS[id];
             const why = blocker(id, district, me.influence);
             return (
-              <button
-                key={id} type="button" className={`hand-row wet ${why ? 'is-off' : ''}`}
-                onClick={() => setCard(id)} onPointerEnter={() => onCard(id)} onPointerLeave={() => onCard(card)}
-                aria-describedby={`why-${id}`}
-              >
-                <span className="cost-orb">{c.cost}</span>
-                <CardArt id={id} className="hand-art" />
+              <button key={id} type="button" className={`hand-row wet ${why ? 'is-off' : ''}`} disabled={!!why} onClick={() => setCard(id)} title={why ?? undefined}>
+                <span className="cost-orb">{CARDS[id].cost}</span>
                 <span className="min-w-0 flex-1 text-left">
-                  <span className="vr block text-[16px] leading-tight">{cardName(id, state.crisis)}</span>
-                  <span id={`why-${id}`} className={`block text-[12px] leading-snug ${why ? 'font-black text-[#b0123a]' : 'font-semibold opacity-80'}`}>{why ?? c.text}</span>
+                  <span className="vr block text-[15px] leading-tight">{cardName(id, state.crisis)}</span>
+                  <span className={`block truncate text-[12px] ${why ? 'font-black text-[#b0123a]' : 'font-semibold opacity-80'}`}>{why ? 'Not allowed here' : `✅ ${simpleCard(id).good[0]}`}</span>
                 </span>
-                <span className="hand-go" aria-hidden>{why ? '' : '›'}</span>
               </button>
             );
           })}
@@ -93,35 +76,53 @@ export function DistrictPopover({ state, room, map, district, setDistrict, onCar
   }
 
   const why = blocker(card, district, me.influence);
+  const s = simpleCard(card);
   const preview = why ? null : projectPreview(card, district, state.round, state.city, state.crisis ?? undefined);
   const elsewhere = DISTRICT_IDS.filter((id) => id !== district && !blocker(card, id, me.influence));
+  const name = cardName(card, state.crisis);
   return (
-    <MapAnchor map={map} district={district} label={`${cardName(card, state.crisis)} in ${d.name}`} onClose={close} width={440}>
+    <MapAnchor map={map} district={district} label={`${name} in ${d.name}`} onClose={close} width={340}>
       <div className="flex flex-col gap-2">
-        <div className="anchor-top">
-          {header}
-          <button type="button" className="self-start text-[12px] font-black text-[#0a6f9a] underline" onClick={() => setCard(null)}>‹ All your cards</button>
+        <div className="flex items-center gap-2.5">
+          <CardArt id={card} className="confirm-art" />
+          <div className="min-w-0 flex-1">
+            <p className="vr text-[17px] leading-tight">{name}</p>
+            <p className="text-13 font-black opacity-80">in {d.name}</p>
+          </div>
+          <button type="button" className="hint-x" aria-label="Close" onClick={close}>✕</button>
         </div>
-        <CharacterCard id={card} quip={state.quips[card]} note={why} compact />
-        <div className="frost p-2.5"><CardExtras id={card} compact /></div>
-        {preview && <PreviewBox p={preview} />}
-        <div className="flex flex-wrap items-center gap-1.5 text-[12px] font-black">
-          <WhyButton key={`${card}-${district}`} label={why ? 'Why not here?' : 'Why here?'} ask={() => explain({ kind: 'eligibility', card, district })} />
-          {elsewhere.length > 0 && <span className="opacity-80">Also in:</span>}
-          {elsewhere.map((id) => <button key={id} type="button" className="gel gel-sm" onClick={() => setDistrict(id)}>{districtById(id).name}</button>)}
+        {why ? <p className="warn-line">{why}</p> : (
+          <ul className="plain-list">
+            <li className="hc-good">✅ {s.good.join(' · ')}</li>
+            <li className="hc-bad">⚠️ {s.bad.join(' · ')}</li>
+            {preview
+              ? <li className="hc-money">💲 City money ${preview.before.budget}M → <b>${preview.after.budget}M</b>{preview.fundable ? '' : ' (not enough: someone must pay)'}</li>
+              : s.money && <li className="hc-money">💲 {s.money}</li>}
+            {preview?.spotlight && <li className="hc-star">⭐ Crisis area: bonus if it passes</li>}
+          </ul>
+        )}
+        <button
+          type="button" className="gel gel-lime gel-big !min-h-[46px] !text-[18px]" disabled={!!why}
+          onClick={() => {
+            playDeal();
+            room.select(card, district);
+          }}
+        >
+          🔒 Lock it in · <span className="cost-dot">{CARDS[card].cost}</span>
+        </button>
+        <div className="flex gap-1.5">
+          <button type="button" className="gel gel-sm flex-1" onClick={() => { onArm(card); close(); }} disabled={!elsewhere.length}>Change area</button>
+          <button type="button" className="gel gel-sm flex-1" onClick={() => { onArm(null); close(); }}>Change card</button>
         </div>
-        <div className="anchor-foot">
-          <button
-            type="button" className="gel gel-lime gel-big !min-h-[48px] !text-[19px]" disabled={!!why}
-            onClick={() => {
-              playDeal();
-              room.select(card, district);
-            }}
-          >
-            {why ? 'Not playable here' : `Deploy here · ${CARDS[card].cost} influence`}
-          </button>
-          <p className="text-center text-[10.5px] font-black opacity-80">Final: one card a round, face down until everyone plays.</p>
-        </div>
+        <details className="frost p-2 text-13">
+          <summary className="cursor-pointer font-black">More: the full card, its rules, why here</summary>
+          <div className="mt-2 flex flex-col gap-2">
+            <WhyButton key={`${card}-${district}`} label={why ? 'Why not here?' : 'Why here?'} ask={() => explain({ kind: 'eligibility', card, district })} />
+            <CharacterCard id={card} quip={state.quips[card]} note={why} compact />
+            <CardExtras id={card} compact />
+            {elsewhere.length > 0 && <p className="text-[12px] font-bold">Also fits: {elsewhere.map((id) => districtById(id).name).join(', ')}</p>}
+          </div>
+        </details>
       </div>
     </MapAnchor>
   );

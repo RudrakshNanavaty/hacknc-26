@@ -1,40 +1,59 @@
-// The case file: the proposal on the table, pinned to its area on the map. At the reveal it shows the
-// clash (who backs it, who fights it); in negotiation it is the table: support vs opposition as the
-// rules engine counts them right now, deals on offer, and your one move. Other proposals are a tab
-// away, or a click on their marker on the map.
+// The case file (step 2, Make a Deal), pinned beside the proposal's area. Top: the project, where, whose,
+// and its likely outcome right now (the rules engine run on the table as it stands). Then only the moves
+// you can actually make, each with a one-line preview of what it changes, computed by running the engine
+// with that move added: Support (+1 support), Oppose (+1 opposition), Pay for it (the `fund` move: you
+// cover its public bill), Accept deal (a compromise offered on your own project). Who played what,
+// table hints, reactions and cards with nothing to act on are under More.
 import { useEffect, useMemo } from 'react';
 import type { Map as MapLibreMap } from 'maplibre-gl';
-import { CARDS, cardName, PERSONA_INFO, PING_EMOTES, PROJECTS, districtById, resolveRound, type Attachment, type Board, type RoomState } from '@shared';
+import {
+  CARDS, NEGOTIATION_COST, PERSONA_INFO, PING_EMOTES, PROJECTS, cardName, districtById, resolveRound,
+  type Attachment, type Board, type NegotiationAction, type NegotiationMove, type Outcome, type OutcomeStatus, type Proposal, type RoomState,
+} from '@shared';
 import type { Room } from '../room/useRoom';
 import { MapAnchor } from '../map/MapAnchor';
-import { STATUS_STYLE } from './format';
 import { Hints, IfItPasses } from './insights';
-import { Soap, Tube } from './ui';
+import { Soap } from './ui';
 import { useCard } from './story';
 import { CardArt } from './CardArt';
+import { moveBlocker } from './moves';
 
 const placeName = (id: string) => districtById(id).name;
 const who = (state: RoomState, seat: number) => state.players.find((p) => p.seat === seat);
+
+/** The likely outcome, in a few words. */
+export const LIKELY: Record<OutcomeStatus, { icon: string; text: string }> = {
+  approved: { icon: '✅', text: 'Would pass' },
+  rejected: { icon: '❌', text: 'Would be rejected' },
+  blocked: { icon: '⛔', text: 'Blocked by a rule' },
+  delayed: { icon: '⏳', text: 'Tie: delayed a round' },
+  unfunded: { icon: '💸', text: 'Passes, but nobody pays' },
+};
 
 function sideOf(a: Attachment): 'backs' | 'fights' | 'deal' {
   const cat = CARDS[a.card].category;
   return cat === 'opposition' ? 'fights' : cat === 'negotiation' ? 'deal' : 'backs';
 }
 
-function ClashCard({ a, state, side }: { a: Attachment; state: RoomState; side: 'backs' | 'fights' | 'deal' }) {
-  const c = CARDS[a.card];
+function ClashCard({ a, state }: { a: Attachment; state: RoomState }) {
   const story = useCard(a.card);
+  const side = sideOf(a);
   return (
     <div className={`sc wet ${side} ${side === 'fights' ? 'land-r' : 'land-l'}`}>
       <CardArt id={a.card} className="sc-art" />
       <span>{story.name}</span>
-      <span className="text-[11px] opacity-70">{who(state, a.seat)?.name}</span>
+      <span className="text-[11px] opacity-70">{side === 'fights' ? '👎 ' : '👍 '}{who(state, a.seat)?.name}</span>
     </div>
   );
 }
 
-function Loose({ list, state }: { list: Attachment[]; state: RoomState }) {
-  return <>{list.map((a) => <p key={a.seat} className="mt-1 text-13"><b>{cardName(a.card, state.crisis)}</b> ({who(state, a.seat)?.name}) in {placeName(a.district)}: {CARDS[a.card].fallback?.text}</p>)}</>;
+interface Action {
+  key: string;
+  label: string;
+  cost: number;
+  effect: string;
+  after: Outcome | undefined;
+  run: () => void;
 }
 
 export function CaseFile({ state, room, map, focus, setFocus }: { state: RoomState; room: Room; map: MapLibreMap | null; focus: string | null; setFocus: (id: string | null) => void }) {
@@ -46,36 +65,62 @@ export function CaseFile({ state, room, map, focus, setFocus }: { state: RoomSta
     if (board && (!focus || !board.proposals.some((p) => p.id === focus))) setFocus(board.proposals[0]?.id ?? null);
   }, [board, focus, setFocus]);
   if (!board || !preview) return null;
-  const p = board.proposals.find((x) => x.id === focus) ?? board.proposals[0];
+  const p: Proposal | undefined = board.proposals.find((x) => x.id === focus) ?? board.proposals[0];
   const loose = board.attachments.filter((a) => !a.proposalId);
-  const done = !!me && state.players.find((x) => x.seat === me.seat)?.ready;
+  const done = !!me?.ready && negotiating;
 
   if (!p) {
     return (
       <aside className="float-card side-float flex flex-col gap-2" aria-label="This round's table">
-        <h2 className="glow-title !text-[26px]">No proposals this round</h2>
-        <Loose list={loose} state={state} />
-        {negotiating && me && !done && <p className="text-center text-13 font-black">Nothing to negotiate. Pass from your hand below.</p>}
+        <h2 className="glow-title !text-[24px]">No projects this round</h2>
+        <p className="text-13 font-semibold">Nobody proposed a project, so there is nothing to vote on.</p>
+        {negotiating && me && !done && <button type="button" className="gel gel-lime gel-big" onClick={room.done}>Done ▶</button>}
       </aside>
     );
   }
 
   const o = preview.outcomes.find((x) => x.proposalId === p.id)!;
   const acting = board.attachments.filter((a) => a.proposalId === p.id);
-  const backs = acting.filter((a) => sideOf(a) !== 'fights');
-  const fights = acting.filter((a) => sideOf(a) === 'fights');
   const moves = state.actions.filter((a) => a.proposalId === p.id);
-  const counted = o.opposition - o.ignored;
-  const max = Math.max(4, o.support, counted);
   const owner = PERSONA_INFO[p.persona];
-  const st = STATUS_STYLE[o.status];
-  const offers = board.compromises.filter((c) => c.proposalId === p.id);
   const moved = !!state.mine?.moved;
+  const likely = LIKELY[o.status];
   const hints = negotiating ? state.hints?.list ?? [] : [];
 
+  // What each move would do, from the engine itself.
+  const outcomeWith = (extra: NegotiationAction | null, acceptId: string | null) => {
+    const b: Board = acceptId ? { ...board, compromises: board.compromises.map((c) => (c.id === acceptId ? { ...c, accepted: true } : c)) } : board;
+    return resolveRound(b, extra ? [...state.actions, extra] : state.actions, state.city).outcomes.find((x) => x.proposalId === p.id);
+  };
+  const actions: Action[] = [];
+  if (negotiating && me && !done) {
+    for (const c of board.compromises.filter((x) => x.proposalId === p.id && x.owner === me.seat && !x.accepted)) {
+      actions.push({ key: c.id, label: `🤝 Accept deal: ${c.title}`, cost: 0, effect: `Offered by ${who(state, c.offeredBy)?.name}`, after: outcomeWith(null, c.id), run: () => room.accept(c.id) });
+    }
+    if (!moved) {
+      const MOVES: { move: NegotiationMove; label: string; effect: string }[] = [
+        { move: 'back', label: '👍 Support', effect: '+1 support' },
+        { move: 'oppose', label: '👎 Oppose', effect: '+1 opposition' },
+        { move: 'fund', label: '💲 Pay for it', effect: `You cover its $${PROJECTS[p.kind].budgetCost}M bill, not the city` },
+      ];
+      for (const m of MOVES) {
+        if (moveBlocker(m.move, { board, seat: me.seat, influence: me.influence, proposalId: p.id, funding: o.funding })) continue;
+        actions.push({
+          key: m.move, label: m.label, cost: NEGOTIATION_COST[m.move], effect: m.effect,
+          after: outcomeWith({ seat: me.seat, persona: me.persona, move: m.move, proposalId: p.id }, null), run: () => room.move(m.move, p.id),
+        });
+      }
+    }
+  }
+  const afterText = (a: Outcome | undefined) => {
+    if (!a) return '';
+    const l = LIKELY[a.status];
+    return a.status === o.status ? `still ${l.text.toLowerCase()}` : `${l.icon} ${l.text.toLowerCase()}!`;
+  };
+
   return (
-    <MapAnchor map={map} district={p.district} label={`${PROJECTS[p.kind].name} in ${placeName(p.district)}`} width={400}>
-      <div className="flex flex-col gap-2.5">
+    <MapAnchor map={map} district={p.district} label={`${PROJECTS[p.kind].name} in ${placeName(p.district)}`} width={360}>
+      <div className="flex flex-col gap-2">
         {board.proposals.length > 1 && (
           <div className="tabs">
             {board.proposals.map((x) => (
@@ -85,65 +130,55 @@ export function CaseFile({ state, room, map, focus, setFocus }: { state: RoomSta
             ))}
           </div>
         )}
-        <div className="flex items-center gap-3">
-          <Soap size={64} tint={owner.color}>{PROJECTS[p.kind].marker}</Soap>
+        <div className="flex items-center gap-2.5">
+          <Soap size={54} tint={owner.color}>{PROJECTS[p.kind].marker}</Soap>
           <div className="min-w-0 flex-1">
-            <p className="vr text-18 leading-tight">{PROJECTS[p.kind].name}</p>
-            <p className="text-13 font-semibold">{owner.emoji} {who(state, p.seat)?.name} · {placeName(p.district)}</p>
-            {p.carried && <span className="lchip lchip-sun mt-1">Delayed from last round</span>}
+            <p className="vr text-[17px] leading-tight">{PROJECTS[p.kind].name}</p>
+            <p className="text-13 font-semibold">📍 {placeName(p.district)} · {who(state, p.seat)?.name}{p.carried ? ' · from last round' : ''}</p>
           </div>
-          <span key={`${p.id}-${o.status}`} className={`verdict-pill ${o.status} stamp-in relative !text-[15px] ${o.status === 'approved' ? 'sparkle' : ''}`}>
-            {negotiating ? `${st.label}${o.status === 'approved' ? '!' : ''}` : 'Clash!'}
-          </span>
         </div>
-        <Tube tone="lime" value={o.support} max={max} label={<span className="vr">Support</span>} right={o.support} />
-        <Tube tone="coral" value={counted} max={max} label={<span className="vr">Opposition</span>} right={counted} />
-
-        {(backs.length > 0 || fights.length > 0) && (
-          <div className="clash-row">
-            {backs.map((a) => <ClashCard key={a.seat} a={a} state={state} side={sideOf(a)} />)}
-            {backs.length > 0 && fights.length > 0 && <span className="lchip lchip-ink">vs</span>}
-            {fights.map((a) => <ClashCard key={a.seat} a={a} state={state} side="fights" />)}
-          </div>
+        <p key={`${p.id}-${o.status}`} className={`likely is-${o.status} stamp-in`}>
+          <span>{likely.icon} {likely.text}</span>
+          <small>{o.support} for · {o.opposition - o.ignored} against</small>
+        </p>
+        {!negotiating && acting.length > 0 && (
+          <div className="clash-row">{acting.map((a) => <ClashCard key={a.seat} a={a} state={state} />)}</div>
         )}
-        {acting.length === 0 && <p className="frost p-2 text-center text-13">No one else played on this proposal. It stands on its own support.</p>}
-        <IfItPasses state={state} p={p} o={o} />
-        {moves.length > 0 && <p className="text-center text-13 font-black">{moves.map((m) => `${who(state, m.seat)?.name} ${m.move === 'back' ? 'backs it 👍' : m.move === 'oppose' ? 'opposes it 👎' : 'funds it 💰'}`).join(' · ')}</p>}
 
-        {offers.map((c) => (
-          <div key={c.id} className={`frost p-3 ${c.accepted ? 'ring-2 ring-[#8bd346]' : ''}`}>
-            <p className="vr text-[16px]">🤝 {c.title} {c.accepted ? <span className="lchip lchip-lime ml-1">Accepted</span> : <span className="lchip ml-1">offered by {who(state, c.offeredBy)?.name}</span>}</p>
-            <p className="mt-1 text-13 font-semibold">{c.text}</p>
-            {negotiating && !c.accepted && c.owner === state.you && <button type="button" className="gel gel-sun gel-sm mt-2" onClick={() => room.accept(c.id)}>Accept the deal</button>}
-            {negotiating && !c.accepted && c.owner !== state.you && <p className="mt-1 text-[12px] opacity-75">Waiting for {who(state, c.owner)?.name} to accept…</p>}
-          </div>
+        {actions.map((a) => (
+          <button key={a.key} type="button" className="act-row" onClick={a.run}>
+            <span className="act-main">
+              <b>{a.label}</b>
+              <small>{a.effect}{a.after ? ` → ${afterText(a.after)}` : ''}</small>
+            </span>
+            {a.cost > 0 ? <span className="cost-dot" title={`${a.cost} influence`}>{a.cost}</span> : <span className="act-free">free</span>}
+          </button>
         ))}
-
-        {negotiating && me && (
-          <div className="flex items-center justify-center gap-1.5" role="group" aria-label="React on the map">
-            <span className="text-[12px] font-black opacity-80">React on the map:</span>
-            {PING_EMOTES.map((e) => <button key={e} type="button" className="ping-btn" onClick={() => room.ping(p.district, e)} aria-label={`React ${e} on ${placeName(p.district)}`}>{e}</button>)}
-          </div>
-        )}
-
-        {!negotiating && <p className="text-center text-13 font-black">Negotiation opens in a moment: back, oppose, fund, or take a deal.</p>}
-
-        {(hints.length > 0 || loose.length > 0) && (
-          <details className="frost p-2 text-13">
-            <summary className="cursor-pointer font-black">
-              {[hints.length ? `💡 ${hints.length} table hint${hints.length > 1 ? 's' : ''}` : '', loose.length ? `${loose.length} card${loose.length > 1 ? 's' : ''} found nothing to act on` : ''].filter(Boolean).join(' · ')}
-            </summary>
-            {hints.length > 0 && <div className="mt-2"><Hints hints={hints} state={state} room={room} /></div>}
-            <Loose list={loose} state={state} />
-          </details>
-        )}
-
         {negotiating && me && !done && (
-          <p className="frost p-2 text-center text-[12px] font-black">
-            {moved ? 'Move made. Finish from your hand below.' : 'Play your one move from your hand below: back 1 · oppose 1 · fund 2 influence, or pass.'} The verdict is the rules engine run on the table as it stands.
-          </p>
+          <>
+            {!moved && actions.length === 0 && <p className="text-13 font-bold opacity-80">No move you can afford here. You can still finish.</p>}
+            <button type="button" className={`gel ${moved ? 'gel-lime gel-big' : ''}`} onClick={room.done}>{moved ? 'Done ▶' : 'Pass: keep my influence'}</button>
+          </>
         )}
-        {negotiating && done && <p className="frost p-2 text-center text-13 font-black">You’re done. Waiting for the table…</p>}
+        <IfItPasses state={state} p={p} o={o} />
+
+        <details className="frost p-2 text-13">
+          <summary className="cursor-pointer font-black">More: who played what{hints.length ? ', hints' : ''}{loose.length ? ', other cards' : ''}</summary>
+          <div className="mt-2 flex flex-col gap-2">
+            {negotiating && acting.length > 0 && <div className="clash-row">{acting.map((a) => <ClashCard key={a.seat} a={a} state={state} />)}</div>}
+            {acting.length === 0 && <p className="font-semibold">No one else played a card on this project.</p>}
+            {moves.length > 0 && <p className="font-black">{moves.map((m) => `${who(state, m.seat)?.name}: ${m.move === 'back' ? '👍 support' : m.move === 'oppose' ? '👎 oppose' : '💲 paid'}`).join(' · ')}</p>}
+            {board.compromises.filter((c) => c.proposalId === p.id).map((c) => <p key={c.id}><b>🤝 {c.title}</b>{c.accepted ? ' (accepted)' : ''}: {c.text}</p>)}
+            {hints.length > 0 && <Hints hints={hints} state={state} room={room} />}
+            {loose.map((a) => <p key={a.seat}><b>{cardName(a.card, state.crisis)}</b> ({who(state, a.seat)?.name}) in {placeName(a.district)}: {CARDS[a.card].fallback?.text}</p>)}
+            {negotiating && me && (
+              <div className="flex items-center gap-1.5" role="group" aria-label="React on the map">
+                <span className="text-[12px] font-black opacity-80">React:</span>
+                {PING_EMOTES.map((e) => <button key={e} type="button" className="ping-btn" onClick={() => room.ping(p.district, e)} aria-label={`React ${e} on ${placeName(p.district)}`}>{e}</button>)}
+              </div>
+            )}
+          </div>
+        </details>
       </div>
     </MapAnchor>
   );

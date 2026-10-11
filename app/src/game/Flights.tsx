@@ -7,7 +7,7 @@ import { CARDS, INDICATORS, INDICATOR_INFO, PROJECTS, districtById, type CardId,
 import { GameCard } from './GameCard';
 import { STATUS_STYLE } from './format';
 import { screenPoint, useCameraTick } from '../map/MapAnchor';
-import { playApproved, playBlocked, playReveal, playStamp } from '../ui/sound';
+import { playReveal, playStamp } from '../ui/sound';
 
 interface Flight {
   key: string;
@@ -99,13 +99,7 @@ export function Stamps({ map, state }: { map: MapLibreMap | null; state: RoomSta
   useCameraTick(map);
   const last = state.phase === 'resolve' ? state.history[state.history.length - 1] : null;
   const key = last ? `resolve-${last.round}` : null;
-  useEffect(() => {
-    if (!last) return;
-    const good = last.resolution.outcomes.some((o) => o.status === 'approved');
-    const t = setTimeout(() => (good ? playApproved() : last.resolution.outcomes.length ? playBlocked() : undefined), 350);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key]);
+  // The verdict sounds play with the big stamps in the middle of the screen (Climax.tsx).
   if (!map || !last) return null;
   const perDistrict = new Map<string, number>();
   return (

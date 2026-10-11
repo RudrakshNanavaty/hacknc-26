@@ -98,6 +98,8 @@ export interface MatchRecord {
   /** Where this match's crises came from, and the live readings they were written from. */
   scenarioSource?: 'gemini' | 'authored';
   live?: LiveConditions | null;
+  /** Turn-based or sprint (absent on records made before sprints existed: turn-based). */
+  pace?: 'turns' | 'sprint';
 }
 
 export const SCENARIO_ID = 'miami-beach-coastal-2026';

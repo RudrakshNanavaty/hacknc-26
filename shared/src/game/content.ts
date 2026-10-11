@@ -18,7 +18,7 @@ export const INDICATOR_INFO: Record<Indicator, { label: string; short: string; u
   economy: { label: 'Economic activity', short: 'Economy', unit: '', icon: '💼' },
   environment: { label: 'Environmental health', short: 'Nature', unit: '', icon: '🌿' },
   access: { label: 'Public access', short: 'Access', unit: '', icon: '🏖️' },
-  budget: { label: 'Public budget (hypothetical $M)', short: 'Budget', unit: '$M', icon: '🏛️' },
+  budget: { label: 'Public budget (hypothetical $M)', short: 'Budget', unit: '$M', icon: '💲' },
 };
 
 /** Where the city starts. Flood resilience starts low: most of the playable area is in FEMA's 1% flood zone. */

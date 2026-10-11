@@ -4,14 +4,14 @@
 // here comes from the shared engine or the validated state the server sent; the AI only words things.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  CARDS, COMBOS, INDICATORS, INDICATOR_INFO, NEGOTIATION_COST, PROJECTS, districtById, ifApproved, upcomingCosts,
-  type AcceptedEvent, type CardId, type ComboHit, type Delta, type Outcome, type ProjectPreview, type Proposal, type RoomState, type TableHint,
+  CARDS, COMBOS, NEGOTIATION_COST, PROJECTS, districtById, ifApproved, upcomingCosts,
+  type AcceptedEvent, type CardId, type ComboHit, type Delta, type Outcome, type Proposal, type RoomState, type TableHint,
 } from '@shared';
 import type { Room } from '../room/useRoom';
 import type { ExplainAnswer } from '../api';
-import { deltaText } from './format';
+import { deltaText, plainText } from './format';
+import { MOVE_WORDS } from './moves';
 
-const fmt = (k: keyof typeof INDICATOR_INFO, v: number) => (k === 'budget' ? `$${v}M` : String(v));
 
 /** Count toward a new value (one bounded animation per change; none with reduced motion). */
 export function useTween(value: number, ms = 900) {
@@ -103,34 +103,13 @@ export function Hints({ hints, state, room }: { hints: TableHint[]; state: RoomS
                 type="button" className="gel gel-lime gel-sm"
                 onClick={() => (h.kind === 'accept' && h.compromiseId ? room.accept(h.compromiseId) : h.move && h.move !== 'accept' ? room.move(h.move, h.proposalId) : undefined)}
               >
-                {h.kind === 'accept' ? 'Accept deal' : h.move === 'back' ? `👍 Back (${NEGOTIATION_COST.back})` : h.move === 'oppose' ? `👎 Oppose (${NEGOTIATION_COST.oppose})` : `💰 Fund (${NEGOTIATION_COST.fund})`}
+                {h.kind === 'accept' ? '🤝 Accept deal' : h.move && h.move !== 'accept' ? `${MOVE_WORDS[h.move]} · ${NEGOTIATION_COST[h.move]}` : ''}
               </button>
             )}
             <button type="button" className="hint-x" aria-label="Dismiss hint" onClick={() => setHidden([...hidden, h.id])}>✕</button>
           </div>
         );
       })}
-    </div>
-  );
-}
-
-/** Before -> after for the indicators a project would move, if approved as it stands. */
-export function PreviewBox({ p }: { p: ProjectPreview }) {
-  const moved = INDICATORS.filter((k) => p.after[k] !== p.before[k]);
-  return (
-    <div className="frost flex flex-col gap-1 p-2.5">
-      <p className="text-[10.5px] font-black tracking-wide uppercase opacity-75">If approved as it stands · illustrative</p>
-      <div className="flex flex-wrap gap-x-3 gap-y-1">
-        {moved.map((k) => {
-          const up = p.after[k] > p.before[k];
-          return (
-            <span key={k} className="text-13 font-black whitespace-nowrap">
-              {INDICATOR_INFO[k].short} {fmt(k, p.before[k])} → <span className={up ? 'text-[#2f7a0e]' : 'text-[#c0392b]'}>{fmt(k, p.after[k])}</span>
-            </span>
-          );
-        })}
-      </div>
-      {p.warnings.map((w) => <p key={w} className="warn-line">{w}</p>)}
     </div>
   );
 }
@@ -146,10 +125,11 @@ export function IfItPasses({ state, p, o }: { state: RoomState; p: Proposal; o: 
   const delta: Delta = would?.delta ?? project.delta;
   return (
     <p className="frost px-3 py-2 text-center text-13 font-semibold">
-      {o.status === 'approved' ? 'Passing now: ' : 'If it passes: '}
-      {would?.status === 'unfunded' ? <b>it would be approved but unfunded (no budget left, nobody covering it)</b> : <b>{deltaText(delta) || 'no change'}</b>}
-      {project.budgetCost > 0 && o.funding !== 'covered' && would?.status !== 'unfunded' ? ` · −$${project.budgetCost}M budget` : ''}
-      {project.upkeep > 0 ? ` · then $${project.upkeep}M upkeep a round` : ''}
+      {o.status === 'approved' ? 'If it passes as things stand: ' : 'If it passes: '}
+      {would?.status === 'unfunded' ? <b>approved, but the city cannot pay for it and nobody else is</b> : <b>{plainText(delta) || 'no change'}</b>}
+      {project.budgetCost > 0 && o.funding !== 'covered' && would?.status !== 'unfunded' ? <> · <b className="text-[#8f1d12]">−${project.budgetCost}M city money</b></> : ''}
+      {project.budgetCost > 0 && o.funding === 'covered' ? ' · someone else pays the bill' : ''}
+      {project.upkeep > 0 ? ` · then $${project.upkeep}M a round` : ''}
       <span className="opacity-70"> (illustrative)</span>
     </p>
   );

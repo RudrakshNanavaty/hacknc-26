@@ -1,8 +1,10 @@
-// The end of a round and the end of the match, floating over the map. The round's result sits at
-// the side so the verdict stamps and blooms on the areas stay in view; the podium takes the center.
+// The end of a round and the end of the match, floating over the map. The round's result sits at the
+// side so the verdict stamps on the areas stay in view: one plain sentence per project (status, main
+// upside and downside, money, one reason), with the rules, other effects and sources under More.
+// The podium takes the center.
 import { useMemo, useState } from 'react';
 import {
-  INDICATORS, INDICATOR_INFO, PERSONA_INFO, PREFERENCE_QUESTION, PROJECTS, districtById,
+  INDICATORS, INDICATOR_INFO, PERSONA_INFO, PREFERENCE_QUESTION, PROJECTS, STORM_TEST, districtById,
   type Delta, type Outcome, type Proposal, type RoomState, type RuleEvent,
 } from '@shared';
 import type { Room } from '../room/useRoom';
@@ -13,45 +15,27 @@ import { RoundDots, Soap, Tube } from './ui';
 import { STATUS_STYLE } from './format';
 import { ReadyBar } from './Turn';
 import { EvidenceStrip, SourceChips, Verification } from './story';
+import { outcomeSentence, stormOf } from './Climax';
+import { plainText } from './format';
 
 const placeName = (id: string) => districtById(id).name;
 const proposalName = (p: Proposal) => `${PROJECTS[p.kind].name}`;
 const who = (state: RoomState, seat: number) => state.players.find((p) => p.seat === seat);
 
-function Blooms({ delta }: { delta: Delta }) {
-  const keys = INDICATORS.filter((k) => delta[k]);
-  return (
-    <div className="flex flex-wrap justify-center gap-x-4 gap-y-1">
-      {keys.map((k, i) => (
-        <span key={k} className="glow-num bloom !text-[40px]" style={{ animationDelay: `${0.25 + i * 0.15}s` }}>
-          {delta[k]! > 0 ? '+' : '−'}{Math.abs(delta[k]!)}<span className="text-[26px]">{INDICATOR_INFO[k].icon}</span>
-        </span>
-      ))}
-    </div>
-  );
-}
-
 function Rule({ e }: { e: RuleEvent }) {
   return <li className="flex gap-2 text-[12px] leading-snug"><span className="lchip lchip-aqua !px-2 !py-0">{e.rule}</span><span>{e.text}</span></li>;
 }
 
-function OutcomeCard({ o, state, events, i }: { o: Outcome; state: RoomState; events: RuleEvent[]; i: number }) {
+function OutcomeCard({ o, state, events }: { o: Outcome; state: RoomState; events: RuleEvent[] }) {
   const [open, setOpen] = useState(false);
-  const owner = PERSONA_INFO[o.persona];
+  const line = outcomeSentence(o);
   return (
-    <div className="wet flex flex-col gap-2 p-3">
-      <div className="flex items-center gap-3">
-        <Soap size={72} tint={owner.color}>{PROJECTS[o.kind].marker}</Soap>
-        <div className="min-w-0 flex-1">
-          <p className="vr text-18 leading-tight">{PROJECTS[o.kind].name}</p>
-          <p className="text-13 font-semibold">{placeName(o.district)} · {who(state, o.seat)?.name}</p>
-          <p className="text-[12px] font-semibold opacity-80">{o.support} support vs {o.opposition - o.ignored} opposition</p>
-        </div>
-        <span className={`verdict-pill ${o.status} stamp-in relative ${o.status === 'approved' ? 'sparkle' : ''}`} style={{ animationDelay: `${0.2 + i * 0.3}s` }}>{STATUS_STYLE[o.status].label}{o.status === 'approved' ? '!' : ''}</span>
-      </div>
-      {o.status === 'approved' && <Blooms delta={o.delta} />}
+    <div className={`result-row is-${o.status}`}>
+      <p className="vr text-[17px] leading-tight">{line.head}</p>
+      <p className="text-13 font-black">{line.effect}</p>
+      <p className="text-[12px] font-semibold opacity-85">{line.reason} <span className="opacity-70">· {placeName(o.district)}, {who(state, o.seat)?.name}</span></p>
       {o.conditions.length > 0 && <p className="flex flex-wrap gap-1">{o.conditions.map((c) => <span key={c} className="lchip lchip-sun">🤝 {c}</span>)}</p>}
-      <button type="button" className="self-start text-[12px] font-black text-[#0a6f9a] underline" onClick={() => setOpen(!open)}>{open ? 'Hide' : 'Show'} the rules that decided it</button>
+      <button type="button" className="self-start text-[12px] font-black text-[#0a6f9a] underline" onClick={() => setOpen(!open)}>{open ? 'Hide' : 'Show'} the rules</button>
       {open && <ol className="flex flex-col gap-1">{o.rules.map((id) => events.find((e) => e.id === id)).filter(Boolean).map((e) => <Rule key={e!.id} e={e!} />)}</ol>}
       {open && <WhyButton label="Explain in plain words" ask={() => explain({ kind: 'outcome', code: state.code, proposalId: o.proposalId })} />}
     </div>
@@ -62,16 +46,31 @@ function ResultScreen({ state, room }: { state: RoomState; room: Room }) {
   const last = state.history[state.history.length - 1];
   if (!last) return null;
   const r = last.resolution;
-  const loose = r.events.filter((e) => !r.outcomes.some((o) => o.rules.includes(e.id)));
+  const storm = stormOf(state);
+  const loose = r.events.filter((e) => !r.outcomes.some((o) => o.rules.includes(e.id)) && e.rule !== 'S9');
+  const built = r.outcomes.filter((o) => o.status === 'approved').length;
   return (
     <div className="flex flex-col gap-3">
-      <div className="roundline"><span>Round {state.round} of {state.totalRounds} <RoundDots round={state.round} total={state.totalRounds} /></span></div>
-      <h2 className="glow-title">The city changes</h2>
-      {r.outcomes.map((o, i) => <OutcomeCard key={o.proposalId} o={o} state={state} events={r.events} i={i} />)}
+      <h2 className="glow-title !text-[24px]">Round {state.round}: {r.outcomes.length ? `${built} of ${r.outcomes.length} approved` : 'no projects'}</h2>
+      {storm && (
+        <div className="storm-banner">
+          <span className="text-[30px]">🌀</span>
+          <div>
+            <p className="vr text-16">{storm.held ? 'The storm hit. The city held!' : `The storm hit: −${storm.loss} jobs & business`}</p>
+            <p className="text-13 font-semibold opacity-90">Flood safety {storm.flood}, {storm.flood >= STORM_TEST.threshold ? 'enough' : 'short of'} the {STORM_TEST.threshold} needed.</p>
+          </div>
+        </div>
+      )}
+      {r.outcomes.map((o) => <OutcomeCard key={o.proposalId} o={o} state={state} events={r.events} />)}
       <ComboBanners combos={r.combos ?? []} />
-      {loose.length > 0 && <ol className="frost flex flex-col gap-1 p-3">{loose.map((e) => <Rule key={e.id} e={e} />)}</ol>}
-      {state.crisis && <EvidenceStrip crisis={state.crisis} />}
-      <p className="text-center text-[12px] font-bold opacity-80">Effects are illustrative scenario values. The geography (zoning, FEMA zones) and the live readings are real.</p>
+      <details className="frost p-2 text-13">
+        <summary className="cursor-pointer font-black">More: other effects{state.crisis?.story ? ', the real story' : ''}</summary>
+        <div className="mt-2 flex flex-col gap-2">
+          {loose.length > 0 && <ol className="flex flex-col gap-1">{loose.map((e) => <Rule key={e.id} e={e} />)}</ol>}
+          {state.crisis && <EvidenceStrip crisis={state.crisis} />}
+          <p className="text-[12px] font-bold opacity-80">Effects are illustrative scenario values. The geography (zoning, FEMA zones) and the live readings are real.</p>
+        </div>
+      </details>
       <div className="anchor-foot"><ReadyBar state={state} room={room} label={state.round < state.totalRounds ? 'Next round ▶' : 'See who won ▶'} /></div>
     </div>
   );
@@ -148,8 +147,9 @@ function FinalScreen({ state, room }: { state: RoomState; room: Room }) {
   );
 }
 
-export function ResultOverlay({ state, room }: { state: RoomState; room: Room }) {
+export function ResultOverlay({ state, room, hidden = false }: { state: RoomState; room: Room; hidden?: boolean }) {
   if (state.phase === 'resolve') {
+    if (hidden) return null;
     return <aside className="float-card side-float flex flex-col gap-3" aria-label="Round result"><ResultScreen state={state} room={room} /></aside>;
   }
   if (state.phase === 'final') {

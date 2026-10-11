@@ -1,7 +1,7 @@
 // The lobby: join as a stakeholder, see who is in, and (host) fill seats with bots, pick the session
 // type, then start.
 import { useState, type FormEvent } from 'react';
-import { PERSONAS, PERSONA_INFO, handOf, type PersonaId, type RoomState } from '@shared';
+import { PERSONAS, PERSONA_INFO, SPRINT_MS, handOf, type PersonaId, type RoomState } from '@shared';
 import { Invite } from '../room/Invite';
 import type { Room } from '../room/useRoom';
 import { GameCard } from './GameCard';
@@ -83,6 +83,24 @@ export function JoinForm({ room, create }: { room: Room; create: boolean }) {
   );
 }
 
+/** The whole game in four lines, for someone who has never played. */
+export function HowToPlay() {
+  return (
+    <div className="how-to">
+      <p className="vr text-18">How to play</p>
+      <p className="text-13 font-semibold">Four stakeholders, one real city, three rounds. Each round:</p>
+      <ol className="how-steps">
+        <li><b>1 · Play a Card.</b> Pick one of your four cards, then a green area on the map.</li>
+        <li><b>2 · Make a Deal.</b> See what everyone played. Support it, oppose it, or make a deal.</li>
+        <li><b>3 · See What Happens.</b> Each project is approved or rejected, and the city changes.</li>
+      </ol>
+      <p className="text-13 font-semibold">🌀 After round 3 a storm hits. Get flood safety to 50 or the city pays. Score points for your own goals.</p>
+    </div>
+  );
+}
+
+const ROUND_S = Object.values(SPRINT_MS).reduce((a, b) => a + b, 0) / 1000;
+
 export function Lobby({ state, room }: { state: RoomState; room: Room }) {
   const me = state.you;
   const host = me !== null && me === state.hostSeat;
@@ -124,6 +142,16 @@ export function Lobby({ state, room }: { state: RoomState; room: Room }) {
                 </button>
               ))}
             </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-13 font-bold">Pace</span>
+              <button type="button" className="aero-btn !py-1 text-13" aria-pressed={state.pace === 'turns'} onClick={() => room.pace('turns')}>Turn by turn (no clock)</button>
+              <button type="button" className="aero-btn !py-1 text-13" aria-pressed={state.pace === 'sprint'} onClick={() => room.pace('sprint')}>⏱ Sprint (~{ROUND_S} s a round)</button>
+            </div>
+            <p className="text-13 opacity-80">
+              {state.pace === 'sprint'
+                ? `Sprint: every step has a short clock, about ${ROUND_S} seconds a round, so the match takes under four minutes. Being ready early moves on at once.`
+                : 'Turn by turn: no clock. Each step moves on when everyone is ready.'}
+            </p>
             <p className="text-13 opacity-80">
               {state.sessionKind === 'community'
                 ? 'Community session: records are marked as real community participants in the Civic Atlas.'
@@ -134,8 +162,9 @@ export function Lobby({ state, room }: { state: RoomState; room: Room }) {
             </button>
           </div>
         ) : (
-          <p className="text-15">Waiting for the host to start. Empty seats can be filled by bots.</p>
+          <p className="text-15">Waiting for the host to start ({state.pace === 'sprint' ? `sprint: about ${ROUND_S} s a round` : 'turn by turn, no clock'}). Empty seats can be filled by bots.</p>
         )}
+        <HowToPlay />
       </section>
       <aside className="wet flex flex-col gap-3 p-5 lg:w-[22rem]">
         <Invite code={state.code} />

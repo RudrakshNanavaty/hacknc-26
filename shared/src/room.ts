@@ -13,6 +13,32 @@ export const MAX_PLAYERS = 4;
 export type RoomPhase = 'lobby' | 'crisis' | 'select' | 'reveal' | 'negotiate' | 'resolve' | 'final';
 
 /**
+ * How a match moves. `turns`: no clock, a step ends when everyone present is ready (the default).
+ * `sprint`: the same steps, each on a short server deadline, about a minute a round, so a match of
+ * three rounds fits in under four minutes. Being ready early still moves the table on at once.
+ */
+export type Pace = 'turns' | 'sprint';
+export const PACES: readonly Pace[] = ['turns', 'sprint'];
+export const isPace = (v: unknown): v is Pace => v === 'turns' || v === 'sprint';
+
+/** Sprint deadlines per phase (ms). One round: 6 + 20 + 4 + 18 + 12 = 60 s; the last round's result also plays the storm. */
+export const SPRINT_MS: Record<'crisis' | 'select' | 'reveal' | 'negotiate' | 'resolve', number> = {
+  crisis: 6_000,
+  select: 20_000,
+  reveal: 4_000,
+  negotiate: 18_000,
+  resolve: 12_000,
+};
+/** Extra time on the last round's result, for the storm. */
+export const SPRINT_STORM_MS = 6_000;
+
+/** The three steps a player sees in a round, and which server phases belong to each. */
+export type RoundStep = 'play' | 'deal' | 'result';
+export const STEP_OF: Partial<Record<RoomPhase, RoundStep>> = {
+  crisis: 'play', select: 'play', reveal: 'deal', negotiate: 'deal', resolve: 'result',
+};
+
+/**
  * Quick reactions pinned to an area while the table negotiates. Presentation only: relayed to the
  * room and forgotten, never stored in a record and never counted as anyone's position (rule 3).
  */
@@ -59,8 +85,12 @@ export interface RoomState {
   phase: RoomPhase;
   round: number;
   totalRounds: number;
-  /** Only the opening live-desk wait has a deadline (ms since epoch, server clock). Play is turn-based: phases end when everyone is ready. */
+  /**
+   * When the current phase ends (ms since epoch, server clock). Turn-based play has no deadline except the
+   * opening live-desk wait; in a sprint every phase has one (SPRINT_MS).
+   */
   endsAt: number | null;
+  pace: Pace;
   serverNow: number;
   you: number | null;
   hostSeat: number;
@@ -105,6 +135,8 @@ export type ClientMsg =
   /** Host: fill an empty persona with a bot, or remove one. */
   | { t: 'bot'; persona: PersonaId; on: boolean }
   | { t: 'session'; kind: SessionKind }
+  /** Host, lobby: turn-based or sprint. */
+  | { t: 'pace'; pace: Pace }
   | { t: 'start' }
   /** Host: move on without waiting for whoever is not ready. */
   | { t: 'skip' }

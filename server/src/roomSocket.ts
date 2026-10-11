@@ -15,7 +15,7 @@ import type { ArtService } from './cardArt';
 import { directorFacts, type Director } from './ai/director';
 import {
   RoomError, accept, again, applyDialogue, applyHints, applyScenario, choosePersona, done, findPlayer, getOrCreateRoom, getRoom, join, mapRoles, move,
-  ping, presence, proposeEarlyEvent, proposeEvent, publicState, respond, select, setBot, setSession, skip, start, sweep, tick, type Room,
+  ping, presence, proposeEarlyEvent, proposeEvent, publicState, respond, select, setBot, setPace, setSession, skip, start, sweep, tick, type Room,
 } from './rooms';
 
 const ROOM_PATH = /^\/ws\/rooms\/([A-Za-z]{4})$/;
@@ -30,6 +30,7 @@ function messagePayload(msg: ClientMsg): unknown {
     case 'bot': return { persona: msg.persona, on: msg.on };
     case 'persona': return { persona: msg.persona };
     case 'session': return { kind: msg.kind };
+    case 'pace': return { pace: msg.pace };
     default: return undefined;
   }
 }
@@ -287,6 +288,7 @@ export function roomServer({ store, narrator, scenario, director = null, civic =
       case 'persona': choosePersona(room, player, msg.persona); break;
       case 'bot': setBot(room, player, msg.persona, !!msg.on); break;
       case 'session': setSession(room, player, msg.kind); break;
+      case 'pace': setPace(room, player, msg.pace); break;
       case 'start': start(room, player, now); break;
       case 'skip': skip(room, player, now); break;
       case 'select': select(room, player, msg.card, msg.district, now); break;

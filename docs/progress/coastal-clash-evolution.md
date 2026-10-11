@@ -1,7 +1,9 @@
-# Coastal Clash evolution: working notes
+# Coastal Clash evolution: working notes (history)
+
+> **History only.** These are the notes for milestones M1-M5 on `pratham/coastal-clash`, kept for context. For the current state of
+> this branch read [`map-board.md`](map-board.md). Setup below (npm, 390 px phone checks, the Fisherman) no longer applies.
 
 The brief has five milestones: living map (M1), AI Game Director (M2), card expansion (M3), economy and negotiation UX (M4), polish (M5).
-This file is the source of truth if a session is cut off. **Re-read it before continuing.** Update it at the end of every milestone.
 
 ## Where things stand (2026-10-11, handoff)
 
@@ -98,6 +100,16 @@ The fix was environmental: `fnm install 22` and a `.node-version` file. No code 
   Design calls made while fixing (worth a human look): delayed consequences (bond payment, lobbying backlash) now come due only if
   the backed proposal is approved; a hint pitch must use a verb for its own move; twist narratives with real-news words fall back
   to the template; replays of rules-1.x records are reported as "not comparable".
+- [x] **Readable at a glance (2026-10-11, `rdx/map-board`)**: one screen, one primary action, one short instruction.
+  HUD: Flood safety (with the storm's 50 line) and City money big, the other meters in a City drawer that warns near the floor of 30;
+  one instruction line under the round steps (`Steps.tsx` `instructionFor`). Crisis: a story chip replaces the big briefing; news crawl,
+  TV text and speech bubbles go quiet while you choose or negotiate (bubbles one at a time, at most two a moment). Cards: art, name, one
+  benefit, cost; the downside shows on the card you pick. Placement: suggested area (crisis bonus) without limiting others, compact
+  confirm on the map with Lock it in / Change area / Change card, hand tucks away meanwhile. Deal: the case file shows the project, the
+  likely outcome and only the valid moves, each previewed by running the engine with it (`fund` is labelled "Pay for it"; accepting a
+  compromise is "Accept deal"). Results: one sentence per project (status, main up/downside, money, one reason) instead of full-screen
+  stamps; the storm plays once. Sprint waits 3 s (not 10) for the live desk. `/fx-lab?storm=win|loss` plays the storm from an engine
+  fixture (flood fixed at 62 / 38). Checked in the browser: turn-based at 1440x900 and 1280x720, sprint at 1280x720 (156 s).
 
 ## Open questions for humans
 - The Gemini key in `.env` returns HTTP 402 ("prepayment credits are depleted", 2026-10-11). Everything runs on templates until the

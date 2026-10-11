@@ -51,8 +51,9 @@ export class FileCivicStore implements CivicStore {
   private loaded: Promise<void>;
   private writing: Promise<void> = Promise.resolve();
 
-  constructor(private readonly file = FILE) {
-    this.loaded = readFile(file, 'utf8')
+  /** `file` null: memory only, nothing read or written. */
+  constructor(private readonly file: string | null = FILE) {
+    this.loaded = file === null ? Promise.resolve() : readFile(file, 'utf8')
       .then((t) => {
         const d = JSON.parse(t) as { matches: MatchProof[]; anchors: Anchor[] };
         for (const m of d.matches) this.matches.set(m.matchId, m);
@@ -62,10 +63,12 @@ export class FileCivicStore implements CivicStore {
   }
 
   private persist() {
+    const file = this.file;
+    if (file === null) return this.writing;
     const body = JSON.stringify({ matches: [...this.matches.values()], anchors: [...this.anchorsById.values()] });
     this.writing = this.writing
-      .then(() => mkdir(dirname(this.file), { recursive: true }))
-      .then(() => writeFile(this.file, body))
+      .then(() => mkdir(dirname(file), { recursive: true }))
+      .then(() => writeFile(file, body))
       .catch(() => void (this.kind = 'memory'));
     return this.writing;
   }
@@ -105,7 +108,8 @@ export class FileCivicStore implements CivicStore {
 /** Memory only (tests). */
 export class MemoryCivicStore extends FileCivicStore {
   constructor() {
-    super('/dev/null/coastal-clash-civic-memory.json');
+    // No file at all: a path like /dev/null/x can be created on Windows (C:\dev\null\x), so test runs shared state.
+    super(null);
     this.kind = 'memory';
   }
 }

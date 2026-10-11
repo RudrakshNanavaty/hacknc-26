@@ -1,11 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { AddressInfo } from 'node:net';
 import WebSocket from 'ws';
-import { authoredScenario, type PersonaId, type RoomState, type ServerMsg } from '@shared';
+import { SPRINT_MS, SPRINT_STORM_MS, authoredScenario, type PersonaId, type RoomState, type ServerMsg } from '@shared';
 import { buildServer } from './app';
 import { MemoryStore } from './db/store';
 import {
-  PING_GAP_MS, RECONNECT_GRACE_MS, RoomError, accept, again, applyScenario, choosePersona, done, getOrCreateRoom, join, move, ping, presence, publicState, respond, rooms, select, setBot, skip, start, tick,
+  PING_GAP_MS, RECONNECT_GRACE_MS, RoomError, accept, again, applyScenario, choosePersona, done, getOrCreateRoom, join, move, ping, presence, publicState, respond, rooms, select, setBot, setPace, skip, start, tick,
 } from './rooms';
 
 const fresh = (code = 'ABCD') => {
@@ -119,6 +119,59 @@ describe('room state machine', () => {
     expect(room.phase).toBe('reveal');
     done(room, a, 3 + RECONNECT_GRACE_MS + 1);
     expect(room.phase).toBe('negotiate');
+  });
+
+  it('sprint: every step has a deadline, a full match fits in under four minutes, ready still moves on early', () => {
+    const room = fresh();
+    const a = join(room, 'Ana', 'mayor');
+    const b = join(room, 'Ben', 'activist');
+    expect(() => setPace(room, b, 'sprint')).toThrow(/Only the host/);
+    expect(() => setPace(room, a, 'warp')).toThrow(/pace/);
+    setPace(room, a, 'sprint');
+    start(room, a, 0);
+    expect(() => setPace(room, a, 'turns')).toThrow(/before the match/);
+    expect(room.record!.pace).toBe('sprint');
+    applyScenario(room, authoredScenario(null), 0);
+    expect(publicState(room, a, 0).pace).toBe('sprint');
+    expect(room.endsAt).toBe(SPRINT_MS.crisis);
+    expect(tick(room, SPRINT_MS.crisis - 1)).toBe(false);
+    expect(tick(room, SPRINT_MS.crisis)).toBe(true);
+    expect(room.phase).toBe('select');
+    // Ana plays; Ben never does: the deadline reveals without him.
+    let now = SPRINT_MS.crisis;
+    select(room, a, 'drainage-upgrade', 'west-avenue', now + 1);
+    expect(room.phase).toBe('select');
+    now = room.endsAt!;
+    expect(tick(room, now)).toBe(true);
+    expect(room.phase).toBe('reveal');
+    expect(room.board!.proposals).toHaveLength(1);
+    // Everyone ready ends a sprint step early.
+    done(room, a, now + 1);
+    done(room, b, now + 2);
+    expect(room.phase).toBe('negotiate');
+    // Play the rest of the match on deadlines alone.
+    let t = now + 2;
+    while (room.phase !== 'final') {
+      expect(room.endsAt).not.toBeNull();
+      t = room.endsAt!;
+      tick(room, t);
+    }
+    expect(room.history).toHaveLength(3);
+    expect(t).toBeLessThan(4 * 60_000);
+    // The last result has extra time for the storm.
+    expect(SPRINT_MS.crisis + SPRINT_MS.select + SPRINT_MS.reveal + SPRINT_MS.negotiate + SPRINT_MS.resolve).toBe(60_000);
+    expect(SPRINT_STORM_MS).toBeGreaterThan(0);
+  });
+
+  it('turn-based is the default and never times out', () => {
+    const room = fresh();
+    const a = join(room, 'Ana', 'mayor');
+    expect(publicState(room, a, 0).pace).toBe('turns');
+    start(room, a, 0);
+    applyScenario(room, authoredScenario(null), 0);
+    expect(room.endsAt).toBeNull();
+    expect(tick(room, 3_600_000)).toBe(false);
+    expect(room.phase).toBe('crisis');
   });
 
   it('negotiation: one move, influence charged, owner-only compromises, carried into the outcome', () => {

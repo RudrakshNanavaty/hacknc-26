@@ -145,7 +145,7 @@ export function CrisisFx({ map, id, kind, spotlight, intensity, stage }: CrisisF
       // A gentle swell on top of the level, so the water reads as water.
       const swell = w > 0 && stage === 'alert' ? Math.sin(t / 420) * H * 0.04 : 0;
       map.setPaintProperty(WATER, 'fill-extrusion-height', Math.max(0, w + swell));
-      map.setPaintProperty(SAND, 'fill-opacity', s);
+      map.setPaintProperty(SAND, 'fill-opacity', Math.max(0, Math.min(1, s)));
       map.setPaintProperty(SURF, 'line-opacity', s > 0 ? Math.min(1, s + 0.2) : 0);
     };
     if (reduceMotion()) {

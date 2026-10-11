@@ -4,6 +4,8 @@
 // record, ask the narrator) after every change.
 //
 // lobby -> [crisis -> select -> reveal -> negotiate -> resolve] x3 -> final -> lobby
+// Turn-based by default (a step ends when everyone present is ready). A sprint (the host's choice in the
+// lobby) puts every step on a short deadline (SPRINT_MS); being ready early still moves on at once.
 import { randomUUID } from 'node:crypto';
 import {
   CARDS, MAX_PLAYERS, NEGOTIATION_COST, PERSONA_INFO, START_INDICATORS, START_INFLUENCE, TOTAL_ROUNDS,
@@ -15,6 +17,7 @@ import {
   type AcceptedEvent, type CharacterDialogue, type DirectorLogEntry, type EventType, type RoleId, type RuleEvent, type TableHint,
   type Board, type CardId, type CityState, type Crisis, type FinalResult, type Headline, type MatchRecord, type NegotiationAction,
   type Bubble, type Ping, type PingEmote, type PersonaId, type Proposal, type Scenario, type RoomPhase, type RoomState, type RoundSummary, type SessionKind,
+  SPRINT_MS, SPRINT_STORM_MS, isPace, type Pace,
 } from '@shared';
 
 const ROOM_TTL_MS = 3 * 60 * 60 * 1000;
@@ -61,6 +64,7 @@ export interface Room {
   players: Player[];
   hostId: string | null;
   sessionKind: SessionKind;
+  pace: Pace;
   touchedAt: number;
   matchId: string | null;
   record: MatchRecord | null;
@@ -96,7 +100,7 @@ export const rooms = new Map<string, Room>();
 
 export function newRoom(code: string, now = Date.now()): Room {
   return {
-    code, phase: 'lobby', round: 0, endsAt: null, players: [], hostId: null, sessionKind: 'demo', touchedAt: now,
+    code, phase: 'lobby', round: 0, endsAt: null, players: [], hostId: null, sessionKind: 'demo', pace: 'turns', touchedAt: now,
     matchId: null, record: null, city: startCity(), crisis: null, scenario: null, carried: [], board: null, actions: [], history: [], resolvedRound: 0,
     headline: null, bubbles: null, final: null, effects: [],
     event: null, eventApplied: null, firedEvents: [], hints: null, hintLog: new Map(), earlyEvent: null, directorLog: [],
@@ -213,8 +217,25 @@ export function setSession(room: Room, player: Player, kind: unknown): void {
   touch(room);
 }
 
+/** Host, lobby: turn-based (no clock) or a sprint (about a minute a round). */
+export function setPace(room: Room, player: Player, pace: unknown): void {
+  requireHost(room, player);
+  if (room.phase !== 'lobby') throw new RoomError('Set the pace before the match.');
+  if (!isPace(pace)) throw new RoomError('Unknown pace.');
+  room.pace = pace;
+  touch(room);
+}
+
+/** A sprint's deadline for the phase just entered (turn-based: none). The last result also plays the storm. */
+function deadline(room: Room, phase: keyof typeof SPRINT_MS, now: number): number | null {
+  if (room.pace !== 'sprint') return null;
+  return now + SPRINT_MS[phase] + (phase === 'resolve' && room.round >= TOTAL_ROUNDS ? SPRINT_STORM_MS : 0);
+}
+
 /** How long the first crisis waits for the live desk before the authored scenario stands in. */
 export const SCENARIO_WAIT_MS = 10_000;
+/** In a sprint nothing waits on Gemini for long: the authored scenario stands in sooner. */
+export const SPRINT_SCENARIO_WAIT_MS = 3_000;
 
 /** The host starts the match. */
 export function start(room: Room, player: Player, now: number): void {
@@ -233,6 +254,7 @@ export function start(room: Room, player: Player, now: number): void {
   room.directorLog = [];
   room.round = 1;
   room.scenario = null;
+  room.record.pace = room.pace;
   for (const p of room.players) {
     p.influence = START_INFLUENCE;
     p.responded = null;
@@ -260,7 +282,7 @@ function enterCrisis(room: Room, now: number): void {
   if (room.crisis) showCrisis(room, now);
   else {
     room.headline = { text: 'Coastal Clash Live is checking the tide gauge and the forecast for Miami Beach…', source: 'template', key: 'crisis-wait' };
-    room.endsAt = now + SCENARIO_WAIT_MS;
+    room.endsAt = now + (room.pace === 'sprint' ? SPRINT_SCENARIO_WAIT_MS : SCENARIO_WAIT_MS);
   }
   touch(room, now);
 }
@@ -282,7 +304,7 @@ function showCrisis(room: Room, now: number): void {
   room.earlyEvent = null;
   if (early && early.round === room.round) proposeEvent(room, `crisis-${room.round}`, early.raw, now);
   room.effects.push({ t: 'crisis', key: `crisis-${room.round}`, round: room.round });
-  room.endsAt = null;
+  room.endsAt = deadline(room, 'crisis', now);
 }
 
 /** The match's scenario has been written (or the authored one stands in). First one wins. */
@@ -400,7 +422,7 @@ function enterSelect(room: Room, now: number): void {
     room.firedEvents.push(room.event.type);
   }
   room.phase = 'select';
-  room.endsAt = null;
+  room.endsAt = deadline(room, 'select', now);
   for (const p of room.players.filter((x) => x.bot)) p.selection = botPlay(p.persona, p.influence, room.round, room.crisis ?? undefined);
   touch(room, now);
   maybeReveal(room, now);
@@ -432,7 +454,7 @@ function enterReveal(room: Room, now: number): void {
   });
   room.board = buildBoard(room.round, plays, room.carried, room.crisis ?? crisisFor(room.round));
   room.phase = 'reveal';
-  room.endsAt = null;
+  room.endsAt = deadline(room, 'reveal', now);
   for (const p of room.players) p.done = p.bot;
   const key = `reveal-${room.round}`;
   room.headline = { text: revealHeadline(room.board), source: 'template', key };
@@ -445,7 +467,7 @@ function enterNegotiate(room: Room, now: number): void {
   // Nothing to negotiate over: go straight to the resolution.
   if (!room.board?.proposals.length) return enterResolve(room, now);
   room.phase = 'negotiate';
-  room.endsAt = null;
+  room.endsAt = deadline(room, 'negotiate', now);
   for (const p of room.players) {
     p.moved = false;
     p.done = p.bot;
@@ -549,7 +571,7 @@ function enterResolve(room: Room, now: number): void {
   room.directorLog = [];
   room.hintLog = new Map();
   room.phase = 'resolve';
-  room.endsAt = null;
+  room.endsAt = deadline(room, 'resolve', now);
   for (const p of room.players) p.done = p.bot;
   const key = `resolve-${room.round}`;
   room.headline = { text: headline, source: 'template', key };
@@ -669,7 +691,8 @@ export function presence(room: Room, player: Player, connected: boolean, now = D
 /**
  * Turn-based: no phase has a clock. Time only matters twice: someone's reconnect grace ran out and
  * everyone left is already done, and the opening live-desk wait (`SCENARIO_WAIT_MS`) that the
- * authored scenario ends.
+ * authored scenario ends. In a sprint, a phase also ends when its deadline passes: a card not played
+ * by then is not played, a negotiation move not made is not made.
  */
 export function tick(room: Room, now: number): boolean {
   const before = room.phase;
@@ -678,6 +701,7 @@ export function tick(room: Room, now: number): boolean {
   maybeProceed(room, now);
   if (room.phase !== before) return true;
   if (room.phase === 'crisis' && !room.crisis && room.endsAt !== null && now >= room.endsAt) return advance(room, now);
+  if (room.pace === 'sprint' && room.endsAt !== null && now >= room.endsAt && room.phase !== 'lobby' && room.phase !== 'final') return advance(room, now);
   return false;
 }
 
@@ -693,6 +717,7 @@ export function publicState(room: Room, viewer: Player | null, now: number): Roo
     you: viewer?.seat ?? null,
     hostSeat: hostSeat(room),
     sessionKind: room.sessionKind,
+    pace: room.pace,
     matchId: room.matchId,
     players: room.players.map((p) => ({
       seat: p.seat, name: p.name, persona: p.persona, connected: p.bot || p.connected, bot: p.bot, influence: p.influence,

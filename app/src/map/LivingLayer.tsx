@@ -18,9 +18,10 @@ const SLOT: Record<RoleId, [number, number]> = {
 };
 const slot = (role: RoleId): [number, number] => SLOT[role];
 const WALK_MS = 1500;
-/** Bubbles overlap a little: each shows for a while, the next one starts soon after. */
-const BUBBLE_GAP_MS = 1100;
-const BUBBLE_MS = 5200;
+/** One bubble at a time, never overlapping, at most BUBBLES a moment (the rest stay in the record). */
+const BUBBLE_GAP_MS = 3600;
+const BUBBLE_MS = 3300;
+const BUBBLES = 2;
 const FX_MS = 2600;
 
 const reduceMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -64,7 +65,7 @@ function ghosts(state: RoomState, preview: ReturnType<typeof resolveRound> | nul
 }
 
 const GHOST_TAG: Record<GhostStatus, string> = {
-  proposed: 'Proposed', approved: 'Would pass', blocked: 'Blocked', rejected: 'Voted down', delayed: 'Delayed', unfunded: 'Unfunded',
+  proposed: 'Proposed', approved: 'Would pass', blocked: 'Blocked', rejected: 'Rejected', delayed: 'Delayed', unfunded: 'Unfunded',
 };
 
 export type FxKind = 'construct' | 'restore' | 'protest' | 'invest' | 'flood' | 'blocked' | 'campaign' | 'legal' | 'deal' | 'stamp' | 'combo';
@@ -104,7 +105,6 @@ export function LivingLayer({ map, state, onFocusProposal, onBubble }: {
   bubbleList.current = state.bubbles?.list ?? [];
   const onBubbleRef = useRef(onBubble);
   onBubbleRef.current = onBubble;
-  const [storm, setStorm] = useState<string | null>(null);
 
   const roles = useMemo<RoleId[]>(() => state.players.map((p) => p.persona), [state.players.map((p) => p.persona).join(',')]);
   const spots = avatarSpots(state);
@@ -189,7 +189,9 @@ export function LivingLayer({ map, state, onFocusProposal, onBubble }: {
   useEffect(() => {
     if (!map || !bubbleKey) return;
     const timers: ReturnType<typeof setTimeout>[] = [];
-    const order = bubbleList.current.map((b) => b.speaker);
+    const me = state.players.find((p) => p.seat === state.you)?.persona;
+    const all = bubbleList.current.map((b) => b.speaker);
+    const order = [...all.filter((r) => r === me), ...all.filter((r) => r !== me)].slice(0, BUBBLES);
     const setMood = (role: RoleId, mood: Mood) => {
       const a = avatars.current.get(role);
       if (a) a.el.dataset.mood = mood;
@@ -305,7 +307,7 @@ export function LivingLayer({ map, state, onFocusProposal, onBubble }: {
         if (o.status === 'blocked' || o.status === 'rejected') fx.push({ district: o.district, kind: 'blocked', delay: 400 + i * 350 });
       });
       (last?.resolution.combos ?? []).forEach((c, i) => fx.push({ district: c.district, kind: 'combo', delay: 1500 + i * 400 }));
-      if (last?.resolution.events.some((e) => e.rule === 'S9')) setStorm(`storm-${state.round}`);
+      // The storm after the last round is its own scene, after the verdicts (game/Climax.tsx).
     }
     const timers: ReturnType<typeof setTimeout>[] = [];
     const made: Marker[] = [];
@@ -328,11 +330,5 @@ export function LivingLayer({ map, state, onFocusProposal, onBubble }: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map, moment]);
 
-  useEffect(() => {
-    if (!storm) return;
-    const t = setTimeout(() => setStorm(null), 4200);
-    return () => clearTimeout(t);
-  }, [storm]);
-
-  return storm ? <div key={storm} className="storm-overlay" aria-hidden><span className="storm-flash" /></div> : null;
+  return null;
 }

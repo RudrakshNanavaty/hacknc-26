@@ -569,6 +569,15 @@ input[type="range"].aero-range {
 .hc-foot.is-why { color: #b0123a; background: rgba(255,224,218,.95); }
 .hc-foot.is-locked { background: #ffe066; }
 .hcard.tone-pass { background: linear-gradient(180deg, #e2ffb8 0 36px, #f6fff0 36px, #e0f6c8); }
+/* Step 1's cards carry plain words instead of a description: good, bad, cost. */
+.deck[data-mode="select"] { height: 232px; }
+.deck[data-mode="select"] .hcard { width: 152px; height: 232px; margin: 0 -8px; }
+.hc-art.is-short { width: 100%; height: 50px; aspect-ratio: auto; }
+.hc-facts { display: flex; flex-direction: column; gap: 2px; align-self: stretch; text-align: left; font: 800 10.5px/1.22 Nunito, sans-serif; }
+.hc-facts > span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; padding: 1px 5px; border-radius: 7px; }
+.hc-good { background: rgba(139,211,70,.22); color: #24600a; }
+.hc-bad { background: rgba(255,122,107,.18); color: #8f1d12; }
+.hc-facts > .hc-money { background: rgba(255,210,63,.3); color: #6a4c00; -webkit-line-clamp: 1; }
 @media (prefers-reduced-motion: reduce) {
   .deck[data-open="true"] .hcard { animation: none; }
 }
@@ -843,12 +852,6 @@ input[type="range"].aero-range {
 .fx-ripple.r2 { animation-delay: 0.45s; }
 .fx-ripple.r3 { animation-delay: 0.9s; }
 
-.storm-overlay {
-  position: absolute; inset: 0; z-index: 12; pointer-events: none; overflow: hidden;
-  background: repeating-linear-gradient(105deg, rgba(220, 240, 255, 0) 0 14px, rgba(220, 240, 255, 0.35) 14px 15px), linear-gradient(180deg, rgba(20, 40, 70, 0.45), rgba(20, 40, 70, 0.2));
-  background-size: 120px 120px, 100% 100%;
-  animation: storm-fade 4.2s ease both, rain 0.35s linear 12;
-}
 @keyframes rain { to { background-position: -30px 120px, 0 0; } }
 @keyframes storm-fade { 0% { opacity: 0; } 12%, 80% { opacity: 1; } 100% { opacity: 0; } }
 .storm-flash { position: absolute; inset: 0; background: #fff; opacity: 0; animation: flash 4.2s linear both; }
@@ -1047,3 +1050,128 @@ button.tc:hover { transform: translateY(-4px); }
 .tv-anchor-3d[data-talking="true"] { animation: anchor-nod .5s ease-in-out infinite alternate; }
 @keyframes anchor-nod { from { transform: rotate(-1.4deg) translateY(0); } to { transform: rotate(1.4deg) translateY(-2px); } }
 @media (prefers-reduced-motion: reduce) { .tv-anchor-3d[data-talking="true"] { animation: none; } }
+
+/* The round in three steps (game/Steps.tsx): Play a Card, Make a Deal, See What Happens. */
+.steps { display: flex; flex-wrap: nowrap; align-items: center; justify-content: center; gap: 8px; width: max-content; max-width: 100%; padding: 5px 8px; border-radius: 99px; white-space: nowrap; background: rgba(255,255,255,.88); box-shadow: 0 0 0 1px var(--a-edge), 0 8px 20px rgba(3,52,112,.3); color: var(--l-ink); animation: pop-in .35s cubic-bezier(.2,.9,.3,1.3) both; }
+.steps-list { display: flex; align-items: center; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.step { display: flex; align-items: center; gap: 6px; padding: 3px 10px 3px 4px; border-radius: 99px; font: 900 13px Nunito, sans-serif; opacity: .55; transition: opacity .2s, background .2s; }
+.step + .step::before { content: '›'; margin: 0 4px 0 -2px; opacity: .6; font-weight: 900; }
+.step-n { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: rgba(10,111,154,.15); font: 400 13px "Varela Round", sans-serif; }
+.step.is-done { opacity: .8; }
+.step.is-done .step-n { background: #8bd346; color: #fff; }
+.step.is-now { opacity: 1; background: linear-gradient(180deg, #fff6c4, #ffd23f); box-shadow: 0 0 0 2px #fff, 0 0 14px rgba(255,210,63,.9); font-size: 14px; }
+.step.is-now .step-n { background: #0a6f9a; color: #fff; }
+.steps-clock { padding: 2px 10px; border-radius: 99px; background: #0a6f9a; color: #fff; font: 400 15px "Varela Round", sans-serif; min-width: 58px; text-align: center; }
+.steps-clock.is-low { background: #e8423a; animation: clock-pulse .5s ease-in-out infinite alternate; }
+@keyframes clock-pulse { to { transform: scale(1.12); } }
+.steps-storm { padding: 2px 9px; border-radius: 99px; background: rgba(60,40,140,.12); font: 900 11.5px Nunito, sans-serif; color: #3b2b8f; }
+@media (prefers-reduced-motion: reduce) { .steps-clock.is-low { animation: none; } }
+
+/* A card in plain words (game/Plain.tsx). */
+.plain-card { display: flex; flex-direction: column; gap: 8px; padding: 10px; border-radius: 16px; background: rgba(255,255,255,.82); box-shadow: 0 0 0 1px var(--a-edge); }
+.plain-art { width: 84px; flex: none; border-radius: 9px; }
+.plain-list { display: flex; flex-direction: column; gap: 3px; margin: 0; padding: 0; list-style: none; font: 800 13px/1.25 Nunito, sans-serif; }
+.plain-list li { padding: 2px 8px; border-radius: 8px; }
+.plain-preview { display: flex; flex-direction: column; gap: 5px; padding: 8px 10px; border-radius: 12px; background: linear-gradient(180deg, #f2fbff, #dff3ff); box-shadow: inset 0 0 0 1px rgba(10,111,154,.18); }
+.plain-h { font: 400 11px "Varela Round", sans-serif; letter-spacing: .08em; text-transform: uppercase; opacity: .7; }
+.plain-money { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; font: 800 14px Nunito, sans-serif; }
+.plain-money b { font: 400 17px "Varela Round", sans-serif; }
+.plain-money.is-short b { color: #b0123a; }
+.plain-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.plain-chip { padding: 2px 8px; border-radius: 99px; font: 800 12px Nunito, sans-serif; }
+.plain-chip.is-up { background: rgba(139,211,70,.25); color: #24600a; }
+.plain-chip.is-down { background: rgba(255,122,107,.2); color: #8f1d12; }
+.plain-note { font: 700 12px/1.3 Nunito, sans-serif; opacity: .85; }
+
+/* Step 3's payoff (game/Climax.tsx): one big verdict at a time, then the storm after the last round. */
+.climax-scrim, .storm-scrim { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; cursor: pointer; }
+.climax-scrim { background: radial-gradient(ellipse at center, rgba(3,40,80,.35), rgba(3,40,80,.6)); }
+.climax-skip { position: absolute; bottom: 18px; left: 50%; translate: -50% 0; padding: 3px 12px; border-radius: 99px; background: rgba(255,255,255,.85); font: 900 12px Nunito, sans-serif; color: var(--l-ink); }
+.verdict-slab { position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; width: min(440px, 90vw); padding: 22px 22px 18px; border-radius: 30px; text-align: center; color: var(--l-ink);
+  background: linear-gradient(180deg, #ffffff, #e3f5ff); border: 4px solid #fff; box-shadow: 0 0 0 1px var(--a-edge), 0 30px 60px rgba(3,40,90,.55);
+  animation: slab-in .45s cubic-bezier(.2,.9,.3,1.25) both; }
+.verdict-slab.is-bad { animation: slab-in .45s cubic-bezier(.2,.9,.3,1.25) both, slab-shake .4s .45s ease-in-out both; }
+@keyframes slab-in { from { transform: translateY(40px) scale(.85); opacity: 0; } }
+@keyframes slab-shake { 20%, 60% { transform: translateX(-10px) rotate(-1deg); } 40%, 80% { transform: translateX(10px) rotate(1deg); } }
+.big-stamp { display: inline-block; margin: 6px 0 2px; padding: 6px 22px; border-radius: 16px; border: 5px solid currentColor; font: 400 38px/1.1 "Varela Round", sans-serif; letter-spacing: .04em; text-transform: uppercase;
+  transform: rotate(-6deg); animation: stamp-slam .42s .3s cubic-bezier(.2,.9,.3,1.4) both; background: rgba(255,255,255,.75); }
+.verdict-slab.is-good .big-stamp, .big-stamp.is-good { color: #2f9a12; box-shadow: 0 0 30px rgba(139,211,70,.8); }
+.verdict-slab.is-bad .big-stamp, .big-stamp.is-bad { color: #c0262d; box-shadow: 0 0 30px rgba(255,107,138,.7); }
+.verdict-slab.is-wait .big-stamp { color: #8a6a00; }
+@keyframes stamp-slam { from { transform: rotate(-16deg) scale(3); opacity: 0; } 70% { transform: rotate(-5deg) scale(.94); opacity: 1; } }
+.confetti { position: absolute; inset: 0; pointer-events: none; overflow: visible; }
+.confetti i { position: absolute; left: 50%; top: 58%; width: 10px; height: 14px; border-radius: 3px; background: hsl(calc(var(--k) * 26), 90%, 60%);
+  animation: confetti 1.1s .55s cubic-bezier(.15,.7,.3,1) both; --a: calc(var(--k) * 25.7deg); }
+@keyframes confetti { from { transform: rotate(var(--a)) translateY(0) scale(.4); opacity: 1; } to { transform: rotate(var(--a)) translateY(-230px) rotate(240deg) scale(1); opacity: 0; } }
+.storm-scrim { background: radial-gradient(ellipse at 50% 40%, rgba(30,30,70,.55), rgba(8,8,30,.82)); overflow: hidden; }
+.storm-scrim .rain-layer { z-index: 0; }
+.storm-card { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 10px; width: min(560px, 92vw); padding: 24px; border-radius: 30px; text-align: center; color: #fff;
+  background: linear-gradient(180deg, rgba(40,46,110,.86), rgba(14,18,60,.9)); border: 2px solid rgba(255,255,255,.35); box-shadow: 0 30px 70px rgba(0,0,0,.6); animation: slab-in .5s cubic-bezier(.2,.9,.3,1.25) both; }
+.storm-title { font: 400 46px/1 "Varela Round", sans-serif; text-transform: uppercase; letter-spacing: .05em; text-shadow: 0 0 24px rgba(160,200,255,.9); animation: stamp-slam .5s .1s cubic-bezier(.2,.9,.3,1.4) both; }
+.storm-gauge { position: relative; width: 100%; height: 34px; margin: 18px 0 6px; border-radius: 99px; background: rgba(255,255,255,.14); box-shadow: inset 0 0 0 2px rgba(255,255,255,.3); }
+.storm-fill { position: absolute; inset: 0 auto 0 0; border-radius: 99px; background: linear-gradient(90deg, #1b8fe0, #4fd2ff); box-shadow: 0 0 18px rgba(79,210,255,.8); transition: width 2.2s cubic-bezier(.3,.7,.3,1); }
+.storm-line { position: absolute; top: -10px; bottom: -10px; width: 4px; margin-left: -2px; background: #ffd23f; border-radius: 2px; box-shadow: 0 0 10px #ffd23f; }
+.storm-line b { position: absolute; top: -20px; left: 50%; translate: -50% 0; white-space: nowrap; font: 900 12px Nunito, sans-serif; color: #ffd23f; }
+.storm-value { position: absolute; inset: 0; display: grid; place-items: center; font: 400 18px "Varela Round", sans-serif; text-shadow: 0 1px 4px rgba(0,0,0,.6); }
+.storm-verdict { font-size: 30px; }
+.storm-verdict.is-good { color: #9dff6a; border-color: #9dff6a; background: rgba(20,60,10,.55); }
+.storm-verdict.is-bad { color: #ff8a8a; border-color: #ff8a8a; background: rgba(80,10,10,.55); }
+.storm-banner { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 18px; color: #fff; background: linear-gradient(180deg, #3a3f8f, #1c2060); }
+@media (prefers-reduced-motion: reduce) {
+  .verdict-slab, .verdict-slab.is-bad, .big-stamp, .storm-card, .storm-title { animation: none; }
+  .confetti { display: none; }
+  .storm-fill { transition: none; }
+}
+
+/* The lobby's "How to play" (game/Lobby.tsx). */
+.how-to { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border-radius: 18px; background: rgba(255,255,255,.6); box-shadow: inset 0 0 0 1px rgba(10,111,154,.2); }
+.how-steps { display: flex; flex-direction: column; gap: 4px; margin: 0; padding: 0; list-style: none; font: 700 14px/1.3 Nunito, sans-serif; }
+.how-steps li { padding: 5px 10px; border-radius: 12px; background: rgba(255,255,255,.75); }
+
+/* ---- Readable at a glance: two big meters, one instruction, quiet while you decide ---- */
+.meters-main { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) auto; align-items: start; }
+.meters .tube.tube-big { padding: 6px 14px 9px; }
+.meters .tube.tube-big .lbl { font-size: 15px; }
+.meters .tube.tube-big .lbl .v { font-size: 18px; }
+.meter-flood { position: relative; }
+.storm-mark { position: absolute; bottom: 6px; width: 3px; height: 19px; margin-left: -1px; border-radius: 2px; background: #3b2b8f; box-shadow: 0 0 0 1px #fff; }
+.storm-mark::after { content: '🌀 50'; position: absolute; top: -15px; left: 50%; translate: -50% 0; font: 900 10px Nunito, sans-serif; color: #3b2b8f; white-space: nowrap; }
+.city-drawer { position: relative; }
+.city-btn { white-space: nowrap; }
+.city-pop { position: absolute; top: calc(100% + 6px); right: 0; z-index: 26; width: 270px; display: flex; flex-direction: column; gap: 6px; padding: 10px; }
+.instruction { padding: 7px 18px; border-radius: 99px; background: #fff; color: var(--l-ink); font: 400 19px/1.2 "Varela Round", sans-serif; text-align: center; box-shadow: 0 0 0 2px #ffd23f, 0 10px 24px rgba(3,52,112,.35); animation: pop-in .35s cubic-bezier(.2,.9,.3,1.3) both; }
+.story-chip { padding: 4px 14px; border-radius: 99px; background: rgba(255,255,255,.88); color: var(--l-ink); font: 800 13px Nunito, sans-serif; box-shadow: 0 0 0 1px var(--a-edge); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.steps-round { font: 400 15px "Varela Round", sans-serif; padding: 0 4px; }
+.steps-round small { opacity: .6; font-size: 12px; }
+.stage[data-quiet="true"] .avatar-bubble { display: none; }
+.tv-zone.is-quiet { width: auto; }
+.tv-zone.is-quiet .tv-copy { display: none; }
+
+.cost-dot { display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 5px; border-radius: 99px; color: #fff; font: 400 13px "Varela Round", sans-serif; text-shadow: 0 1px 2px rgba(60,0,90,.6); background: radial-gradient(circle at 35% 28%, #fff 0 12%, #c99bff 34%, #7b2ff7 100%); border: 2px solid #fff; vertical-align: middle; }
+.hc-foot.is-go { background: #8bd346; color: #fff; }
+.hc-star { background: rgba(255,210,63,.3); color: #6a4c00; }
+.confirm-art { width: 64px; flex: none; border-radius: 9px; }
+/* The deal: the likely outcome, then only the moves you can make. */
+.likely { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 6px 12px; border-radius: 14px; font: 400 18px "Varela Round", sans-serif; }
+.likely small { font: 800 12px Nunito, sans-serif; opacity: .8; }
+.likely.is-approved { background: linear-gradient(180deg, #e8ffd2, #b9ee8a); color: #24600a; }
+.likely.is-rejected, .likely.is-blocked { background: linear-gradient(180deg, #ffe3dc, #ffb3a6); color: #8f1d12; }
+.likely.is-delayed { background: linear-gradient(180deg, #fff8cc, #ffe066); color: #6a4c00; }
+.likely.is-unfunded { background: linear-gradient(180deg, #f1eaff, #cdb8ff); color: #4a2f9a; }
+.act-row { display: flex; align-items: center; gap: 10px; padding: 7px 10px 7px 12px; border-radius: 14px; text-align: left; background: rgba(255,255,255,.92); box-shadow: 0 0 0 1px var(--a-edge), 0 3px 8px rgba(11,61,92,.18); transition: transform .12s var(--ease-thunk), box-shadow .12s; }
+.act-row:hover { transform: translateX(3px); box-shadow: 0 0 0 3px #8bd346, 0 6px 14px rgba(11,61,92,.25); }
+.act-main { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.act-main b { font: 400 16px "Varela Round", sans-serif; }
+.act-main small { font: 700 12px/1.25 Nunito, sans-serif; opacity: .85; }
+.act-free { font: 900 11px Nunito, sans-serif; padding: 2px 8px; border-radius: 99px; background: #8bd346; color: #fff; }
+/* Results: one sentence per project. */
+.result-row { display: flex; flex-direction: column; gap: 2px; padding: 8px 12px; border-radius: 14px; background: rgba(255,255,255,.9); border-left: 6px solid #8bd346; box-shadow: 0 0 0 1px var(--a-edge); }
+.result-row.is-rejected, .result-row.is-blocked { border-left-color: #ef5a43; }
+.result-row.is-delayed { border-left-color: #f0b400; }
+.result-row.is-unfunded { border-left-color: #8f6bff; }
+.pb { max-width: 236px; }
+.pb .who > span:nth-child(2) { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* The result card is only as tall as its rows (it scrolls past the screen). */
+.side-float { bottom: auto; max-height: calc(100vh - var(--crawl) - 184px); width: 400px; }
+.deck-label { top: -34px; }
+.deck[data-open="false"] .hcard.is-armed, .deck[data-open="false"] .hcard.is-locked { --lift: 250px; }
