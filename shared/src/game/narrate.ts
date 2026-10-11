@@ -19,6 +19,18 @@ const QUIPS: Record<CardId, string> = {
   'elevate-buildings': 'wants to put the houses on stilts',
   'neighborhood-petition': 'has four hundred signatures and a clipboard',
   'public-access-guarantee': 'just wants a way to get to the beach',
+  'seawall-upgrade': 'wants a taller wall and a bigger ribbon',
+  'resilience-bond': 'is borrowing against the future, very responsibly',
+  'building-moratorium': 'has hit the pause button on the cranes',
+  'dune-restoration': 'is planting sea oats one by one',
+  'habitat-survey': 'has binoculars and a list of nesting birds',
+  'eco-certification': 'is handing out green gold stars, with conditions',
+  'marina-expansion': 'wants more yacht slips on the bay',
+  'lobbying-blitz': 'has booked every lunch table at City Hall',
+  'community-benefits': 'is promising public amenities, lots of them',
+  'workforce-housing': 'wants homes that teachers and nurses can afford',
+  'flood-watch': 'has a flashlight, a rake and a group chat',
+  'rent-shield': 'wants renters protected before the next luxury tower',
 };
 
 const name = (p: PersonaId) => PERSONA_INFO[p].name.replace('Environmental ', '').toLowerCase();

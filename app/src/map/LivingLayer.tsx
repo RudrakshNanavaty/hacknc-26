@@ -7,7 +7,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Marker, type Map as MapLibreMap } from 'maplibre-gl';
 import {
   CARDS, PROJECTS, REACTION_MOOD, SCENARIO_ROLES, districtById, resolveRound, roleInfo,
-  type Board, type Bubble, type Mood, type OutcomeStatus, type RoleId, type RoomState,
+  type Board, type Bubble, type Card, type Mood, type OutcomeStatus, type RoleId, type RoomState,
 } from '@shared';
 import { spriteSvg } from './sprites';
 
@@ -65,7 +65,7 @@ const GHOST_TAG: Record<GhostStatus, string> = {
   proposed: 'Proposed', approved: 'Would pass', blocked: 'Blocked', rejected: 'Voted down', delayed: 'Delayed', unfunded: 'Unfunded',
 };
 
-export type FxKind = 'construct' | 'restore' | 'protest' | 'invest' | 'flood' | 'blocked';
+export type FxKind = 'construct' | 'restore' | 'protest' | 'invest' | 'flood' | 'blocked' | 'campaign' | 'legal' | 'deal' | 'stamp' | 'combo';
 const FX_ICON: Record<FxKind, string> = {
   construct: '<span class="fx-icon">🏗️</span><span class="fx-dust"></span>',
   restore: '<span class="fx-icon">🌱</span><span class="fx-spark"></span>',
@@ -73,9 +73,18 @@ const FX_ICON: Record<FxKind, string> = {
   invest: '<span class="fx-coin c1">🪙</span><span class="fx-coin c2">🪙</span><span class="fx-coin c3">🪙</span>',
   flood: '<span class="fx-ripple r1"></span><span class="fx-ripple r2"></span><span class="fx-ripple r3"></span>',
   blocked: '<span class="fx-icon">⛔</span>',
+  campaign: '<span class="fx-sign s1">📣</span><span class="fx-sign s2">🎉</span><span class="fx-sign s3">📣</span>',
+  legal: '<span class="fx-icon">⚖️</span>',
+  deal: '<span class="fx-icon">🤝</span>',
+  stamp: '<span class="fx-icon">✅</span>',
+  combo: '<span class="fx-icon">✨</span><span class="fx-spark"></span>',
 };
 
-const RESTORE = new Set(['shoreline']);
+const RESTORE = new Set(['shoreline', 'dune']);
+/** What a card's landing looks like on the map (Card.anim). */
+const ANIM_FX: Record<Card['anim'], FxKind | null> = {
+  construct: null, restore: null, protest: 'protest', invest: 'invest', campaign: 'campaign', legal: 'legal', deal: 'deal', stamp: 'stamp',
+};
 
 export function LivingLayer({ map, state }: { map: MapLibreMap | null; state: RoomState }) {
   const avatars = useRef(new Map<RoleId, { marker: Marker; el: HTMLDivElement; at: string | null; stop: () => void }>());
@@ -255,9 +264,8 @@ export function LivingLayer({ map, state }: { map: MapLibreMap | null; state: Ro
     }
     if (state.phase === 'reveal' && state.board) {
       state.board.attachments.forEach((a, i) => {
-        const cat = CARDS[a.card].category;
-        if (cat === 'opposition') fx.push({ district: a.district, kind: 'protest', delay: 1300 + i * 280 });
-        if (a.card === 'private-investment' || a.card === 'emergency-funding') fx.push({ district: a.district, kind: 'invest', delay: 1300 + i * 280 });
+        const kind = ANIM_FX[CARDS[a.card].anim];
+        if (kind) fx.push({ district: a.district, kind, delay: 1300 + i * 280 });
       });
     }
     if (state.phase === 'resolve') {
@@ -266,6 +274,7 @@ export function LivingLayer({ map, state }: { map: MapLibreMap | null; state: Ro
         if (o.status === 'approved') fx.push({ district: o.district, kind: RESTORE.has(o.kind) ? 'restore' : 'construct', delay: 400 + i * 350 });
         if (o.status === 'blocked' || o.status === 'rejected') fx.push({ district: o.district, kind: 'blocked', delay: 400 + i * 350 });
       });
+      (last?.resolution.combos ?? []).forEach((c, i) => fx.push({ district: c.district, kind: 'combo', delay: 1500 + i * 400 }));
       if (last?.resolution.events.some((e) => e.rule === 'S9')) setStorm(`storm-${state.round}`);
     }
     const timers: ReturnType<typeof setTimeout>[] = [];

@@ -85,12 +85,29 @@ export function projectEligibility(kind: ProjectKind, d: District): Eligibility 
         reason: `${pctText(d.residentialZoningShare)} zoned residential (needs ${pctText(GEO_RULES.residentialZoning)}), ${pctText(d.sfhaShare)} in FEMA's 1% flood area (needs ${pctText(GEO_RULES.sfhaForFloodProjects)}).`,
       };
     }
-    case 'drainage': {
+    case 'drainage':
+    case 'seawall': {
       const ok = d.sfhaShare >= GEO_RULES.sfhaForFloodProjects;
       return { ok, reason: `${pctText(d.sfhaShare)} of ${d.name} is in FEMA's 1% annual chance flood area (needs ${pctText(GEO_RULES.sfhaForFloodProjects)}).` };
     }
     case 'shoreline':
       return { ok: true, reason: `${d.name} faces the ${d.shore === 'ocean' ? 'Atlantic' : 'Biscayne Bay'}.` };
+    case 'dune': {
+      const ok = d.shore === 'ocean';
+      return { ok, reason: ok ? `${d.name} faces the Atlantic, where dunes form.` : `${d.name} faces Biscayne Bay: there are no dunes to restore (needs an Atlantic shore).` };
+    }
+    case 'marina': {
+      const bay = d.shore === 'bay';
+      const zoned = d.hotelZoningShare >= GEO_RULES.hotelZoning;
+      return {
+        ok: bay && zoned,
+        reason: `${d.name} faces ${bay ? 'Biscayne Bay' : 'the open Atlantic'} (a marina needs the bay); ${pctText(d.hotelZoningShare)} zoned hotel or commercial (needs ${pctText(GEO_RULES.hotelZoning)}).`,
+      };
+    }
+    case 'housing': {
+      const ok = d.residentialZoningShare >= GEO_RULES.residentialZoning;
+      return { ok, reason: `${pctText(d.residentialZoningShare)} of ${d.name} is zoned residential (needs ${pctText(GEO_RULES.residentialZoning)}).` };
+    }
   }
 }
 
@@ -100,6 +117,11 @@ export function cardEligibility(card: CardId, districtId: string): Eligibility {
   const c = CARDS[card];
   if (c.project) return projectEligibility(c.project, districtById(districtId));
   return { ok: true, reason: `${c.name} acts on whatever is proposed in ${districtById(districtId).name}.` };
+}
+
+/** The playable areas a card may target, with the reason for each (real zoning and FEMA facts). */
+export function cardTargets(card: CardId): { district: string; ok: boolean; reason: string }[] {
+  return DISTRICT_IDS.map((id) => ({ district: id, ...cardEligibility(card, id) }));
 }
 
 /** One-line description of the district's real context, for the UI and the narrator. */

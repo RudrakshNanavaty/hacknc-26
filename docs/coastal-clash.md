@@ -63,9 +63,20 @@ Real layers decide context and constraints. Effect sizes are **illustrative scen
 
 ## 4. Rules in one page
 
+**Decks and hands (rules 2.0.0).** Each stakeholder has a deck of 6 cards; each crisis deals an authored hand of 4 (`HANDS` in
+`content.ts`), so matches stay short and replays need no randomness. Cards belong to a family (Infrastructure, Economic
+development, Environmental, Civic/political, Negotiation), show their influence cost and public $ cost, list what answers them
+(`counters`) and which authored combos they complete. New projects: seawall (needs at least 50% in the 1% flood area), dune
+restoration (Atlantic shore only), marina (Biscayne Bay shore and at least 25% hotel/commercial zoning: West Avenue only), workforce
+housing (at least 20% residential zoning). Drainage and seawalls cost $1M upkeep in every later round (U1). Some cards carry a
+delayed consequence one round later (Resilience Bond: -$3M; Lobbying Blitz: -2 access; L0 schedules it, L1 applies it; anything
+owed after round 3 is settled before the storm). Authored combos (M1-M5, plus the C3 grant match) add a small bonus when their
+pairing is approved: Public-Private Flood Partnership, Eco-Resort Agreement, Hybrid Shoreline, Neighborhood Resilience Package,
+Working Waterfront.
+
 Each round: one card per player (cost in influence; start 5, +2 per round, max 8). Project cards create proposals; support, opposition and negotiation cards act on the best-matching proposal in the same area (or fall back to a small effect or a refund). Negotiation: one move each (back 1, oppose 1, fund 2) and the proposal's owner may accept compromises offered by Public Access Guarantee (access corridor) or by an Environmental Challenge in a coastal high hazard area (dune setback). Resolution: support minus opposition decides (ties are delayed to the next round; Fast-Track breaks a tie and ignores one opposition but never overrides R1), then funding (budget, or covered by Emergency Funding, Private Investment or a fund move), then effects plus the crisis bonus. After round 3 the storm tests flood resilience. Each persona scores its own weighted indicator changes plus objective bonuses; if any of flood, economy, environment or access ends below 30, every positive score is halved.
 
-Rule ids in the event log: P1 proposal, F1-F3 funding/fast-track, S1-S2 support, O1-O3 opposition, R1 coastal high hazard block, C1-C3 compromises, N1-N3 negotiation, V1 vote, B1-B2 budget, K1 crisis bonus, E1 built, X1-X2 fallbacks, S9 storm.
+Rule ids in the event log: P1 proposal, F1-F4 funding/fast-track/bond, S1-S5 support, O1-O7 opposition (O4 moratorium, O5 habitat survey, O6 rent shield, O7 eco-certification refused), R1 coastal high hazard block, C1-C4 compromises, M1-M5 combos, N1-N3 negotiation, V1 vote, B1-B2 budget, U1 upkeep, L0/L1 delayed consequences, K1 crisis bonus, E1 built, X1-X2 fallbacks, S9 storm.
 
 ## 5. Records and Planning Studio
 

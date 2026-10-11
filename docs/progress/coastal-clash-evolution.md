@@ -51,8 +51,14 @@ The fix was environmental: `fnm install 22` and a `.node-version` file. No code 
   template bubbles), `RoomState.bubbles` (**contract change**), `app/src/map/{sprites.ts,LivingLayer.tsx}`, CSS in `styles.css`
   ("Living city" section), card-hover target highlight, the Flights stuck-card fix. Checked in the browser at 1440 and 390 (Playwright
   script in the session scratchpad: hosts a room, adds bots, screenshots each phase).
+- [x] **M3 cards** (done before M2 on purpose: the Director's combo suggestions and context need the new cards).
+  24 cards (6 per deck), authored crisis hands of 4, 4 new project kinds with real-geography eligibility, generic `attach`/`offer`/`delayed`
+  card effects, upkeep (U1), 6 authored combos (M1-M5 + C3), `Resolution.combos`, `CityState.pending` (**contract changes**),
+  `RULES_VERSION` 1.0.0 -> 2.0.0. UI: family label, $ badge, card detail with preview/counters/combos/delay, combo banner, card-driven map fx.
+  Fixed: markers stacked because `.avatar`/`.fx` set `position` (overrides MapLibre); ghosts animated the marker root's transform.
+  Design fixes found by tests: Working Waterfront paired two resort cards (unplayable), now marina + accepted Public Access Guarantee;
+  Lobbying Blitz could only back resort projects, now also seawall/drainage/housing.
 - [ ] M2 Director
-- [ ] M3 cards
 - [ ] M4 economy UX
 - [ ] M5 polish + Studio
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CARDS, START_INDICATORS, TOTAL_ROUNDS, handOf, type CardId, type PersonaId } from './content';
+import { CARDS, HAND_SIZE, START_INDICATORS, TOTAL_ROUNDS, handFor, handOf, type CardId, type PersonaId } from './content';
 import { DISTRICTS, cardEligibility, coastalHighHazard, districtById } from './districts';
 import { botPlay, buildBoard, checkAccept, checkMove, checkPlay, finalResult, resolveRound, startCity, type Play } from './engine';
 
@@ -25,24 +25,31 @@ describe('real geography', () => {
     const north = districtById('north-beach-oceanside');
     expect(north.hotelZoningShare).toBeLessThan(0.25);
     expect(cardEligibility('hotel-development', north.id).ok).toBe(false);
-    expect(checkPlay('resort', 8, 'hotel-development', north.id)).toMatch(/cannot go there/);
-    expect(checkPlay('resort', 8, 'hotel-development', 'collins-mid-beach')).toBeNull();
+    expect(checkPlay('resort', 8, 'hotel-development', north.id, 2)).toMatch(/cannot go there/);
+    expect(checkPlay('resort', 8, 'hotel-development', 'collins-mid-beach', 2)).toBeNull();
   });
 
   it('rejects unknown places', () => {
-    expect(checkPlay('mayor', 8, 'drainage-upgrade', 'atlantis')).toMatch(/not one of the playable areas/);
+    expect(checkPlay('mayor', 8, 'drainage-upgrade', 'atlantis', 1)).toMatch(/not one of the playable areas/);
   });
 });
 
 describe('plays', () => {
   it('cannot be played without enough influence', () => {
-    expect(checkPlay('resort', 3, 'hotel-development', 'collins-mid-beach')).toMatch(/costs 4 influence/);
+    expect(checkPlay('resort', 3, 'hotel-development', 'collins-mid-beach', 2)).toMatch(/costs 4 influence/);
   });
   it('cannot play another persona\'s card', () => {
-    expect(checkPlay('mayor', 8, 'hotel-development', 'collins-mid-beach')).toMatch(/not in your hand/);
+    expect(checkPlay('mayor', 8, 'hotel-development', 'collins-mid-beach', 2)).toMatch(/not in your hand/);
   });
-  it('every persona holds exactly three cards', () => {
-    for (const p of ['mayor', 'activist', 'resort', 'resident'] as PersonaId[]) expect(handOf(p)).toHaveLength(3);
+  it('every persona has a deck of six and is dealt four per round', () => {
+    for (const p of ['mayor', 'activist', 'resort', 'resident'] as PersonaId[]) {
+      expect(handOf(p)).toHaveLength(6);
+      for (let r = 1; r <= TOTAL_ROUNDS; r++) expect(handFor(p, r)).toHaveLength(HAND_SIZE);
+    }
+  });
+  it('only the hand dealt this round can be played', () => {
+    expect(checkPlay('mayor', 8, 'fast-track', 'west-avenue', 1)).toMatch(/not in your hand this round/);
+    expect(checkPlay('mayor', 8, 'fast-track', 'west-avenue', 2)).toBeNull();
   });
 });
 

@@ -67,5 +67,8 @@ The contracts are `shared/src/room.ts`, the exported types in `engine.ts` and `r
 - `publicState` hides the board during `select` and shows each player only their own `mine`. Never leak hidden selections.
 - A round must resolve only once: `resolvedRound` guards it. Keep that guard if you touch phase transitions.
 - Players who drop still count for `RECONNECT_GRACE_MS` (8 s). After that, phases stop waiting for them.
-- A test asserts exactly three cards per persona, and engine tests name the four current areas.
+- Decks are 6 cards, hands are 4 per round (`HANDS`), and `checkPlay` needs the round. Engine tests name the four current areas.
+- MapLibre positions markers with a `transform` on the marker element: never set `position` or animate `transform` on a marker's
+  root element (animate a child). Breaking this stacks or teleports avatars and effects.
+- Plain cards need no engine code (`attach` / `offer` / `delayed`); a card that only targets its own persona's projects is unplayable.
 - `pipeline/cache/` is git-ignored. `npm run data -- --refresh` hits live County and City services; use it sparingly.

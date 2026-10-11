@@ -32,8 +32,13 @@ const FEATURE_ICON: Record<MapFeatureKind, string> = {
   shoreline: PROJECTS.shoreline.marker,
   hotel: PROJECTS.hotel.marker,
   elevate: PROJECTS.elevate.marker,
+  seawall: PROJECTS.seawall.marker,
+  dune: PROJECTS.dune.marker,
+  marina: PROJECTS.marina.marker,
+  housing: PROJECTS.housing.marker,
   'access-corridor': '🚶',
-  'dune-setback': '🏝️',
+  'dune-setback': '📐',
+  'eco-label': '🏅',
 };
 
 function style(): StyleSpecification {

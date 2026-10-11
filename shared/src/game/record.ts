@@ -120,6 +120,10 @@ const OBJECTION_RULES: Record<string, string> = {
   O2: 'Neighborhood petition',
   O3: 'Public access condition refused',
   N2: 'Opposed in negotiation',
+  O4: 'Building moratorium',
+  O5: 'Habitat survey',
+  O6: 'Rent shield',
+  O7: 'Eco-certification refused',
 };
 
 const humanSeats = (m: MatchRecord, humansOnly: boolean) => new Set(m.players.filter((p) => !humansOnly || p.participant === 'human').map((p) => p.seat));

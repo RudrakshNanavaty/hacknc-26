@@ -652,7 +652,8 @@ button.game-card:hover:not(:disabled) { transform: translateY(-8px) rotate(-1deg
 
 /* ===================== Living city: avatars, bubbles, ghosts, effects ===================== */
 
-.avatar { position: relative; width: 46px; height: 58px; pointer-events: auto; cursor: default; }
+/* No `position` here: MapLibre's .maplibregl-marker is position:absolute, and overriding it stacks markers. */
+.avatar { width: 46px; height: 58px; pointer-events: auto; cursor: default; }
 .avatar-figure { position: absolute; inset: 0; transform-origin: 50% 100%; animation: av-breathe 2.6s ease-in-out infinite; }
 .avatar-svg { width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 2px 0 #fff) drop-shadow(0 4px 6px rgba(0, 30, 60, 0.45)); }
 .avatar-shadow { position: absolute; left: 50%; bottom: -3px; width: 34px; height: 9px; translate: -50% 0; border-radius: 50%; background: radial-gradient(ellipse, color-mix(in srgb, var(--tint) 55%, rgba(0, 30, 60, 0.6)), transparent 70%); z-index: -1; }
@@ -706,11 +707,13 @@ button.game-card:hover:not(:disabled) { transform: translateY(-8px) rotate(-1deg
 .avatar-bubble[data-source="gemini"]::before { content: "✦"; margin-right: 3px; color: var(--aqua-deep); }
 
 /* Proposals on the table. */
-.ghost { display: flex; flex-direction: column; align-items: center; gap: 2px; pointer-events: auto; animation: ghost-in 0.5s cubic-bezier(.2,.9,.3,1.4) both; }
+/* The marker root keeps MapLibre's transform: animate the children only. */
+.ghost { display: flex; flex-direction: column; align-items: center; gap: 2px; pointer-events: auto; }
+.ghost > * { animation: ghost-in 0.5s cubic-bezier(.2,.9,.3,1.4) both; }
 @keyframes ghost-in { from { opacity: 0; transform: translateY(-14px) scale(0.6); } }
 .ghost-icon { position: relative; width: 34px; height: 34px; display: grid; place-items: center; font-size: 18px; border-radius: 99px; background: rgba(255, 255, 255, 0.55); border: 2px dashed #fff; box-shadow: 0 4px 12px rgba(0, 40, 80, 0.35); }
 .ghost-tag { padding: 0 7px; border-radius: 99px; font: 900 9px/1.6 var(--font-display); text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink); background: #fff; box-shadow: 0 1px 4px rgba(0, 30, 60, 0.3); white-space: nowrap; }
-.ghost[data-status="proposed"] .ghost-icon { animation: pulse-glow 1.8s ease-in-out infinite; }
+.ghost[data-status="proposed"] .ghost-icon { animation: ghost-in 0.5s cubic-bezier(.2,.9,.3,1.4) both, pulse-glow 1.8s ease-in-out infinite; }
 .ghost[data-status="approved"] .ghost-icon { border-style: solid; border-color: #86df45; background: rgba(226, 255, 196, 0.85); }
 .ghost[data-status="approved"] .ghost-tag { background: linear-gradient(180deg, #e2ffc4, #86df45); color: #1f5a08; }
 .ghost[data-status="delayed"] .ghost-icon { border-color: #ffd23f; background: rgba(255, 247, 194, 0.85); }
@@ -722,7 +725,7 @@ button.game-card:hover:not(:disabled) { transform: translateY(-8px) rotate(-1deg
 .ghost[data-status="unfunded"] .ghost-tag { background: linear-gradient(180deg, #ede4ff, #b79cff); color: #3b2580; }
 
 /* One-shot effects. */
-.fx { position: relative; width: 0; height: 0; pointer-events: none; }
+.fx { width: 0; height: 0; pointer-events: none; }
 .fx > span { position: absolute; left: 0; top: 0; }
 .fx-icon { font-size: 30px; translate: -50% -50%; animation: fx-pop 2.4s cubic-bezier(.2,.9,.3,1.3) both; filter: drop-shadow(0 3px 4px rgba(0, 30, 60, 0.5)); }
 @keyframes fx-pop { 0% { transform: scale(0) translateY(10px); opacity: 0; } 15% { transform: scale(1.3); opacity: 1; } 30% { transform: scale(1); } 80% { opacity: 1; } 100% { transform: translateY(-26px); opacity: 0; } }
@@ -751,4 +754,27 @@ button.game-card:hover:not(:disabled) { transform: translateY(-8px) rotate(-1deg
 @media (max-width: 1023px) {
   .avatar { width: 36px; height: 46px; }
   .avatar-bubble { max-width: 140px; font-size: 11px; }
+}
+
+/* Card economy: public cost badge, previews, warnings, combos. */
+.hand .game-card:nth-child(4) { animation-delay: 0.21s; }
+/* Four cards in one row. */
+.hand { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; padding-top: 8px; }
+.hand .game-card { width: auto; min-height: 172px; padding: 10px 6px 8px; }
+.hand .game-card-text { font-size: 10px; }
+.hand .game-card-name { font-size: 13px; }
+.hand .game-card-emoji { font-size: 28px; }
+.game-card-money {
+  position: absolute; top: -8px; right: -8px; padding: 0 7px; height: 22px; display: grid; place-items: center;
+  border-radius: 99px; font: 900 11px/1 var(--font-display); color: #3b2580;
+  background: linear-gradient(180deg, #f3edff, #b79cff); border: 2px solid #fff; box-shadow: 0 3px 8px rgba(60, 0, 90, 0.3);
+}
+.preview-line { padding: 4px 8px; border-radius: 10px; background: rgba(25, 182, 230, 0.12); }
+.warn-line { padding: 4px 8px; border-radius: 10px; background: rgba(255, 210, 63, 0.3); font-weight: 700; }
+.combo-line { padding: 4px 8px; border-radius: 10px; background: linear-gradient(90deg, rgba(255, 224, 102, 0.35), rgba(183, 156, 255, 0.25)); }
+.combo-banner {
+  display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 16px;
+  background: linear-gradient(100deg, #fff7c2, #f3edff); border: 2px solid #fff;
+  box-shadow: 0 0 0 2px rgba(255, 210, 63, 0.7), 0 8px 20px rgba(3, 60, 100, 0.2);
+  animation: stamp-in 0.6s cubic-bezier(.2,.9,.3,1.3) both;
 }

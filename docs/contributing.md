@@ -90,18 +90,26 @@ Before each: write or adjust a test first where you can. After each: run §5.
 - Bump `RULES_VERSION` in `content.ts` for any rules change, so saved records stay comparable.
 
 ### Add or change a card
-1. `content.ts`: add the id to the `CardId` union and an entry in `CARDS` (persona, category, cost, art emoji, text,
-   rule, tradeoff, `project` or `acts` + `fallback`, `refs`). A test expects **exactly three cards per persona**: swap a
-   card, or change that test on purpose.
-2. Non-project cards: add a `case` to the attachment `switch` in `resolveRound`, and log a `RuleEvent` with a new or existing rule id.
-   If it offers a compromise, add it in `buildBoard` (see `public-access-guarantee`).
-3. Bots: add it to `BOT_PREFS` at the bottom of `engine.ts`.
+1. `content.ts`: add the id to the `CardId` union and an entry in `CARDS`: persona (deck), category (what it does in the
+   rules), family (what it is about), cost, art, `anim` (map effect), text, rule, tradeoff, `project` or `acts` + `fallback`,
+   `counters`, `combos`, `refs`. Tests expect **6 cards per deck** and every card dealt in some round's hand.
+2. Deal it: put it in `HANDS` (4 per round per persona) and in `BOT_PREFS` (same cards, in the bot's order) in `engine.ts`.
+3. Behaviour: a plain support or opposition card needs **no engine code**: give it `attach: { rule, support?, opposition?, cover?, ifBuilt? }`.
+   A negotiation condition uses `offer` (rules C4/O7). A consequence next round uses `delayed` (L0/L1). Only a truly new mechanic
+   needs a `case` in the attachment `switch` in `resolveRound`.
+   Check that the card can meet its targets: a card that only acts on its own persona's projects can never be played in the
+   same round as one (one card per player per round). `cards.test.ts` checks this for combos.
 4. Tests: a clash test in `shared/src/game/engine.test.ts`. Document a new rule id in `coastal-clash.md` §4.
 5. Bump `RULES_VERSION`.
 
 ### Add a project kind
-`ProjectKind` + `PROJECTS` (content.ts), a `case` in `projectEligibility` (districts.ts), the marker in `FEATURE_ICON`
-(`app/src/map/CityMap.tsx`), and any persona bonus in `finalResult`. TypeScript flags the exhaustive switches/records you miss.
+`ProjectKind` + `PROJECTS` (content.ts, including `upkeep`), a `case` in `projectEligibility` (districts.ts), the marker in
+`FEATURE_ICON` (`app/src/map/CityMap.tsx`), fisherman and bubble lines in `living.ts`, and any persona bonus in `finalResult`.
+TypeScript flags the exhaustive switches and records you miss.
+
+### Add a combo
+`ComboId` + `COMBOS` (content.ts), detection in the combo pass of `resolveRound` (after the outcomes loop), the combo on its
+cards' `combos`, and a test in `cards.test.ts`. Combos are authored: Gemini may suggest or explain one, never invent one.
 
 ### Add or move a playable area
 1. `pipeline/miami-beach.ts`: add to `AREAS` (id, name, blurb, focus box `[w, s, e, n]`, shore).

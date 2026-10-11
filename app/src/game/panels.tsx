@@ -2,7 +2,7 @@
 // resolution with its rule trace, and the end of the session.
 import { useMemo, useState } from 'react';
 import {
-  CARDS, NEGOTIATION_COST, PERSONA_INFO, PREFERENCE_QUESTION, PROJECTS, cardEligibility, districtById, districtFacts, handOf, resolveRound,
+  CARDS, COMBOS, NEGOTIATION_COST, PERSONA_INFO, PREFERENCE_QUESTION, PROJECTS, cardEligibility, districtById, districtFacts, handFor, resolveRound,
   type Board, type CardId, type Proposal, type RoomState, type RuleEvent,
 } from '@shared';
 import type { Room } from '../room/useRoom';
@@ -44,7 +44,32 @@ export function CrisisPanel({ state }: { state: RoomState }) {
   );
 }
 
-/** Your three cards and where to play them. */
+/** What a card does, what answers it, what it combos with, and what it costs later. */
+function CardDetail({ id }: { id: CardId }) {
+  const c = CARDS[id];
+  const project = c.project ? PROJECTS[c.project] : null;
+  return (
+    <div className="flex flex-col gap-1 text-13">
+      <p><b>{c.name}:</b> {c.rule}</p>
+      {project && (
+        <p className="preview-line">
+          <span className="font-bold">If built</span> {deltaText(project.delta)}
+          {project.budgetCost > 0 ? ` · −$${project.budgetCost}M budget` : ' · privately funded'}
+          {project.upkeep > 0 ? ` · then −$${project.upkeep}M a round upkeep` : ''}
+          <span className="opacity-70"> (illustrative)</span>
+        </p>
+      )}
+      {c.delayed && <p className="warn-line">⏳ Next round: {c.delayed.text}</p>}
+      <p className="opacity-80"><b>Trade-off:</b> {c.tradeoff}</p>
+      {c.counters.length > 0 && <p className="opacity-80"><b>Answered by:</b> {c.counters.map((x) => `${CARDS[x].art} ${CARDS[x].name}`).join(', ')}</p>}
+      {c.combos.map((k) => (
+        <p key={k} className="combo-line">✨ <b>{COMBOS[k].name}</b>: {COMBOS[k].recipe} Bonus {deltaText(COMBOS[k].bonus)}.</p>
+      ))}
+    </div>
+  );
+}
+
+/** The four cards this crisis dealt you, and where to play them. */
 export function HandPanel({ state, room, card, setCard, target, setTarget, onHover }: {
   state: RoomState; room: Room; card: CardId | null; setCard: (c: CardId | null) => void; target: string | null; setTarget: (d: string | null) => void;
   onHover?: (c: CardId | null) => void;
@@ -68,7 +93,7 @@ export function HandPanel({ state, room, card, setCard, target, setTarget, onHov
   return (
     <div className="flex flex-col gap-3">
       <div className="hand">
-        {handOf(me.persona).map((id) => {
+        {handFor(me.persona, state.round).map((id) => {
           const short = CARDS[id].cost > me.influence;
           return (
             <GameCard
@@ -85,8 +110,7 @@ export function HandPanel({ state, room, card, setCard, target, setTarget, onHov
       </div>
       {card && (
         <div className="glass flex flex-col gap-2 p-3">
-          <p className="text-13"><b>{CARDS[card].name}:</b> {CARDS[card].rule}</p>
-          <p className="text-13 opacity-80"><b>Trade-off:</b> {CARDS[card].tradeoff}</p>
+          <CardDetail id={card} />
           <p className="text-13 font-bold">{target ? `Target: ${districtById(target).name}` : 'Tap a highlighted area on the map, or pick one:'}</p>
           <div className="flex flex-wrap gap-2">
             {state.city && Object.keys(state.city.districts).map((id) => {
@@ -260,6 +284,15 @@ export function ResolvePanel({ state }: { state: RoomState }) {
           </div>
         );
       })}
+      {(r.combos ?? []).map((c) => (
+        <div key={c.event} className="combo-banner">
+          <span className="text-24">✨</span>
+          <div>
+            <p className="font-display text-15 font-black">Combo: {COMBOS[c.combo].name}</p>
+            <p className="text-13">{districtById(c.district).name} · {deltaText(c.delta)}</p>
+          </div>
+        </div>
+      ))}
       {loose.length > 0 && <ol className="flex flex-col gap-1">{loose.map((e) => <Rule key={e.id} e={e} />)}</ol>}
       <p className="text-[12px] opacity-70">Effects are illustrative scenario values, not engineering predictions. Geography (zoning, FEMA zones) is real.</p>
     </div>

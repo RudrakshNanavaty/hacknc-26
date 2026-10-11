@@ -113,6 +113,18 @@ const PLAY_LINES: Partial<Record<CardId, string>> = {
   'elevate-buildings': 'Raise the houses, keep the neighbors. Simple as that.',
   'neighborhood-petition': 'Four hundred signatures and a very determined clipboard.',
   'public-access-guarantee': 'Build it if you want. Just keep a path to the beach.',
+  'seawall-upgrade': 'Taller, stronger seawall. The tide can knock all it wants.',
+  'resilience-bond': 'We build today and pay tomorrow. Future me will understand.',
+  'building-moratorium': 'Everybody put down the cranes until the drains catch up.',
+  'dune-restoration': 'Sea oats, sand fencing, patience. Dunes are free storm armor.',
+  'habitat-survey': 'Before you pour concrete, meet the birds who live here.',
+  'eco-certification': 'Go green and I will cheer. Go grey and I will not.',
+  'marina-expansion': 'Yacht slips, a promenade, waterfront dining. Pure synergy.',
+  'lobbying-blitz': 'I have booked lunch with every council member. Twice.',
+  'community-benefits': 'Public showers, bike racks, a pocket park. Everybody wins, mostly.',
+  'workforce-housing': 'Homes for teachers and nurses, built above the flood line.',
+  'flood-watch': 'Flashlights, rakes and a group chat. We clear the drains ourselves.',
+  'rent-shield': 'Protect the renters first, then we can talk about towers.',
 };
 
 const OUTCOME_LINES: Record<OutcomeStatus, [string, Reaction]> = {
@@ -125,6 +137,9 @@ const OUTCOME_LINES: Record<OutcomeStatus, [string, Reaction]> = {
 
 const FISHER_ON: Partial<Record<ProjectKind, [string, Reaction]>> = {
   hotel: ['Another hotel. More guests, more boats, less room at the pier.', 'mock'],
+  marina: ['Great, another luxury marina. Guess my boat is a tourist attraction now.', 'protest'],
+  seawall: ['A wall keeps water out. It also keeps the fish out.', 'worry'],
+  dune: ['Healthy dunes, healthy beach, healthy fishing. Finally, good news.', 'congratulate'],
   shoreline: ['Mangroves mean baitfish. Baitfish mean dinner. I approve.', 'congratulate'],
   drainage: ['Cleaner runoff into the bay. The snook will be pleased.', 'congratulate'],
 };
