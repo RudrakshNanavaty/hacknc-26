@@ -146,6 +146,16 @@ Planning Studio keeps the AI apart from opinion data: an "AI Game Director" pane
 Without a working Gemini key (no key, or a key out of credit) the same demo runs on the authored scenario, template bubbles,
 template twists and engine-worded hints: nothing is skipped.
 
+## Real civic stories (branch `aum/civic-stories`)
+
+Every round re-enacts a real Miami Beach story from a reviewed research corpus, and each match draws a different three.
+
+- **Corpus:** `pipeline/research/miami-beach-civic-corpus.json` holds 38 stories with facts, real sides, tensions, concern categories and 62 source links. `pipeline/snowflake-load.ts` loads it into Snowflake `COASTAL_CLASH.CORPUS` (`ISSUES`, `SOURCES`, and the `APPROVED_ISSUES` view). A human sets `REVIEW_STATUS = 'approved'`; nothing else reaches the game.
+- **Casting agent:** `pipeline/cast-stories.ts` uses Gemini, offline. Per story it decides who each character stands in for (only from the story's real sides), what they want, and their opening script. It deals each persona 4 of their 6 cards and names those cards for the story. `validateCast` (`shared/src/game/story.ts`) rejects invented people or numbers, cards outside a persona's deck, unsafe words, and hands with nothing buildable where the real zoning allows it. Casts are stored in `ISSUES.STORY_CAST`.
+- **Match start:** `server/src/stories.ts` reads approved, cast stories from Snowflake (cached on disk). `storyScenarioWriter` picks three (different areas and kinds; round 3 prefers flood or storm), and Gemini writes each round's headline from the story's facts plus the live readings, number-checked. If Gemini fails, the story's own title and summary stand in.
+- **In play:** the crisis card shows the real story, its years, who each character stands in for, and source chips. Hands are the story's deal (`dealtHand`, enforced by `checkPlay`, used by bots). Cards show their story name with "Plays as …". Crisis bubbles are the story scripts, reveal bubbles the card lines, and the narrator and Director get the story as facts.
+- **Unchanged:** what every card does, the rules engine, scoring and the storm test.
+
 ## 9. What is next (P3)
 
 More cities and scenarios, the Fisherman as a playable fifth seat (today a non-player role), ElevenLabs persona voices, richer layers (NOAA sea level rise), designer review of the AI combo ideas queue, and balance tuning of the 24 cards from recorded community sessions.

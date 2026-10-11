@@ -12,6 +12,7 @@ import type { Room } from '../room/useRoom';
 import { Link } from '../router';
 import { explain } from '../api';
 import { CharacterCard } from './GameCard';
+import { StoryPanel, useCard } from './story';
 import { Deck } from './Deck';
 import { CardExtras, ComboBanners, Hints, IfItPasses, PreviewBox, Recap, TwistCard, WhyButton } from './insights';
 import { RoundDots, Soap, Tube } from './ui';
@@ -70,7 +71,7 @@ export function CrisisScreen({ state }: { state: RoomState }) {
       <h2 className="glow-title">{c.title}</h2>
       <div className="ccard-art wet !aspect-[16/8]">
         <Soap size={120} className="bob" tint="#4fc3f7">{kind.icon}</Soap>
-        <span className="lchip absolute right-3 bottom-3">{c.source === 'gemini' ? '✨ Written live by Gemini' : 'Authored scenario'}</span>
+        <span className="lchip absolute right-3 bottom-3">{c.story ? (c.source === 'gemini' ? '📄 Real story · told live by Gemini' : '📄 Real story') : c.source === 'gemini' ? '✨ Written live by Gemini' : 'Authored scenario'}</span>
       </div>
       {c.readings.length > 0 && (
         <div className="flex flex-col gap-1">
@@ -78,6 +79,7 @@ export function CrisisScreen({ state }: { state: RoomState }) {
         </div>
       )}
       <div className="narration wet"><span className="typed">{c.text}</span></div>
+      <StoryPanel crisis={c} you={me?.persona ?? null} />
       {state.event && state.event.round === state.round && <TwistCard ev={state.event} />}
       {c.spotlight.map((id) => (
         <div key={id} className="frost p-3">
@@ -86,7 +88,7 @@ export function CrisisScreen({ state }: { state: RoomState }) {
         </div>
       ))}
       <p className="lchip lchip-lime w-fit whitespace-normal">Approved projects here this round: {Object.entries(c.bonus).map(([k, v]) => `+${v} ${INDICATOR_INFO[k as keyof typeof INDICATOR_INFO].short.toLowerCase()}`).join(', ')} (rule K1)</p>
-      {me && <p className="frost p-3 text-13"><b>Your agenda, {PERSONA_INFO[me.persona].name}:</b> {PERSONA_INFO[me.persona].goal}</p>}
+      {me && !c.story && <p className="frost p-3 text-13"><b>Your agenda, {PERSONA_INFO[me.persona].name}:</b> {PERSONA_INFO[me.persona].goal}</p>}
     </div>
   );
 }
@@ -174,10 +176,11 @@ const ACT_LABEL: Record<Attachment['card'], string> = Object.fromEntries(Object.
 
 function ClashCard({ a, state, side }: { a: Attachment; state: RoomState; side: 'backs' | 'fights' | 'deal' }) {
   const c = CARDS[a.card];
+  const story = useCard(a.card);
   return (
     <div className={`sc wet ${side} ${side === 'fights' ? 'land-r' : 'land-l'}`}>
       <span className="art">{c.art}</span>
-      <span>{c.name}</span>
+      <span>{story.name}</span>
       <span className="text-[11px] opacity-70">{who(state, a.seat)?.name}</span>
     </div>
   );

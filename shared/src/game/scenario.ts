@@ -2,7 +2,8 @@
 // gauge, NWS forecast) and the real district facts. Gemini may choose the kind of crisis, which
 // areas it is about and the words; what each kind DOES is authored here (rule K1), so the rules stay
 // deterministic. Without Gemini, the authored scenario below carries the same live readings.
-import { CARDS, type CardId, type Delta } from './content';
+import { CARDS, type CardId, type Delta, type PersonaId } from './content';
+import type { CardSkin, CrisisStory } from './story';
 import { DISTRICTS, DISTRICT_IDS, coastalHighHazard, districtById } from './districts';
 
 export interface LiveConditions {
@@ -48,6 +49,12 @@ export interface Crisis {
   readings: string[];
   refs: string[];
   source: 'gemini' | 'authored';
+  /** The real civic story this round is about, with its sources and each character's part. */
+  story?: CrisisStory;
+  /** The cards each persona is dealt this round (else the authored HANDS). */
+  hands?: Record<PersonaId, CardId[]>;
+  /** Story names and lines for the dealt cards (presentation only). */
+  skins?: Partial<Record<CardId, CardSkin>>;
 }
 
 export interface Scenario {
@@ -56,6 +63,8 @@ export interface Scenario {
   quips: Partial<Record<CardId, string>>;
   live: LiveConditions | null;
   source: 'gemini' | 'authored';
+  /** Ids of the civic stories the rounds are about, in round order (empty: no stories). */
+  stories?: string[];
 }
 
 const MB_PROJECTS = 'https://www.miamibeachfl.gov/projects/';

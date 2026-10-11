@@ -162,7 +162,11 @@ const FISHER_ON: Partial<Record<ProjectKind, [string, Reaction]>> = {
 
 /** Crisis: everyone gathers at the spotlight and says what worries them. */
 export function crisisBubbles(crisis: Crisis, personas: PersonaId[]): Bubble[] {
-  const lines = CRISIS_LINES[crisis.kind];
+  // A real story scripts its own cast: each character's opening line, written for this story.
+  const scripted = crisis.story?.roles;
+  const lines = scripted
+    ? (Object.fromEntries(ROLES.map((r) => [r, [scripted[r].line, scripted[r].reaction]])) as Record<RoleId, [string, Reaction]>)
+    : CRISIS_LINES[crisis.kind];
   const moment = `crisis-${crisis.round}`;
   const at = (i: number) => crisis.spotlight[i % crisis.spotlight.length] ?? null;
   return [
@@ -179,12 +183,12 @@ export function revealBubbles(board: Board): Bubble[] {
   for (const p of board.proposals.filter((x) => !x.carried)) {
     const card = cardFor(p.kind);
     const worried = opposed.has(p.id);
-    out.push(bubble(moment, p.persona, worried ? `Wait, who is opposing my ${PROJECTS[p.kind].name.toLowerCase()}? Let us talk.` : PLAY_LINES[card] ?? 'Here is my proposal.', worried ? 'worry' : 'celebrate', p.district));
+    out.push(bubble(moment, p.persona, worried ? `Wait, who is opposing my ${PROJECTS[p.kind].name.toLowerCase()}? Let us talk.` : board.crisis.skins?.[card]?.line ?? PLAY_LINES[card] ?? 'Here is my proposal.', worried ? 'worry' : 'celebrate', p.district));
   }
   for (const a of board.attachments) {
     const cat = CARDS[a.card].category;
     const reaction: Reaction = cat === 'opposition' ? 'protest' : cat === 'negotiation' ? 'conditional-support' : 'congratulate';
-    out.push(bubble(moment, a.persona, PLAY_LINES[a.card] ?? `${CARDS[a.card].name}, coming right up.`, reaction, a.district));
+    out.push(bubble(moment, a.persona, board.crisis.skins?.[a.card]?.line ?? PLAY_LINES[a.card] ?? `${CARDS[a.card].name}, coming right up.`, reaction, a.district));
   }
   const near = board.proposals.find((p) => p.district === SCENARIO_ROLES.fisherman.home && FISHER_ON[p.kind]);
   if (near) out.push(bubble(moment, 'fisherman', FISHER_ON[near.kind]![0], FISHER_ON[near.kind]![1], near.district));

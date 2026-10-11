@@ -16,6 +16,7 @@ import { JoinForm, Lobby } from '../game/Lobby';
 import { CardScreen, CrisisScreen, DuelScreen, FinalScreen, ResultScreen } from '../game/screens';
 import { LagoonBubbles } from '../game/ui';
 import { useCountdown } from '../game/format';
+import { CrisisProvider } from '../game/story';
 
 function useWide() {
   const q = '(min-width: 1024px)';
@@ -116,6 +117,7 @@ export function Play({ code }: { code: string }) {
             : <FinalScreen state={state} room={room} />;
 
   return (
+    <CrisisProvider crisis={state.crisis}>
     <main className="stage">
       <section className="stage-map">
         <CityMap
@@ -151,5 +153,6 @@ export function Play({ code }: { code: string }) {
       <Flights map={map} state={state} />
       <Stamps map={map} state={state} />
     </main>
+    </CrisisProvider>
   );
 }

@@ -2,7 +2,8 @@
 // or drag a card straight onto the map, Clash Royale style, and drop it on an area to deploy.
 import { useEffect, useRef, useState } from 'react';
 import type { Map as MapLibreMap } from 'maplibre-gl';
-import { CARDS, MAX_INFLUENCE, cardEligibility, districtById, handFor, type CardId, type PersonaId } from '@shared';
+import { CARDS, MAX_INFLUENCE, cardEligibility, dealtHand, districtById, type CardId, type PersonaId } from '@shared';
+import { useCrisis } from './story';
 import { GameCard } from './GameCard';
 import { Tube } from './ui';
 import { playDeal, unlockAudio } from '../ui/sound';
@@ -73,11 +74,12 @@ export function Deck({ persona, round, influence, card, setCard, setTarget, map,
     };
   }, [drag !== null, map]);
 
+  const crisis = useCrisis();
   const overOk = drag?.over ? cardEligibility(drag.card, drag.over) : null;
   return (
     <div className="flex flex-col gap-2">
       <div className="deck">
-        {handFor(persona, round).map((id) => {
+        {dealtHand(persona, round, crisis).map((id) => {
           const short = CARDS[id].cost > influence;
           return (
             <GameCard

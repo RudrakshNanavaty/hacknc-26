@@ -3,6 +3,7 @@
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react';
 import { CARDS, FAMILY_INFO, INDICATOR_INFO, PERSONA_INFO, PROJECTS, type CardId, type Delta, type Indicator } from '@shared';
 import { Soap } from './ui';
+import { useCard } from './story';
 
 const CATEGORY = { project: 'Project', support: 'Support', opposition: 'Opposition', negotiation: 'Deal' } as const;
 const CATEGORY_TONE = { project: 'lchip-lime', support: 'lchip-aqua', opposition: 'lchip-coral', negotiation: 'lchip-sun' } as const;
@@ -62,10 +63,12 @@ function derivedStats(id: CardId): Stat[] {
 
 export function CharacterCard({ id, quip, note }: { id: CardId; quip?: string | null; note?: string | null }) {
   const c = CARDS[id];
+  const story = useCard(id);
+  const line = story.line ?? quip;
   const p = PERSONA_INFO[c.persona];
   const cost = c.project ? PROJECTS[c.project].budgetCost : 0;
   return (
-    <article className="flex flex-col gap-2" aria-label={`${c.name} card`}>
+    <article className="flex flex-col gap-2" aria-label={`${story.name} card`}>
       <div className="flex items-center justify-between">
         <span className="lchip">{p.emoji} {p.name}</span>
         <span className="flex gap-1">
@@ -79,14 +82,15 @@ export function CharacterCard({ id, quip, note }: { id: CardId; quip?: string | 
         {cost > 0 && <span className="lchip lchip-sun absolute right-3 bottom-3">Public cost ${cost}M{c.project && PROJECTS[c.project].upkeep ? ` + $${PROJECTS[c.project].upkeep}M/round` : ''}</span>}
         {c.project && cost === 0 && <span className="lchip lchip-lime absolute right-3 bottom-3">Privately funded</span>}
       </div>
-      <h2 className="glow-title">{c.name}</h2>
+      <h2 className="glow-title">{story.name}</h2>
+      {story.skinned && <p className="-mt-1 text-13 font-bold text-white drop-shadow">Plays as {c.name}</p>}
       <div className="wet flex flex-col gap-2 p-3">
         <div className="stats4">
           {cardStats(id).map((s) => (
             <span key={s.label} className={`stat ${s.tone ?? ''}`}>{s.label}<b>{s.value}</b></span>
           ))}
         </div>
-        {quip && <p className="quip">“{quip}”</p>}
+        {line && <p className="quip">“{line}”</p>}
         <p className="text-13 font-semibold opacity-85">{c.rule}</p>
         {note && <p className="text-13 font-black text-[#c0392b]">{note}</p>}
       </div>
@@ -103,12 +107,13 @@ export function GameCard({ id, selected = false, disabled = false, onClick, onPo
   style?: CSSProperties; compact?: boolean; note?: string | null;
 }) {
   const c = CARDS[id];
+  const story = useCard(id);
   const cls = `mini wet ${selected ? 'is-on' : ''} ${disabled ? 'is-off' : ''}`;
   const body = (
     <>
       <span className="cost-orb">{c.cost}</span>
       <span className="art">{c.art}</span>
-      <span className="nm">{c.name}</span>
+      <span className="nm">{story.name}</span>
     </>
   );
   if (!onClick && !onPointerDown) return <div className={`mini-card wet`} style={style} title={c.rule}>{body}</div>;
