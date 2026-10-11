@@ -131,12 +131,15 @@ export function registerCardArt(app: FastifyInstance, gemini: Gemini, opts: { di
     if (Date.now() < pausedUntil) return reply.code(503).header('retry-after', '300').send({ error: 'pictures are paused (quota)' });
     const theme: ArtTheme = { skin: plain(req.query.skin, 40), place: plain(req.query.place, 40), story: plain(req.query.story, 70) };
     const key = keyFor(id, theme);
+    // The key includes the style version, so it is the picture's identity: a client that has it is current.
+    const etag = `"${key}"`;
+    if (req.headers['if-none-match'] === etag) return reply.code(304).header('etag', etag).send();
     const lastFail = failed.get(key);
     if (lastFail && Date.now() - lastFail < FAIL_TTL_MS) return reply.code(503).header('retry-after', '45').send({ error: 'not painted yet' });
     try {
       const v = await paint(id, theme, key);
       failed.delete(key);
-      return reply.header('content-type', v.mimeType).header('cache-control', 'public, max-age=3600').send(v.data);
+      return reply.header('content-type', v.mimeType).header('etag', etag).header('cache-control', 'no-cache').send(v.data);
     } catch (err) {
       failed.set(key, Date.now());
       const message = (err as Error).message;

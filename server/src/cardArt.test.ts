@@ -59,6 +59,17 @@ describe('GET /api/card-art/:id', () => {
     expect(calls.n).toBe(2);
     await app.close();
   });
+  it('lets a client that already has the current picture skip the download', async () => {
+    const calls = { n: 0 };
+    const app = server(painter(calls));
+    const a = await app.inject('/api/card-art/fast-track');
+    const etag = String(a.headers.etag);
+    expect(etag).toMatch(/^"[0-9a-f]{24}"$/);
+    const b = await app.inject({ url: '/api/card-art/fast-track', headers: { 'if-none-match': etag } });
+    expect(b.statusCode).toBe(304);
+    expect(calls.n).toBe(1);
+    await app.close();
+  });
   it('shares one painting between simultaneous requests', async () => {
     const calls = { n: 0 };
     const app = server(painter(calls));
