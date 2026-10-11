@@ -670,10 +670,10 @@ input[type="range"].aero-range {
 /* ===================== Living city: avatars, bubbles, ghosts, effects ===================== */
 
 /* No `position` here: MapLibre's .maplibregl-marker is position:absolute, and overriding it stacks markers. */
-.avatar { width: 46px; height: 58px; pointer-events: auto; cursor: default; }
+.avatar { width: 60px; height: 75px; pointer-events: auto; cursor: default; }
 .avatar-figure { position: absolute; inset: 0; transform-origin: 50% 100%; animation: av-breathe 2.6s ease-in-out infinite; }
 .avatar-svg { width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 2px 0 #fff) drop-shadow(0 4px 6px rgba(0, 30, 60, 0.45)); }
-.avatar-shadow { position: absolute; left: 50%; bottom: -3px; width: 34px; height: 9px; translate: -50% 0; border-radius: 50%; background: radial-gradient(ellipse, color-mix(in srgb, var(--tint) 55%, rgba(0, 30, 60, 0.6)), transparent 70%); z-index: -1; }
+.avatar-shadow { position: absolute; left: 50%; bottom: -3px; width: 46px; height: 11px; translate: -50% 0; border-radius: 50%; background: radial-gradient(ellipse, color-mix(in srgb, var(--tint) 55%, rgba(0, 30, 60, 0.6)), transparent 70%); z-index: -1; }
 .avatar-name { position: absolute; left: 50%; top: 100%; translate: -50% 2px; padding: 0 6px; border-radius: 99px; font: 900 9px/1.5 var(--font-display); color: #fff; white-space: nowrap; background: color-mix(in srgb, var(--tint) 85%, #063a5b); border: 1px solid #fff; box-shadow: 0 1px 4px rgba(0, 30, 60, 0.4); opacity: 0; transition: opacity 0.2s ease; }
 .avatar:hover .avatar-name, .avatar[data-speaking="true"] .avatar-name { opacity: 1; }
 .avatar[data-facing="left"] .avatar-svg { transform: scaleX(-1); }
@@ -689,6 +689,16 @@ input[type="range"].aero-range {
 .avatar[data-mood="worried"] .av-mouth-wobble, .avatar[data-mood="worried"] .av-brows-worried { display: inline; }
 .avatar[data-mood="smug"] .av-mouth-smirk { display: inline; }
 
+/* The news anchor: the same rig as the avatars, talking while a headline is read. */
+.tv-anchor .av-mouth, .tv-anchor .av-brows-angry, .tv-anchor .av-brows-worried { display: none; }
+.tv-anchor .av-mouth-smile { display: inline; }
+.tv-anchor[data-talking="true"] .av-mouth-smile { display: none; }
+.tv-anchor[data-talking="true"] .av-mouth-talk { display: inline; transform-box: fill-box; transform-origin: 50% 35%; animation: av-talk .36s steps(1, end) infinite; }
+@keyframes av-talk { 0% { transform: scaleY(1); } 34% { transform: scaleY(.3); } 67% { transform: scaleY(.75); } }
+
+/* A slow blink, offset per avatar so the table does not blink together. */
+.avatar-svg .av-eyes { transform-box: fill-box; transform-origin: 50% 50%; animation: av-blink 4.6s ease-in-out infinite; animation-delay: var(--blink, 0s); }
+@keyframes av-blink { 0%, 94%, 100% { transform: scaleY(1); } 97% { transform: scaleY(.12); } }
 @keyframes av-breathe { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.02, 1.045); } }
 @keyframes av-walk { 0%, 100% { transform: translateY(0) rotate(-4deg); } 50% { transform: translateY(-5px) rotate(4deg); } }
 @keyframes av-jump { 0%, 100% { transform: translateY(0) scale(1); } 30% { transform: translateY(-16px) scale(1.06, 0.96); } 55% { transform: translateY(0) scale(1.08, 0.9); } 70% { transform: translateY(-6px); } }

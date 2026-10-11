@@ -13,7 +13,7 @@ import { spriteSvg } from './sprites';
 
 /** Screen offset of each role around an area's center (px), clear of the area's chip. */
 const SLOT: Record<RoleId, [number, number]> = {
-  mayor: [-112, 16], activist: [-68, 42], resort: [68, 42], resident: [112, 16], fisherman: [0, 118],
+  mayor: [-128, 18], activist: [-78, 48], resort: [78, 48], resident: [128, 18], fisherman: [0, 134],
 };
 const slot = (role: RoleId): [number, number] => SLOT[role];
 const WALK_MS = 1500;
@@ -118,6 +118,7 @@ export function LivingLayer({ map, state, onFocusProposal }: {
       el.dataset.role = role;
       el.dataset.mood = 'idle';
       el.style.setProperty('--tint', info.color);
+      el.style.setProperty('--blink', `${-(roles.indexOf(role) * 1.3 + 0.4)}s`);
       el.innerHTML = `<div class="avatar-bubble" role="status"></div><div class="avatar-figure">${spriteSvg(role)}</div><div class="avatar-shadow"></div><div class="avatar-name">${info.name.replace('Environmental ', '')}</div>`;
       el.title = `${info.name}: ${'title' in info ? info.title : ''}`;
       const marker = new Marker({ element: el, anchor: 'bottom', offset: slot(role) });
