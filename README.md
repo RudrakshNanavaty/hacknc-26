@@ -8,19 +8,27 @@ Coastal Clash is a multiplayer strategy game about real coastal planning decisio
 
 Built for **HackNC 2026**, with a Frutiger Aero + Liquid Glass interface: ocean scenery, small floating bubbles, glossy green buttons, glass panels, and animated 3D characters.
 
+This overview follows the team's [Devpost project context](docs/devpost.md), the primary source for the project story, research workflow, integrations, and roadmap. [Implementation notes](docs/implementation-notes.md) document the scope and verification of this checkout.
+
 ![Stakeholder selection: four roles and their goals, on frosted glass over an underwater seascape](docs/images/stakeholder-selection.png)
 
-[Quick start](#quick-start) · [How to play](#how-to-play) · [Civic Atlas](#what-stays-after-the-match) · [Architecture](#how-it-is-built) · [Implementation status](#implementation-status)
+[Quick start](#quick-start) · [How to play](#how-to-play) · [Civic Atlas](#what-stays-after-the-match) · [How we built it](#how-we-built-it) · [Full Devpost context](docs/devpost.md)
 
 ## Inspiration
 
-People spend whole evenings making decisions for imaginary cities. Games like GeoGuessr make exploring unfamiliar places fun. We wanted to bring some of that energy to real decisions about a neighborhood's future.
+More than **100 million people** have played GeoGuessr, exploring places they have never visited because it is fun. Strategy games get people to spend evenings deciding things for imaginary cities. Engaging people in real decisions about their own neighborhood is harder.
 
-Surveys, public meetings, and participatory budgeting are valuable. Our question concerns what happens before someone votes yes or no. A resident might support raising a flood-prone road **only if** the city guarantees access to their front door. A business owner might support a different design, contribute to a compromise, or want the project stopped. That “only if” is information worth keeping.
+The Devpost context brings together examples of that challenge: Rio Rancho's professionally run 2025 survey reached 3,000 randomly selected households and received an **11% response**, while University of Michigan researchers found **65% of Michigan local jurisdictions** struggled to engage people beyond repeat participants. These figures describe participation challenges, not a claim that surveys are broken.
 
-Miami Beach offers concrete conflicts to explore. The [West Avenue Neighborhood Improvements project](https://www.miamibeachfl.gov/projects/west-avenue-neighborhood-improvements-project-phase-ii/) combines flood protection, raised roads, drainage, utilities, and harmonization: connecting raised public streets to existing private properties. It is a real design problem involving safety, access, cost, and competing priorities.
+Engagement also takes resources. Seattle advertised an estimated **$250,000** contract for broad community stewardship and engagement around its I-5 lid studies, not one survey. An American Planning Association interview described one regional council sending about 20,000 survey invitations and offering **$125 gift cards** for longer follow-up interviews.
 
-Coastal Clash turns those tensions into a game inspired by the immediacy of Clash Royale. The goal is to surface questions and conditions that deserve further discussion in formal consultation.
+People do show up when taking part is easy. Boston's first citywide participatory budgeting cycle held 19 idea workshops and three visioning forums, worked in six languages, and collected **4,462 votes** in January 2025. **131,527 New Yorkers** voted in The People's Money in 2025. [Source descriptions supplied with the Devpost context](docs/devpost.md#sources).
+
+Our question is what happens **before** someone votes yes or no. A resident might support raising a flood-prone road **only if** the city guarantees access to their front door. A business owner might back a different design. Someone else might want the project stopped. That “only if” is the information we wanted to collect.
+
+Miami Beach gave us a real place to try it. The submission cites its 2025 Sea Level Rise Adaptation Plan's **67,000-plus vulnerable assets**, supported by a **$454,000 Resilient Florida grant** and **$100,000 city match**. It cites a **$100,229,771** published budget for [West Avenue Neighborhood Improvements](https://www.miamibeachfl.gov/projects/west-avenue-neighborhood-improvements-project-phase-ii/): raised roads, pumping, utilities, and harmonization, connecting raised public streets to existing private properties.
+
+That is a real, expensive, complicated decision about a neighborhood. We wondered what it would be like to play that conflict as a card game, something like a round of Clash Royale. That became Coastal Clash.
 
 ## How to play
 
@@ -33,7 +41,7 @@ Host a room and share its code or QR. Up to four people join, one stakeholder ea
 | **Environmental Activist** | Habitat, public space, natural shorelines, and careful development. |
 | **Resort Owner** | Viable businesses, visitors, investment, and property protection. |
 
-The map contains South Pointe, West Avenue, Collins/Mid-Beach, and North Beach Oceanside. The current **Planning Edition** plays three authored, source-linked scenarios in a fixed sequence:
+The map contains South Pointe, West Avenue, Collins/Mid-Beach, and North Beach Oceanside. A match plays three real fights in three of those places, each presenting a different kind of problem:
 
 | Round | Place and issue | Project choices |
 | --- | --- | --- |
@@ -42,6 +50,8 @@ The map contains South Pointe, West Avenue, Collins/Mid-Beach, and North Beach O
 | 3 | **Collins/Mid-Beach — shoreline protection** | Add sand, build groins and breakwaters, or restore dunes. |
 
 These cards are simplified options authored for the game. They do not imply that the city put exactly three choices on a ballot. Costs use hypothetical game budget units.
+
+The underlying stories are concrete: safe access beside raised streets on West Avenue; a tower over 500 feet tall in exchange for a developer-donated three-acre park at South Pointe; and roughly 835,000 cubic yards of sand under a $40.4 million beach-renourishment contract, alongside debate over structures to retain it. The [Devpost sources](docs/devpost.md#sources) and [research corpus](pipeline/research/miami-beach-civic-corpus.json) preserve differences in reported tower height, sand volume, and project cost.
 
 ### 1. Play a Card
 
@@ -107,7 +117,7 @@ The simulator evaluates **1,400 feasible plans**, including amended variants, un
 
 Project effects are explicitly labeled assumptions. The output ranks plans by flood exposure, public access, and cost; it is **not a flood forecast or an engineering assessment**. Assumptions and their sources live in [`sim-assumptions.ts`](shared/src/game/plan/sim-assumptions.ts), and [`sim.ts`](shared/src/game/plan/sim.ts) contains the model. A test checks that the committed simulator cache matches the rules.
 
-## How it is built
+## How we built it
 
 The project builds on our earlier work: **Pocket Rivals** contributed the real-time room and synchronized-play pattern, while **Mayday Mayor** informed civic records and contribution incentives.
 
@@ -121,35 +131,48 @@ docs/      Rules, data provenance, setup, handoffs, and verification notes
 
 The server owns proposals, amendments, voting, budgets, and scoring. Shared TypeScript rules determine outcomes. **Gemini can explain and narrate; it cannot decide votes, verdicts, or points.** Narration is checked against supplied facts, and lines with unsupported numbers fall back to templates.
 
-### Civic research and scenario casting
+### The research swarm
 
-The research workflow separates agenda scouting, project tracking, geographic matching, documented concerns, verification, and human review. It organizes planning information scattered across project pages, public records, GIS layers, and local reporting.
+Planning information is public but scattered across board agendas, project pages, hearings, public comments, budgets, GIS layers, and local news. The Devpost describes the team's multi-agent civic research desk:
 
-This repository includes the [research corpus](pipeline/research/miami-beach-civic-corpus.json), [Snowflake loader](pipeline/snowflake-load.ts), [Gemini casting script](pipeline/cast-stories.ts), and [cast validation](shared/src/game/story.ts). Facts, documented positions, places, source links, and verification notes travel with each story. The autonomous scout orchestration described in the broader project is not packaged as a runnable service here.
+| Role | Responsibility |
+| --- | --- |
+| Agenda scout | Find planning-board items, hearings, applications, and proposals; retain identifiers and sources. |
+| Projects scout | Track capital projects, status changes, and published budgets. |
+| Geo agent | Tie proposals to addresses, parcels, neighborhoods, or game areas. |
+| Context agent | Find documented arguments in records, official statements, and reporting. |
+| Verifier | Check numbers and claims, flag contradictory sources, and hold uncertain items back. |
+| Human review | Decide which research items are reliable enough to become scenarios. |
 
-The Snowflake story feed admits reviewed, approved, validly cast stories. The current Planning Edition uses its three committed scenarios, checked against the local corpus by tests, rather than generating new scenarios at match start. Gemini supplies the news anchor and character dialogue from those facts and the engine's decisions.
+The workflow is **research → Snowflake → Gemini → the game**. Research items carry facts, documented positions, locations, source URLs, and verification notes. Gemini uses that context for scenario setup, stakeholder casting, story names, the anchor's lines, and characters' speech bubbles. Players can trace the conflict back to a real place and open its evidence.
 
-### Integrations and hackathon tracks
+Repository entry points: [research corpus](pipeline/research/miami-beach-civic-corpus.json), [Snowflake loader](pipeline/snowflake-load.ts), [Gemini casting](pipeline/cast-stories.ts), and [validation](shared/src/game/story.ts). The agents organize the conflict, Gemini makes the scene understandable, and people decide what to do.
+
+### Tracks we are entering
+
+The submission describes these uses across the project:
 
 | Track / technology | Contribution |
 | --- | --- |
 | **General** | A complete three-round multiplayer planning game. |
 | **Frutiger Aero Tech** | Shared aqua glass, glossy controls, ocean scenery, bubbles, and 3D characters over real geographic data. |
 | **Community** | A format for negotiating a neighborhood's future and retaining conditional feedback. |
-| **Gemini API** | Offline scenario casting, grounded narration, character dialogue, and legacy card art/scenario services. |
-| **ElevenLabs** | Distinct voices for the news anchor and stakeholders, with queued speech and captions. |
-| **Snowflake API** | Source-linked research storage, approval metadata, and the SQL API story feed. |
-| **Solana** | Legacy-match fingerprints, summary memos, Merkle batch anchors, and public verification on devnet; contribution incentives are future work in this tree. |
-| **Tiger Data** | Match records and decision rows with places and timestamps, plus gameplay events and summaries. Atlas aggregates saved records. |
+| **Best Use of Gemini API** | Research agents at one end; scenario setup, stakeholder casting, news narration, and character choreography at the other. Verified context only; no authority over outcomes. |
+| **Best Use of ElevenLabs** | Distinct voices for the news anchor and each character, making a match a scene people can listen to. |
+| **Best Use of Snowflake API** | The research swarm's output and the input to scenario casting: facts, positions, places, sources, and verification notes, read through the SQL API. |
+| **Best Use of Solana** | A public ledger with fingerprints, outcome memos, Merkle proofs and verification, plus the non-transferable contribution-card incentive design. Outside the live demo. |
+| **Best Use of Tiger Data** | Persistent matches and decision rows with places, coordinates, and timestamps, so planning insights accumulate across sessions. |
 | **Ig Turing** | A party game with talking characters that also captures material for planning research. |
 
 ### Public records and contribution incentives
 
-The implemented Solana service hashes a canonical **legacy** decision record with SHA-256, writes a short outcome memo, and anchors batches with Merkle proofs. `/verify/:matchId` recomputes the covered fingerprint and checks its proof. Names and voluntary personal answers are excluded. A proof detects changes to the covered record; it does not establish that participants are representative or that the underlying claims are true.
+The project's public-ledger workflow, described in the Devpost submission, fingerprints role-play decisions with **SHA-256**, writes a plain-language outcome summary as a **Solana memo**, and anchors batches as a **Merkle root**. Each match keeps its proof; a verify page recomputes the fingerprint and checks it against the chain. Names and voluntary personal answers are excluded: the public record concerns seats, roles, and game decisions.
 
-**Planning Edition records are not yet connected to this ledger.** They use a newer record shape, while the current civic service requires the legacy `final` result. Solana is outside the live Planning Edition demo and uses a simulated authority on devnet.
+The service is designed to fail softly: a slow chain or an unfunded key does not block a match, and failed memos can be retried. Solana is **not part of the live demo**.
 
-The incentive design explored in Mayday Mayor is a non-transferable contribution card: a city or planning partner could recognize useful contributions and honor cards with off-chain perks. Minting these cards is **not implemented in this repository** and is not a live city program.
+Recording input is one part of participation; giving people a reason to contribute is another. The incentive layer, first explored in **Mayday Mayor**, is a collectible **non-transferable contribution card** on Solana. A city or planning partner acts as collection authority and recognizes useful input, such as a compromise or a previously missed concern. Cards cannot be traded or bought, and partners can verify them and honor perks off chain.
+
+As stated in the submission, this incentive layer is a **design and devnet prototype with simulated authority**, not a live city program or part of the demo. See [checkout implementation notes](docs/implementation-notes.md#research-ledger-and-incentives) for the code paths and integration scope available here.
 
 ## Quick start
 
@@ -172,7 +195,7 @@ All API keys are optional. To enable integrations, copy `.env.example` to `.env`
 | `ELEVENLABS_API_KEY` | Spoken headlines and character lines; otherwise captions without generated speech. |
 | `DATABASE_URL` | Tiger Data/PostgreSQL; otherwise records persist in `server/.cache/matches.json`. |
 | `SNOWFLAKE_ACCOUNT`, `SNOWFLAKE_TOKEN`, `SNOWFLAKE_WAREHOUSE`, `SNOWFLAKE_ROLE` | Research feed; the Planning Edition's committed scenarios remain playable without it. |
-| `SOLANA_PAYER_SECRET_KEY`, `SOLANA_RPC_URL` | Optional legacy devnet ledger; without a funded authority, chain writes are unavailable. |
+| `SOLANA_PAYER_SECRET_KEY`, `SOLANA_RPC_URL` | Optional devnet ledger configuration; see the implementation notes for supported record types. |
 | `PUBLIC_URL` | Public base URL for room QR links; otherwise the host's LAN address is used locally. |
 
 Optional integrations fail independently so a missing key does not block the game. See [the developer guide](docs/contributing.md) for configuration and troubleshooting.
@@ -189,19 +212,18 @@ bun run start        # serves the built client, API, and WebSockets on :8787
 
 [`Dockerfile`](Dockerfile) and [`render.yaml`](render.yaml) describe a single-service deployment. Supply secrets through the hosting environment. If using local-file persistence in production, provide persistent storage; ephemeral hosts can discard their files.
 
-## Implementation status
+## Verification and developer notes
 
-The default game is **Planning Edition**, rules `coastal-clash-rules/planning-1.0.0`. The earlier card game remains available through the room protocol for legacy matches and replay.
+The default game is **Planning Edition**, rules `coastal-clash-rules/planning-1.0.0`. The public project narrative is maintained in [Devpost context](docs/devpost.md); code-specific integration scope is maintained in [implementation notes](docs/implementation-notes.md).
 
 - Three-round play, bots, explicit scoring, amendment negotiation, the simulator, and Planning Edition Atlas are implemented.
 - **215 automated tests across 20 files** pass, along with workspace typechecking and the production build, as of October 11, 2026.
 - Landing, selection, and lobby were browser-checked at **1440×900, 1280×720, 768×1024, and 390×844**, including a second client joining, role switching, bot controls, and game start. The game board remains desktop-oriented.
 - Live vendor availability depends on credentials, quotas, and network access. Passing integration tests does not certify live service availability.
-- Planning Edition Solana anchoring, contribution-card minting, and a deployable autonomous research swarm remain outside this build's completed features.
 
 Details: [Planning Edition](docs/planning-edition.md), [UI verification](docs/progress/ui-polish.md), and [current handoff](docs/progress/simple-clash.md).
 
-## Challenges and lessons
+## Challenges we ran into
 
 **Negotiation has to change the plan.** Early versions had influence, combos, and many city meters. We simplified the Planning Edition around concrete changes that affect cost, access, design, and the recorded outcome.
 
@@ -211,15 +233,31 @@ Details: [Planning Edition](docs/planning-edition.md), [UI verification](docs/pr
 
 **Simulation needs visible assumptions.** Real flood zones do not establish a project's effectiveness. The model's assumed effects are listed openly.
 
-The most useful moment turned out to be small: “I could support that, but only if.” That is where a disagreement becomes a design problem people can negotiate.
+**Play and personal opinion are different records.** A role-play vote is not a resident survey, and online comments are not representative. We keep role decisions, voluntary personal answers, and documented public-record themes separate.
+
+## Accomplishments that we're proud of
+
+- A full three-round game for four people or bots, built around sourced Miami Beach stories and a real map.
+- Explicit reasons for every point, with outcomes determined by tested rules.
+- A research-to-scenario workflow that keeps source documents accessible to players.
+- A simulator that compares all 1,400 feasible plans with its assumptions in the open.
+- A Civic Atlas that preserves the distinction between role-play and personal answers and shows sample sizes.
+- A project-level public-ledger workflow and a contribution-card incentive design, described in the Devpost context.
+- A Frutiger Aero look people want to click before they discover it is civic technology.
+
+## What we learned
+
+We thought the hard part would be getting a whole city into a game. The most useful moment turned out to be small: “I could support that, but only if.” That is where a disagreement becomes a design problem people can negotiate: where a sidewalk goes, who pays, or what land stays public.
+
+Making public information current, readable, linked to its source, and tied to a place is a substantial part of the work. AI helps find, organize, and explain it. It should not pose as a city engineer or as the public.
 
 ## What's next
 
-Run a participatory planning workshop with residents and planning researchers. Check whether players understand the projects, have domain experts review simulator assumptions, and test whether the format surfaces conditions that a questionnaire misses. Extend the public ledger to Planning Edition records and develop contribution incentives with a real partner. Then take the research workflow to other cities and conflicts in housing, transportation, public space, and utilities.
+Run a participatory planning workshop with residents and planning researchers. Check whether players understand the projects, have domain experts review simulator assumptions, and test whether the format surfaces conditions that a questionnaire misses. Take contribution cards from prototype to a real partner, with a city or planning group recognizing useful input. Then point the research swarm at other cities and conflicts in transportation, housing, public space, and utilities, each with its own data and rules.
 
 ## Sources and further reading
 
-Scenario sources are clickable in the game and recorded in the [civic corpus](pipeline/research/miami-beach-civic-corpus.json). Start with:
+The [full Devpost context and source list](docs/devpost.md#sources) is the primary narrative reference, including the engagement examples from GeoGuessr, Rio Rancho, the University of Michigan, Seattle, the American Planning Association, Boston, and New York City. Scenario sources are clickable in the game and recorded in the [civic corpus](pipeline/research/miami-beach-civic-corpus.json). Start with:
 
 - [City of Miami Beach: West Avenue Neighborhood Improvements](https://www.miamibeachfl.gov/projects/west-avenue-neighborhood-improvements-project-phase-ii/).
 - [Miami Today: 44-story limit on the Alton Road site](https://www.miamitodaynews.com/breaking/beach-commission-hear-44-story-limit-alton-road-site/).

@@ -1,5 +1,8 @@
 # Planning Edition (rules `planning-1.0.0`)
 
+This is the technical description of the current game. The author-supplied [Devpost context](devpost.md) is the primary source for the
+broader project narrative; [implementation notes](implementation-notes.md) summarize checkout-specific integration scope and verification.
+
 Branch `aum/simple-clash`, cut from `pratham/map-board-onboarding` (`d6b311f`). The earlier card game (rules 2.0.0) is still in the tree: a room created with `rules: 'legacy'` plays it, and old records replay. Pratham's money/agreements rules 3.0.0 (`origin/pratham/coastal-clash`) are **not** merged.
 
 ## What it is

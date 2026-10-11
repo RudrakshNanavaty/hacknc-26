@@ -9,6 +9,8 @@ Several people and coding agents work in this repo during HackNC 2026. Follow th
 3. `docs/planning-edition.md`: the current game (rules `planning-1.0.0`, branch `aum/simple-clash`): rounds, scoring, scenarios, simulator, data. Then `docs/coastal-clash.md` for the earlier card game, the code audit and the architecture.
 4. `docs/contributing.md`: setup, the code map, recipes for common changes, the done checklist, troubleshooting.
    Agents: `docs/skills/coastal-clash/SKILL.md` is the same as a skill (copy it to `.claude/skills/` to load it in Claude Code).
+5. For public-facing project information, use `docs/devpost.md`, the author-supplied Devpost context, as the primary narrative source.
+   Keep checkout-specific configuration, verification, and integration scope in `docs/implementation-notes.md`; documentation changes do not implement features.
 
 ## Where to work
 - This `simple-clash/` folder now checks out `main`, promoted at the user's request from `pratham/seascape-bubbles`

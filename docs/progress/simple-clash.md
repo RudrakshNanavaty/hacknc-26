@@ -5,6 +5,16 @@ work. The game itself (Planning Edition, rules `planning-1.0.0`) is described in
 earlier map-board history is in [`map-board.md`](map-board.md) and [`coastal-clash-evolution.md`](coastal-clash-evolution.md).
 Last updated 2026-10-11.
 
+## Devpost narrative alignment (2026-10-11)
+
+- At the user's request, `docs/devpost.md` preserves the supplied Devpost context as the primary source for public-facing project information.
+  The README now follows that source for inspiration and participation figures, the research swarm, sponsor tracks, public ledger,
+  contribution incentives, accomplishments, lessons, and roadmap.
+- Checkout-specific findings and verification are retained in `docs/implementation-notes.md`, separate from the broader submission narrative.
+  No game mechanics, integration code, or configuration changed in this documentation pass.
+- The user requested committing and pushing everything to remote `main`. The three original root artwork files are included unchanged;
+  `.env`, local caches, build output, and dependencies remain ignored. Asset provenance is recorded in `docs/assets.md`.
+
 ## Main release (2026-10-11)
 
 - The user explicitly requested committing and pushing this work to `main`. This worktree now checks out local `main`,
@@ -28,8 +38,9 @@ pratham/map-board-onboarding   d6b311f   three round steps, plain cards, Sprint 
   The user chose to promote this work to `main` instead of opening the previously proposed PR into `aum/simple-clash`.
 - Other lines of work live in other folders: `map-board/` (`rdx/map-board`, `pratham/map-board-onboarding`, `pratham/beginner-mode`,
   the unpushed `pratham/intro`; handoff in that branch's `docs/progress/map-board.md`). Do not merge across them without asking.
-- `.env` in this folder holds the keys (git-ignored). Untracked and not committed: `background_seascape.png`, `bubbles.png` and
-  `Sunlit Tropical Bubble Seascape.png` at the folder root (the first two duplicate the copies in `app/public/`).
+- `.env` in this folder holds the keys (git-ignored). Original `background_seascape.png`, `bubbles.png` and
+  `Sunlit Tropical Bubble Seascape.png` at the folder root are now included in the repository at the user's request
+  (the first two duplicate the runtime copies in `app/public/`).
 
 ## How to run (this machine)
 
@@ -95,7 +106,7 @@ On the onboarding (join form), loading ("Connecting to room…") and lobby scree
 
 ## Open questions for humans
 
-- Delete the duplicate images at the folder root? Move `bubbles.png` out of `app/public/`?
+- Move the bubble extraction source out of `app/public/` in a future asset cleanup? Original root artwork is retained at the user's request.
 - Should the seascape also go behind the Atlas?
 
 ## Next steps
