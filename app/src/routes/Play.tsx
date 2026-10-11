@@ -1,7 +1,8 @@
 // A Coastal Clash room. Lobby, then the stage: the real Miami Beach map is the whole board. The crisis
-// lands on it (a pin, an animation, then a news ticker), you click an area to see the cards you can
-// play there, the table negotiates on a case file pinned to the proposal's area, and the round's
-// result floats beside the map. The server runs the clock and every rule; this page shows what it is sent.
+// lands on it (a pin, an animation, then the news on the TV in the top-right corner), you click an area
+// to see the cards you can play there, the table negotiates on a case file pinned to the proposal's
+// area, and the round's result floats beside the map. The server runs the clock and every rule; this
+// page shows what it is sent.
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Map as MapLibreMap } from 'maplibre-gl';
 import { CARDS, CRISIS_KIND_INFO, DISTRICT_IDS, cardEligibility, districtById, type CardId } from '@shared';
@@ -20,7 +21,7 @@ import { Meters, PlayerBubbles, TimerOrb } from '../game/Hud';
 import { JoinForm, Lobby } from '../game/Lobby';
 import { CaseFile } from '../game/CaseFile';
 import { DistrictPopover, playableCount } from '../game/DistrictPopover';
-import { NewsTicker } from '../game/NewsTicker';
+import { CrisisBriefing, NewsTV } from '../game/NewsTV';
 import { ResultOverlay } from '../game/ResultOverlay';
 import { LagoonBubbles, RoundDots } from '../game/ui';
 import { useCountdown } from '../game/format';
@@ -176,7 +177,7 @@ export function Play({ code }: { code: string }) {
           </div>
         </div>
         <div className="hud-center">
-          <NewsTicker state={state} open={newsOpen} setOpen={setNewsOpen} />
+          <CrisisBriefing state={state} />
           {picking && !open && <p className="hud-pill hud-block lchip lchip-sun">👆 Click an area on the map to see the cards you can play there</p>}
           {phase === 'select' && locked && (
             <p className="hud-pill hud-block lchip lchip-lime">🂠 Locked in: {CARDS[locked.card].name} on {districtById(locked.district).name} · {waiting ? `waiting for ${waiting} stakeholder${waiting > 1 ? 's' : ''}` : 'revealing…'}</p>
@@ -184,6 +185,7 @@ export function Play({ code }: { code: string }) {
           {room.error && <p role="alert" className="hud-pill hud-block lchip lchip-coral">{room.error}</p>}
         </div>
       </div>
+      <NewsTV state={state} open={newsOpen} setOpen={setNewsOpen} />
       <PlayerBubbles state={state} />
       <div className="map-tools">
         <button type="button" className="gel gel-icon" onClick={sound.toggle} aria-pressed={sound.on} title="Sound">{sound.on ? '🔊' : '🔇'}</button>
