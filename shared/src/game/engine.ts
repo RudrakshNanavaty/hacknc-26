@@ -175,12 +175,15 @@ export const crisisFor = (round: number): Crisis => AUTHORED[clamp(round, 1, AUT
 /** Influence at the start of a round (round 1: the starting amount was already given). */
 export const nextInfluence = (current: number) => Math.min(MAX_INFLUENCE, current + INFLUENCE_PER_ROUND);
 
-/** Why this play is not allowed, or null. `round` decides which hand is dealt. */
-export function checkPlay(persona: PersonaId, influence: number, card: unknown, district: unknown, round: number): string | null {
+/** The cards a persona holds this round: the story's deal, else the authored HANDS. */
+export const dealtHand = (persona: PersonaId, round: number, crisis?: Crisis | null): CardId[] => crisis?.hands?.[persona] ?? handFor(persona, round);
+
+/** Why this play is not allowed, or null. `round` (and the round's crisis) decide which hand is dealt. */
+export function checkPlay(persona: PersonaId, influence: number, card: unknown, district: unknown, round: number, crisis?: Crisis | null): string | null {
   if (typeof card !== 'string' || !Object.hasOwn(CARDS, card)) return 'Pick a card.';
   const c = CARDS[card as CardId];
   if (c.persona !== persona) return `${c.name} is not in your hand.`;
-  if (!handFor(persona, round).includes(c.id)) return `${c.name} is not in your hand this round (each crisis deals 4 of your 6 cards).`;
+  if (!dealtHand(persona, round, crisis).includes(c.id)) return `${c.name} is not in your hand this round (each crisis deals 4 of your 6 cards).`;
   if (c.cost > influence) return `${c.name} costs ${c.cost} influence; you have ${influence}.`;
   const where = cardEligibility(card as CardId, String(district ?? ''));
   if (!where.ok) return `${c.name} cannot go there: ${where.reason}`;
@@ -632,8 +635,10 @@ export function finalResult(start: Indicators, end: Indicators, rounds: Resoluti
 /** A simple, deterministic stand-in player for empty seats (demo and tests). */
 export function botPlay(persona: PersonaId, influence: number, round: number, crisis: Crisis = crisisFor(round)): { card: CardId; district: string } | null {
   const order = [...crisis.spotlight, ...DISTRICT_IDS.filter((d) => !crisis.spotlight.includes(d))];
-  for (const card of BOT_PREFS[persona][Math.min(round, 3) - 1]!) {
-    for (const district of order) if (!checkPlay(persona, influence, card, district, round)) return { card, district };
+  // A story's deal comes most-fitting first; otherwise the authored preference order.
+  const prefs = crisis.hands?.[persona] ?? BOT_PREFS[persona][Math.min(round, 3) - 1]!;
+  for (const card of prefs) {
+    for (const district of order) if (!checkPlay(persona, influence, card, district, round, crisis)) return { card, district };
   }
   return null;
 }

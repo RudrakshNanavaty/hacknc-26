@@ -9,7 +9,8 @@ import { type Director, geminiDirector } from './ai/director';
 import { getRoom } from './rooms';
 import { registerStudio } from './studio';
 import { liveConditions, registerLive } from './live';
-import { type ScenarioWriter, geminiScenarioWriter } from './ai/scenario';
+import { type ScenarioWriter, geminiScenarioWriter, storyScenarioWriter } from './ai/scenario';
+import { loadStories } from './stories';
 import { registerVoice, voiceReady } from './voice';
 
 export interface ServerOptions {
@@ -73,10 +74,20 @@ export function buildServer({ store = new MemoryStore(), gemini = defaultGemini,
   registerStudio(app, store, gemini);
   registerLive(app);
 
+  // The reviewed civic stories a match can draw from (Snowflake, or its cache), with sources and casts.
+  app.get('/api/stories', async () => {
+    const feed = await loadStories(app.log);
+    return { source: feed.source, fetchedAt: feed.fetchedAt, count: feed.stories.length, stories: feed.stories };
+  });
+
   const rooms = roomServer({
     store,
     narrator: narrator === undefined ? geminiNarrator(gemini) : narrator,
-    scenario: scenario ?? { live: () => liveConditions(), write: geminiScenarioWriter(gemini) },
+    // Real civic stories from Snowflake drive each match; the live-readings desk stands in without them.
+    scenario: scenario ?? {
+      live: () => liveConditions(),
+      write: storyScenarioWriter(gemini, async () => (await loadStories(app.log)).stories, geminiScenarioWriter(gemini)),
+    },
     director: theDirector,
     log: app.log,
   });

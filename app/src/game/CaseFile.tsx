@@ -4,12 +4,13 @@
 // away, or a click on their marker on the map.
 import { useEffect, useMemo } from 'react';
 import type { Map as MapLibreMap } from 'maplibre-gl';
-import { CARDS, PERSONA_INFO, PING_EMOTES, PROJECTS, districtById, resolveRound, type Attachment, type Board, type RoomState } from '@shared';
+import { CARDS, cardName, PERSONA_INFO, PING_EMOTES, PROJECTS, districtById, resolveRound, type Attachment, type Board, type RoomState } from '@shared';
 import type { Room } from '../room/useRoom';
 import { MapAnchor } from '../map/MapAnchor';
 import { STATUS_STYLE } from './format';
 import { Hints, IfItPasses } from './insights';
 import { Soap, Tube } from './ui';
+import { useCard } from './story';
 
 const placeName = (id: string) => districtById(id).name;
 const who = (state: RoomState, seat: number) => state.players.find((p) => p.seat === seat);
@@ -21,17 +22,18 @@ function sideOf(a: Attachment): 'backs' | 'fights' | 'deal' {
 
 function ClashCard({ a, state, side }: { a: Attachment; state: RoomState; side: 'backs' | 'fights' | 'deal' }) {
   const c = CARDS[a.card];
+  const story = useCard(a.card);
   return (
     <div className={`sc wet ${side} ${side === 'fights' ? 'land-r' : 'land-l'}`}>
       <span className="art">{c.art}</span>
-      <span>{c.name}</span>
+      <span>{story.name}</span>
       <span className="text-[11px] opacity-70">{who(state, a.seat)?.name}</span>
     </div>
   );
 }
 
 function Loose({ list, state }: { list: Attachment[]; state: RoomState }) {
-  return <>{list.map((a) => <p key={a.seat} className="mt-1 text-13">{CARDS[a.card].art} <b>{CARDS[a.card].name}</b> ({who(state, a.seat)?.name}) in {placeName(a.district)}: {CARDS[a.card].fallback?.text}</p>)}</>;
+  return <>{list.map((a) => <p key={a.seat} className="mt-1 text-13">{CARDS[a.card].art} <b>{cardName(a.card, state.crisis)}</b> ({who(state, a.seat)?.name}) in {placeName(a.district)}: {CARDS[a.card].fallback?.text}</p>)}</>;
 }
 
 export function CaseFile({ state, room, map, focus, setFocus }: { state: RoomState; room: Room; map: MapLibreMap | null; focus: string | null; setFocus: (id: string | null) => void }) {

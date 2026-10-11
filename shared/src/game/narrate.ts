@@ -80,9 +80,10 @@ export function narrationFacts(kind: 'reveal' | 'resolution', board: Board, r?: 
     city: 'Miami Beach, Florida',
     round: board.round,
     crisis: board.crisis.title,
+    ...(board.crisis.story ? { realStory: { title: board.crisis.story.title, years: board.crisis.story.years, summary: board.crisis.story.summary } } : {}),
     cards: [
-      ...board.proposals.map((p) => ({ player: PERSONA_INFO[p.persona].name, card: PROJECTS[p.kind].name, place: districtById(p.district).name, delayedFromEarlier: p.carried })),
-      ...board.attachments.map((a) => ({ player: PERSONA_INFO[a.persona].name, card: CARDS[a.card].name, place: districtById(a.district).name })),
+      ...board.proposals.map((p) => ({ player: PERSONA_INFO[p.persona].name, card: board.crisis.skins?.[cardFor(p.kind)]?.name ?? PROJECTS[p.kind].name, place: districtById(p.district).name, delayedFromEarlier: p.carried })),
+      ...board.attachments.map((a) => ({ player: PERSONA_INFO[a.persona].name, card: board.crisis.skins?.[a.card]?.name ?? CARDS[a.card].name, place: districtById(a.district).name })),
     ],
     compromisesOnTable: board.compromises.map((c) => c.title),
     ...(kind === 'resolution' && r

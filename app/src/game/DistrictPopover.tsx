@@ -3,7 +3,7 @@
 // Pick one to read it in full, with the before/after preview, then deploy it. A deployment is final.
 import { useEffect, useState } from 'react';
 import type { Map as MapLibreMap } from 'maplibre-gl';
-import { CARDS, DISTRICT_IDS, cardEligibility, districtById, handFor, projectPreview, type CardId, type RoomState } from '@shared';
+import { CARDS, DISTRICT_IDS, cardEligibility, cardName, dealtHand, districtById, projectPreview, type CardId, type RoomState } from '@shared';
 import type { Room } from '../room/useRoom';
 import { explain } from '../api';
 import { MapAnchor } from '../map/MapAnchor';
@@ -23,7 +23,7 @@ export function blocker(id: CardId, district: string, influence: number): string
 export function playableCount(state: RoomState, district: string): number {
   const me = state.players.find((p) => p.seat === state.you);
   if (!me) return 0;
-  return handFor(me.persona, state.round).filter((id) => !blocker(id, district, me.influence)).length;
+  return dealtHand(me.persona, state.round, state.crisis).filter((id) => !blocker(id, district, me.influence)).length;
 }
 
 export function DistrictPopover({ state, room, map, district, setDistrict, onCard, initialCard = null }: {
@@ -44,7 +44,7 @@ export function DistrictPopover({ state, room, map, district, setDistrict, onCar
   if (!me) return null;
   const d = districtById(district);
   const resilience = state.city.districts[district]?.resilience ?? 0;
-  const hand = handFor(me.persona, state.round);
+  const hand = dealtHand(me.persona, state.round, state.crisis);
   const close = () => setDistrict(null);
 
   const header = (
@@ -79,7 +79,7 @@ export function DistrictPopover({ state, room, map, district, setDistrict, onCar
                 <span className="cost-orb">{c.cost}</span>
                 <span className="hand-art" aria-hidden>{c.art}</span>
                 <span className="min-w-0 flex-1 text-left">
-                  <span className="vr block text-[16px] leading-tight">{c.name}</span>
+                  <span className="vr block text-[16px] leading-tight">{cardName(id, state.crisis)}</span>
                   <span id={`why-${id}`} className={`block text-[12px] leading-snug ${why ? 'font-black text-[#b0123a]' : 'font-semibold opacity-80'}`}>{why ?? c.text}</span>
                 </span>
                 <span className="hand-go" aria-hidden>{why ? '' : '›'}</span>
@@ -95,7 +95,7 @@ export function DistrictPopover({ state, room, map, district, setDistrict, onCar
   const preview = why ? null : projectPreview(card, district, state.round, state.city, state.crisis ?? undefined);
   const elsewhere = DISTRICT_IDS.filter((id) => id !== district && !blocker(card, id, me.influence));
   return (
-    <MapAnchor map={map} district={district} label={`${CARDS[card].name} in ${d.name}`} onClose={close} width={400}>
+    <MapAnchor map={map} district={district} label={`${cardName(card, state.crisis)} in ${d.name}`} onClose={close} width={400}>
       <div className="flex flex-col gap-2">
         {header}
         <button type="button" className="self-start text-[12px] font-black text-[#0a6f9a] underline" onClick={() => setCard(null)}>‹ All your cards</button>

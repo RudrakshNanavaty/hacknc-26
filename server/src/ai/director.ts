@@ -20,6 +20,13 @@ export function directorFacts(state: RoomState) {
     round: state.round,
     phase: state.phase,
     crisis: state.crisis ? { title: state.crisis.title, text: state.crisis.text, spotlight: state.crisis.spotlight.map((d) => districtById(d).name) } : null,
+    // The real civic story this round re-enacts: characters speak to their part in it.
+    realStory: state.crisis?.story
+      ? {
+          title: state.crisis.story.title, years: state.crisis.story.years, summary: state.crisis.story.summary, facts: state.crisis.story.facts,
+          parts: Object.fromEntries(Object.entries(state.crisis.story.roles).map(([r, v]) => [r, { standsInFor: v.counterpart, wants: v.stance }])),
+        }
+      : null,
     indicators: state.city.indicators,
     places: DISTRICTS.map((d) => ({ id: d.id, name: d.name, shore: d.shore, facts: districtFacts(d) })),
     stakeholders: [
@@ -29,7 +36,7 @@ export function directorFacts(state: RoomState) {
     table: state.board
       ? {
           proposals: state.board.proposals.map((p) => ({ id: p.id, by: p.persona, project: PROJECTS[p.kind].name, place: districtById(p.district).name, delayed: p.carried })),
-          cards: state.board.attachments.map((a) => ({ by: a.persona, card: a.card, place: districtById(a.district).name, on: a.proposalId })),
+          cards: state.board.attachments.map((a) => ({ by: a.persona, card: state.crisis?.skins?.[a.card]?.name ?? a.card, place: districtById(a.district).name, on: a.proposalId })),
           conditions: state.board.compromises.map((c) => ({ id: c.id, title: c.title, on: c.proposalId, accepted: c.accepted })),
           moves: state.actions.map((a) => ({ by: a.persona, move: a.move, on: a.proposalId })),
         }
@@ -84,6 +91,7 @@ export function geminiDirector(gemini: Gemini, timeoutMs = 8_000): Director | nu
 ${PERSONAS_TEXT}
 Write at most one line per character listed in "speakers": 8 to 15 words, in character, funny and warm, general-audience safe.
 React to the current moment (${moment}): the crisis, the cards just played, the deals on the table, or what was decided.
+When facts.realStory is given, this round re-enacts that real Miami Beach story: each character speaks from their part in it (realStory.parts: who they stand in for and what they want), using only its facts.
 Pick each character's reaction from the given list only. Optionally name the place id where they stand.
 - Do not decide or predict outcomes; only react to the facts.
 ${GROUNDED}`,

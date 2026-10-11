@@ -3,7 +3,10 @@
 // fixed list whose effect is authored), which areas it is about, the words, and which live readings
 // to show. Every number must come from the facts; anything else is rejected and the authored
 // scenario (with the same live readings) stands in.
-import { CARD_IDS, CRISIS_KINDS, DISTRICT_IDS, authoredScenario, checkScenario, liveReadings, makeCrisis, scenarioFacts, type CardId, type CrisisKind, type LiveConditions, type Scenario } from '@shared';
+import {
+  CARD_IDS, CRISIS_KINDS, DISTRICT_IDS, authoredScenario, checkScenario, liveReadings, makeCrisis, pickStories, scenarioFacts, storyCrisis, storyFacts,
+  type CardId, type CivicStory, type CrisisKind, type LiveConditions, type Scenario,
+} from '@shared';
 import { GROUNDED, type Gemini } from './gemini';
 import { strayNumbers } from './narrator';
 
@@ -43,6 +46,68 @@ const schema = {
 };
 
 export type ScenarioWriter = (live: LiveConditions | null) => Promise<Scenario>;
+
+// ---------- Real civic stories ----------
+
+const STORY_SYSTEM = `You are the news desk of "Coastal Clash", a four-player city-planning card game set in the real city of Miami Beach. Each round of this match re-enacts a REAL civic story from the reviewed research corpus.
+For each round you are given the story (its facts, the real sides, its years) and today's live readings. Write:
+- title: a punchy headline for the round, at most 7 words.
+- text: 2-3 sentences in an energetic local-news voice that set up the real story as this round's dilemma. Say when it happened (its years) if it is not current, and tie it to a live reading when one fits. Present only what the facts say; do not invent events, votes or outcomes.
+${GROUNDED}`;
+
+interface StoryWritten {
+  rounds: { title: string; text: string }[];
+}
+
+/**
+ * Each match plays three real stories (picked to differ in place and kind). Gemini writes each
+ * round's headline and setup from the story's own facts and the live readings; if it fails or
+ * cheats, the story's own title and summary stand in. With too few stories, `fallback` writes the
+ * match from the live readings alone.
+ */
+export function storyScenarioWriter(gemini: Gemini, stories: () => Promise<CivicStory[]>, fallback: ScenarioWriter, timeoutMs = 9_000): ScenarioWriter {
+  return async (live) => {
+    const picked = pickStories(await stories().catch(() => []), Math.floor(Math.random() * 2 ** 31));
+    if (picked.length < 3) return fallback(live);
+    const readings = liveReadings(live);
+    const facts = { liveReadings: readings, rounds: picked.map((s, i) => ({ round: i + 1, ...storyFacts(s), area: s.cast!.district })) };
+    let written: StoryWritten | null = null;
+    if (gemini.ready()) {
+      written = await gemini
+        .json<StoryWritten>({
+          system: STORY_SYSTEM,
+          prompt: JSON.stringify(facts),
+          schema: {
+            type: 'object',
+            properties: { rounds: { type: 'array', minItems: 3, maxItems: 3, items: { type: 'object', properties: { title: { type: 'string' }, text: { type: 'string' } }, required: ['title', 'text'] } } },
+            required: ['rounds'],
+          },
+          temperature: 0.9,
+          timeoutMs,
+          check: (v) => {
+            if (!Array.isArray(v.rounds) || v.rounds.length !== 3) return 'needs three rounds';
+            for (const r of v.rounds) {
+              if (typeof r.title !== 'string' || r.title.length < 4 || r.title.length > 70) return 'bad title';
+              if (typeof r.text !== 'string' || r.text.length < 40 || r.text.length > 480) return 'bad text';
+              const stray = strayNumbers(`${r.title} ${r.text}`, facts);
+              if (stray.length) return `numbers not in the facts: ${stray.join(', ')}`;
+            }
+            return null;
+          },
+        })
+        .catch(() => null);
+    }
+    // Up to two live readings per round, each shown once.
+    const chips = (i: number) => readings.slice(i, i + 1).concat(i === 0 ? readings.slice(3, 4) : []);
+    return {
+      source: written ? 'gemini' : 'authored',
+      live,
+      quips: {},
+      stories: picked.map((s) => s.id),
+      crises: picked.map((s, i) => storyCrisis(i + 1, s, chips(i), written ? { title: written.rounds[i]!.title.trim(), text: written.rounds[i]!.text.trim() } : undefined)),
+    };
+  };
+}
 
 export function geminiScenarioWriter(gemini: Gemini, timeoutMs = 9_000): ScenarioWriter {
   return async (live) => {

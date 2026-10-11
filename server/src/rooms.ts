@@ -420,7 +420,7 @@ function enterSelect(room: Room, now: number): void {
 export function select(room: Room, player: Player, card: unknown, district: unknown, now: number): void {
   if (room.phase !== 'select') throw new RoomError('Cards are played in the selection phase.');
   if (player.selection) throw new RoomError('Your card is already locked in.');
-  const problem = checkPlay(player.persona, player.influence, card, district, room.round);
+  const problem = checkPlay(player.persona, player.influence, card, district, room.round, room.crisis);
   if (problem) throw new RoomError(problem);
   player.selection = { card: card as CardId, district: String(district) };
   touch(room, now);
@@ -436,7 +436,7 @@ function enterReveal(room: Room, now: number): void {
   const plays = room.players.flatMap((p) => {
     if (!p.selection) return [];
     // Re-checked at reveal: influence cannot have changed, but the rule is the rule.
-    if (checkPlay(p.persona, p.influence, p.selection.card, p.selection.district, room.round)) return [];
+    if (checkPlay(p.persona, p.influence, p.selection.card, p.selection.district, room.round, room.crisis)) return [];
     p.influence -= CARDS[p.selection.card].cost;
     return [{ seat: p.seat, persona: p.persona, card: p.selection.card, district: p.selection.district }];
   });

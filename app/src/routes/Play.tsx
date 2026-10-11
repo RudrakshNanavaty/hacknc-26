@@ -26,6 +26,7 @@ import { CrisisBriefing, NewsTV } from '../game/NewsTV';
 import { ResultOverlay } from '../game/ResultOverlay';
 import { LagoonBubbles, RoundDots } from '../game/ui';
 import { useCountdown } from '../game/format';
+import { CrisisProvider } from '../game/story';
 
 export function Legend({ overlays, setOverlays }: { overlays: Overlays; setOverlays: (o: Overlays) => void }) {
   return (
@@ -156,6 +157,7 @@ export function Play({ code }: { code: string }) {
   const waiting = state.players.filter((p) => !p.ready).length;
 
   return (
+    <CrisisProvider crisis={state.crisis}>
     <main className="stage">
       <section className="stage-map">
         <CityMap
@@ -216,5 +218,6 @@ export function Play({ code }: { code: string }) {
       <Flights map={map} state={state} />
       <Stamps map={map} state={state} />
     </main>
+    </CrisisProvider>
   );
 }

@@ -4,7 +4,7 @@
 // fund the proposal in view, or pass. The rules are the engine's (blocker, checkMove); this only draws
 // them. Outside those two phases the hand tucks below the edge.
 import { useEffect, useMemo, type CSSProperties } from 'react';
-import { CARDS, DISTRICT_IDS, PERSONA_INFO, PROJECTS, districtById, handFor, resolveRound, type CardId, type RoomState } from '@shared';
+import { CARDS, DISTRICT_IDS, PERSONA_INFO, PROJECTS, cardName, dealtHand, districtById, resolveRound, type CardId, type RoomState } from '@shared';
 import type { Room } from '../room/useRoom';
 import { blocker } from './DistrictPopover';
 import { MOVE_CARDS, moveBlocker } from './moves';
@@ -84,13 +84,13 @@ export function HandDeck({ state, room, armed, setArmed, onHoverCard, focus }: {
       },
     ];
   } else {
-    const hand = handFor(me.persona, state.round);
+    const hand = dealtHand(me.persona, state.round, state.crisis);
     faces = hand.map<Face>((id) => {
       const c = CARDS[id];
       const areas = DISTRICT_IDS.filter((d) => !blocker(id, d, me.influence));
       const why = c.cost > me.influence ? `Needs ${c.cost} ⚡ (you have ${me.influence})` : areas.length === 0 ? 'No legal area now' : null;
       return {
-        key: `${state.round}-${id}`, icon: c.art, name: c.name, cost: c.cost, text: c.text, tag: CATEGORY[c.category], tone: c.category,
+        key: `${state.round}-${id}`, icon: c.art, name: cardName(id, state.crisis), cost: c.cost, text: c.text, tag: CATEGORY[c.category], tone: c.category,
         color: PERSONA_INFO[c.persona].color, why, card: id,
         foot: `${areas.length} of ${DISTRICT_IDS.length} areas`,
         armed: armed === id, locked: locked?.card === id,
@@ -104,7 +104,7 @@ export function HandDeck({ state, room, armed, setArmed, onHoverCard, focus }: {
   const label = mode === 'negotiate'
     ? moved ? 'Move made' : `Your move on ${proposal ? PROJECTS[proposal.kind].name : 'the table'}`
     : sealed ? `Played face down in ${districtById(locked!.district).name}`
-      : armed ? `Pick a lit area for ${CARDS[armed].name}` : 'Your hand';
+      : armed ? `Pick a lit area for ${cardName(armed, state.crisis)}` : 'Your hand';
 
   return (
     <div className="deck deck-block" data-open={open} data-mode={mode ?? 'select'} role="group" aria-label={mode === 'negotiate' ? 'Your negotiation move' : 'Your hand'} aria-hidden={!open}>

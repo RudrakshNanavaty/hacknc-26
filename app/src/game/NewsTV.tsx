@@ -8,6 +8,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { CRISIS_KIND_INFO, INDICATOR_INFO, PERSONA_INFO, districtById, districtFacts, type RoomState } from '@shared';
 import { spriteSvg } from '../map/sprites';
 import { TwistCard } from './insights';
+import { StoryPanel } from './story';
 
 const ANCHOR_SVG = spriteSvg('anchor');
 /** The card shows this many lines; a longer headline pans like a teleprompter. */
@@ -27,13 +28,14 @@ function Bonus({ state }: { state: RoomState }) {
 
 function Agenda({ state }: { state: RoomState }) {
   const me = state.players.find((p) => p.seat === state.you);
-  if (!me) return null;
+  if (!me || state.crisis?.story) return null;
   return <p className="text-13"><b>Your agenda, {PERSONA_INFO[me.persona].name}:</b> {PERSONA_INFO[me.persona].goal}</p>;
 }
 
-const Source = ({ state }: { state: RoomState }) => (
-  <span className="lchip">{state.crisis?.source === 'gemini' ? '✨ Written live by Gemini' : 'Authored scenario'}</span>
-);
+const Source = ({ state }: { state: RoomState }) => {
+  const gemini = state.crisis?.source === 'gemini';
+  return <span className="lchip">{state.crisis?.story ? (gemini ? '📄 Real story · told live by Gemini' : '📄 Real story') : gemini ? '✨ Written live by Gemini' : 'Authored scenario'}</span>;
+};
 
 /** The crisis phase, top-center: the live desk gathering readings, then the breaking story. */
 export function CrisisBriefing({ state }: { state: RoomState }) {
@@ -94,7 +96,8 @@ function NewsDetails({ state }: { state: RoomState }) {
         </div>
       ))}
       <Bonus state={state} />
-      <div className="frost p-2.5"><Agenda state={state} /></div>
+      <StoryPanel crisis={c} you={state.players.find((p) => p.seat === state.you)?.persona ?? null} />
+      {!c.story && <div className="frost p-2.5"><Agenda state={state} /></div>}
       {twist && <TwistCard ev={twist} />}
     </>
   );
