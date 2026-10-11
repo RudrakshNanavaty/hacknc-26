@@ -113,7 +113,7 @@ export function Verify({ matchId }: { matchId: string }) {
             <p className="flex flex-wrap gap-2">
               {v.match.memo?.explorerUrl && <a className="source-chip" href={v.match.memo.explorerUrl} target="_blank" rel="noreferrer">Decisions on Solana Explorer</a>}
               {v.anchor?.explorerUrl && <a className="source-chip" href={v.anchor.explorerUrl} target="_blank" rel="noreferrer">Batch on Solana Explorer</a>}
-              <Link className="source-chip" to={`/studio?match=${matchId}`}>This match in Planning Studio</Link>
+              <Link className="source-chip" to={`/atlas?match=${matchId}#matches`}>This match in the Civic Atlas</Link>
             </p>
             <p className="text-13 font-semibold opacity-80">
               Tamper-evident, not a vote count: it proves the match's decisions were recorded and have not changed, not who played. No names go on chain. {v.authorityLabel}, Solana devnet.

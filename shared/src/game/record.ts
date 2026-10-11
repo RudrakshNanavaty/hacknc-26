@@ -1,4 +1,4 @@
-// The planning-feedback record a match leaves behind, and what Planning Studio computes from them.
+// The planning-feedback record a match leaves behind, and what Civic Atlas computes from them.
 // Role-play choices and personal preferences are kept apart, and so are demo sessions, bots and
 // community sessions: role-play is not public opinion.
 import { CARDS, INDICATORS, PERSONA_INFO, PROJECTS, RULES_VERSION, START_INDICATORS, type CardId, type ComboId, type Indicators, type PersonaId, type ProjectKind } from './content';
@@ -157,7 +157,7 @@ export function replayMatch(m: MatchRecord): Replay {
   return { comparable: true, reason: null, rounds, final, matches: mismatches.length === 0, mismatches };
 }
 
-// ---------- Planning Studio ----------
+// ---------- Civic Atlas ----------
 
 export interface StudioFilter {
   /** Which sessions count. Default: all, but every number is split by kind. */
@@ -213,7 +213,7 @@ export interface DirectorSummary {
   reviewQueue: (ReviewItem & { matchId: string })[];
 }
 
-const OBJECTION_RULES: Record<string, string> = {
+export const OBJECTION_RULES: Record<string, string> = {
   R1: 'Environmental challenge in a coastal high hazard area (blocked)',
   O1: 'Environmental challenge (opposition)',
   O2: 'Neighborhood petition',

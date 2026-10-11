@@ -1,7 +1,7 @@
 import { FxLab } from './routes/FxLab';
 import { Landing } from './routes/Landing';
 import { Play } from './routes/Play';
-import { Studio } from './routes/Studio';
+import { Atlas } from './routes/Atlas';
 import { Verify } from './routes/Verify';
 import { Link, matchPath, usePath } from './router';
 
@@ -10,7 +10,7 @@ export function App() {
   let params: Record<string, string> | null;
 
   if (matchPath('/', path)) return <Landing />;
-  if (matchPath('/studio', path)) return <Studio />;
+  if (matchPath('/atlas', path) || matchPath('/studio', path)) return <Atlas />;
   if (import.meta.env.DEV && matchPath('/fx-lab', path)) return <FxLab />;
   if ((params = matchPath('/verify/:matchId', path))) return <Verify key={params.matchId} matchId={params.matchId ?? ''} />;
   if ((params = matchPath('/play/:code', path))) return <Play key={params.code} code={(params.code ?? '').toUpperCase()} />;

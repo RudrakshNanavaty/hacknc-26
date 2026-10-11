@@ -1,6 +1,6 @@
 # Coastal Clash
 
-**Clash Royale meets real-world coastal planning.** Four players take the roles of Mayor, Environmental Activist, Resort Owner and Resident, deploy cards on a real map of Miami Beach, watch their proposals collide, negotiate, and see the city change. Every match is saved as geographically linked planning feedback that planners can explore in **Planning Studio**. HackNC 2026.
+**Clash Royale meets real-world coastal planning.** Four players take the roles of Mayor, Environmental Activist, Resort Owner and Resident, deploy cards on a real map of Miami Beach, watch their proposals collide, negotiate, and see the city change. Every match is saved as geographically linked planning feedback that planners can explore in **Civic Atlas**. HackNC 2026.
 
 ## How a match works
 
@@ -8,7 +8,7 @@
 2. **Three rounds**, each a crisis written live for the match from NOAA's Virginia Key tide gauge, the NWS forecast and the areas' real flood and zoning facts (an authored scenario stands in without Gemini). Each round has five phases: **Crisis** (spotlight on real places; from round 2, a twist), **Play a card** (each crisis deals 4 of your 6 cards; click an area on the map to see which you can play there; hidden, influence permitting, only where the real zoning and FEMA layers allow it), **Reveal** (cards fly, the characters walk to where they played), **Negotiate** (back, oppose, fund, or accept a deal; a live verdict runs the rules engine; public hints show which moves would change an outcome), **Resolve** (a deterministic engine decides and shows every rule it applied; combos fire; the map and meters change).
    On the tilted 3D map, the four stakeholders and a Fisherman on the South Pointe pier react in speech bubbles. A Gemini Game Director words bubbles, hints and explanations and proposes twists; the rules validate every proposal and decide every number.
 3. **End.** Scores per persona and city viability. Then one optional question: *"Outside your assigned character, which proposal would you personally support?"*
-4. **Planning Studio** (`/studio`). Hotspots on the real map, card distribution, the most common objections, compromises accepted, in-role versus personal preferences, a replay of every match, provenance, and JSON, CSV and GeoJSON exports with coordinates and source feature ids.
+4. **Civic Atlas** (`/atlas`). What many matches add up to, for city planners: where proposals pass and stall (by area and by project), what concessions unlock them, how the same table behaves under different crises, who helps and hinders whom, how the cities come out, and where the role differs from the person. Every figure carries its sample size and interval, sessions and bots are kept apart, and each table exports as CSV. Per-match replay and the full decision log sit beside the aggregates.
 
 ## Real data
 

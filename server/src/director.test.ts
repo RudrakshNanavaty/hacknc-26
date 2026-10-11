@@ -105,7 +105,7 @@ describe('the Director inside a room', () => {
     expect(geo.features.find((f) => f.properties.record === 'twist_event')?.properties).toMatchObject({ fictional: true, event_source: 'gemini' });
     expect(decisionRows(record).filter((r) => r.kind === 'twist').map((r) => r.status)).toEqual(['gemini', 'template']);
 
-    // Planning Studio counts the Director's work apart from opinion data.
+    // Civic Atlas counts the Director's work apart from opinion data.
     const studio = studioSummary([record], { humansOnly: false });
     expect(studio.director.twists.map((t) => t.source)).toEqual(['gemini', 'template']);
     expect(studio.director.proposals).toEqual({ accepted: 0, clamped: 1, rejected: 1 });

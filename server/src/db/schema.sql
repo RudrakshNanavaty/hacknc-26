@@ -118,7 +118,7 @@ CREATE TABLE IF NOT EXISTS cc_city_snapshots (
 );
 CREATE INDEX IF NOT EXISTS cc_city_snapshots_final ON cc_city_snapshots (final, at DESC);
 
--- Planning Studio's computed summaries and planner briefs, saved as they are produced.
+-- Civic Atlas's computed summaries and planner briefs, saved as they are produced.
 CREATE TABLE IF NOT EXISTS cc_studio_snapshots (
   id            uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
   created_at    timestamptz NOT NULL DEFAULT now(),

@@ -41,7 +41,7 @@ shared/src/               Pure TypeScript, no I/O. Imported as '@shared' by app 
   game/economy.ts           previews (projectPreview) and what the city owes next round (upcomingCosts)
   game/scenario.ts          crisis kinds and their authored K1 bonus, live readings, the authored scenario, checkScenario
   game/director.ts          Director validators (dialogue, twists, hints, combos, explanations), twist catalogue, strayNumbers
-  game/record.ts            MatchRecord, Planning Studio aggregation, CSV/GeoJSON      [contract]
+  game/record.ts            MatchRecord, Civic Atlas aggregation, CSV/GeoJSON      [contract]
 server/src/
   index.ts, app.ts          Fastify; /api/health, /api/rules, /api/join-base, /api/tts
   rooms.ts                  authoritative room state machine (no sockets, no I/O)
@@ -106,7 +106,7 @@ client <--ServerMsg {t:'state'}-- publicState(room, viewer)  (one per connection
 - A match's crises come from the scenario desk: `start` pushes a `scenario` effect, `roomSocket.ts` reads the live
   conditions and asks Gemini (or uses `authoredScenario`), then `applyScenario` shows the crisis. Round 1 waits up to
   `SCENARIO_WAIT_MS` (10 s). Everything that belongs to a crisis being on screen happens in `showCrisis` (rooms.ts).
-- Planning Studio reads saved records. `studioSummary()` in `record.ts` computes every finding, each with refs to the
+- Civic Atlas reads saved records. `studioSummary()` in `record.ts` computes every finding, each with refs to the
   records behind it. Gemini only rewords the findings (`/api/studio/brief`).
 
 ### The Game Director in one paragraph
@@ -237,3 +237,26 @@ Schema changes go in `server/src/db/schema.sql`, written idempotently (`IF NOT E
 
 There is one Docker service (`Dockerfile`): the server serves the built app, `/api` and `/ws`. `render.yaml` is a Render Blueprint
 with a health check on `/api/health`. Keys are set in the host's environment, never in the image.
+
+## The Civic Atlas and the match simulator
+
+`shared/src/game/atlas.ts` turns match records into one record per proposal (its area, crisis, support, opposition,
+concessions offered and taken, rules cited, final status) and computes rates with Wilson intervals, scenario-conditioned
+comparisons, concession effects, stakeholder alliances, rule friction and city outcomes. `server/src/studio.ts` serves it
+at `/api/atlas` (`/api/atlas/decisions`, `/api/atlas/table/:name` as CSV, `/api/atlas/brief`); the page is
+`app/src/routes/Atlas.tsx` with sections in `app/src/atlas/`. `/studio` still opens the same page.
+
+To see it on more than a handful of tables, play simulated matches into a sandbox so real records are never touched:
+
+```bash
+# server with no Gemini, database, Solana or Snowflake, writing to its own files
+cd server && PORT=8788 GEMINI_API_KEY= DATABASE_URL= SOLANA_ENABLED=false SNOWFLAKE_ACCOUNT= \
+  MATCH_STORE_FILE=/tmp/sandbox-matches.json CIVIC_STORE_FILE=/tmp/sandbox-civic.json ../node_modules/.bin/tsx src/index.ts
+# the app against it
+cd app && VITE_SERVER_URL=http://localhost:8788 ./node_modules/.bin/vite --port 5174
+# four scripted players per game (tendencies per persona, legal plays, real protocol)
+cd server && ../node_modules/.bin/tsx scripts/simulate.ts --games 40 --parallel 5 --url http://localhost:8788
+```
+
+Simulated matches are labelled demo and are scripted behaviour: the patterns they show come from the script, not from
+people. Never point the simulator at a server holding community sessions.

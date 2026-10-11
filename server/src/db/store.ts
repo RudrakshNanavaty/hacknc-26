@@ -44,7 +44,8 @@ export class FileStore implements MatchStore {
   private readonly loaded: Promise<void>;
   private writing: Promise<void> = Promise.resolve();
 
-  constructor(private readonly file = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '.cache', 'matches.json')) {
+  /** MATCH_STORE_FILE moves it (a sandbox server for simulated matches must not touch the real record). */
+  constructor(private readonly file = process.env.MATCH_STORE_FILE || join(dirname(fileURLToPath(import.meta.url)), '..', '..', '.cache', 'matches.json')) {
     this.loaded = readFile(file, 'utf8')
       .then((t) => (JSON.parse(t) as MatchRecord[]).forEach((m) => this.rows.set(m.id, m)))
       .catch(() => {});

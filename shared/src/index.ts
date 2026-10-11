@@ -11,3 +11,4 @@ export * from './game/narrate';
 export * from './game/record';
 export * from './game/proof';
 export * from './cardArt';
+export * from './game/atlas';

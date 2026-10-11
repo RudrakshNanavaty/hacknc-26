@@ -1,4 +1,4 @@
-// Planning Studio's computed summaries and planner briefs, saved as they are produced so the studio
+// Civic Atlas's computed summaries and planner briefs, saved as they are produced so the studio
 // has a history ("what did the findings say after 10 matches?") and a brief is never lost.
 import type pg from 'pg';
 

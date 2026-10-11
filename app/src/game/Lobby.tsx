@@ -126,7 +126,7 @@ export function Lobby({ state, room }: { state: RoomState; room: Room }) {
             </div>
             <p className="text-13 opacity-80">
               {state.sessionKind === 'community'
-                ? 'Community session: records are marked as real community participants in Planning Studio.'
+                ? 'Community session: records are marked as real community participants in the Civic Atlas.'
                 : 'Demo session: records are marked as demonstration participants, kept apart from community input.'}
             </p>
             <button type="button" className="aero-btn aero-btn-go aero-btn-lg self-start pulse" onClick={() => { unlockAudio(); room.start(); }}>

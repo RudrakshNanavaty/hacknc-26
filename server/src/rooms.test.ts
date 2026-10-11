@@ -259,7 +259,7 @@ describe('four browsers over WebSockets', () => {
     return { ws, seen, next, state, latest, send, open: new Promise((r) => ws.once('open', r)) };
   }
 
-  it('four players finish a three-round match; every screen agrees; the record lands in Planning Studio', async () => {
+  it('four players finish a three-round match; every screen agrees; the record lands in Civic Atlas', async () => {
     rooms.delete('WXYZ');
     const personas: PersonaId[] = ['mayor', 'activist', 'resort', 'resident'];
     const c = personas.map(() => client('WXYZ'));
@@ -350,7 +350,7 @@ describe('four browsers over WebSockets', () => {
     const cities = [mayor, activist, resort, again1].map((x) => JSON.stringify(x.latest().city));
     expect(new Set(cities).size).toBe(1);
 
-    // The personal question, then Planning Studio.
+    // The personal question, then Civic Atlas.
     again1.send({ t: 'respond', choice: shoreline.id });
     await again1.state((s) => s.mine?.responded === shoreline.id);
     await new Promise((r) => setTimeout(r, 50));

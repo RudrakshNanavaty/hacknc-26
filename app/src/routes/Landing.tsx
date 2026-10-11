@@ -1,5 +1,5 @@
 // The front door: real Miami Beach with its real flood zones behind glass, the four stakeholders,
-// and three ways in (host a match, join one, open Planning Studio).
+// and three ways in (host a match, join one, open the Civic Atlas).
 import { useState, type FormEvent } from 'react';
 import { CARDS, DATA_SOURCES, DISTRICTS, PERSONAS, PERSONA_INFO, districtFacts, startCity } from '@shared';
 import { CityMap, type Overlays } from '../map/CityMap';
@@ -43,7 +43,7 @@ export function Landing() {
                 <input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} maxLength={4} placeholder="CODE" aria-label="Room code" className="aero-input w-28 text-center tracking-widest uppercase" />
                 <button className="aero-btn aero-btn-aqua">Join</button>
               </form>
-              <Link to="/studio" className="aero-btn">Planning Studio</Link>
+              <Link to="/atlas" className="aero-btn">Civic Atlas</Link>
             </div>
           </div>
           <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-end sm:justify-between">

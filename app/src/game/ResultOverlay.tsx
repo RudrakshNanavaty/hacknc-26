@@ -141,7 +141,7 @@ function FinalScreen({ state, room }: { state: RoomState; room: Room }) {
           {answered && <p className="text-13 font-black text-[#2f7a0e]">Thanks: recorded for the planners.</p>}
         </div>
       )}
-      <Link to={`/studio${state.matchId ? `?match=${state.matchId}` : ''}`} className="gel gel-lime gel-big">Open Planning Studio →</Link>
+      <Link to={`/atlas${state.matchId ? `?match=${state.matchId}#matches` : ''}`} className="gel gel-lime gel-big">Open the Civic Atlas</Link>
       {state.matchId && <Link to={`/verify/${state.matchId}`} className="gel">Verify this match on Solana</Link>}
       {host && <button type="button" className="gel" onClick={() => room.again()}>New match</button>}
     </div>

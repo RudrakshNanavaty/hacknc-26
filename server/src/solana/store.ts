@@ -42,7 +42,7 @@ export interface CivicStore {
   anchors(limit: number): Promise<Anchor[]>;
 }
 
-const FILE = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '.cache', 'civic-record.json');
+const FILE = process.env.CIVIC_STORE_FILE || join(dirname(fileURLToPath(import.meta.url)), '..', '..', '.cache', 'civic-record.json');
 
 export class FileCivicStore implements CivicStore {
   kind: 'file' | 'memory' = 'file';

@@ -12,7 +12,7 @@ Several people and coding agents work in this repo during HackNC 2026. Follow th
 ```
 pipeline/ miami-beach.ts: fetches the real Miami Beach GIS layers and measures the playable areas.
 shared/   Pure TypeScript, no I/O. Personas, cards, districts (real data), the rules engine, narration
-          templates, match records, Planning Studio aggregation, the room protocol.
+          templates, match records, Civic Atlas aggregation, the room protocol.
 app/      Vite + React + TypeScript strict, MapLibre, motion, zustand, Tailwind (tokens in styles.css).
 server/   Node + TypeScript (Fastify + ws). Authoritative rooms, live NOAA/NWS conditions, Gemini scenario desk,
           narrator and Game Director (proposals only, validated in shared/), ElevenLabs, Tiger Data.
@@ -28,7 +28,7 @@ Contracts live in `shared/src`: `room.ts` (wire protocol), `game/engine.ts` (Boa
    (`shared/src/data/districts.json`). Effect sizes are illustrative scenario values and budgets are hypothetical:
    say so wherever they are shown.
 3. **Role-play is not public opinion.** Keep persona choices, personal preferences, demo sessions, bots and
-   community sessions apart in records and in Planning Studio.
+   community sessions apart in records and in Civic Atlas.
 4. **Fail soft.** Every server integration has a fallback (memory store, template narration, no voice).
 5. **No secrets in code.** Keys come from `.env` only (see `.env.example`).
 6. **Verify before done.** `bun run typecheck` and `bun run test`. For UI, check it at 1440×900 and 1280×720: the game

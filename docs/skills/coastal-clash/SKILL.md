@@ -1,6 +1,6 @@
 ---
 name: coastal-clash
-description: Work on the Coastal Clash codebase (HackNC 2026), a four-player coastal-planning card game on real Miami Beach GIS data. Use for any change to its rules engine, cards, crises, playable areas, room protocol, game UI, Planning Studio, data pipeline or server integrations (Gemini, ElevenLabs, Tiger Data), and for onboarding to the repo.
+description: Work on the Coastal Clash codebase (HackNC 2026), a four-player coastal-planning card game on real Miami Beach GIS data. Use for any change to its rules engine, cards, crises, playable areas, room protocol, game UI, Civic Atlas, data pipeline or server integrations (Gemini, ElevenLabs, Tiger Data), and for onboarding to the repo.
 ---
 
 # Coastal Clash
