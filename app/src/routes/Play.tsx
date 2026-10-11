@@ -15,6 +15,7 @@ import { Link } from '../router';
 import { useSound } from '../ui/sound';
 import { say, hush } from '../ui/voice';
 import { Flights, Stamps } from '../game/Flights';
+import { HandDeck } from '../game/HandDeck';
 import { LivingLayer } from '../map/LivingLayer';
 import { PingLayer } from '../map/PingLayer';
 import { Meters, PlayerBubbles, TimerOrb } from '../game/Hud';
@@ -49,6 +50,8 @@ export function Play({ code }: { code: string }) {
   const [popKey, setPopKey] = useState(0);
   /** The card being read in the popover: its other legal areas light up. */
   const [hoverCard, setHoverCard] = useState<CardId | null>(null);
+  /** The card held in your hand: the areas it may go to stay lit until you click one (or Esc). */
+  const [armed, setArmed] = useState<CardId | null>(null);
   const [focus, setFocus] = useState<string | null>(null);
   const [overlays, setOverlays] = useState<Overlays>({ flood: true, zoning: false });
   const [layers, setLayers] = useState(false);
@@ -64,10 +67,14 @@ export function Play({ code }: { code: string }) {
   useEffect(() => {
     setOpen(null);
     setHoverCard(null);
+    setArmed(null);
     setNewsOpen(false);
   }, [state?.round, phase]);
   useEffect(() => {
-    if (locked) setOpen(null);
+    if (locked) {
+      setOpen(null);
+      setArmed(null);
+    }
   }, [locked]);
 
   useEffect(() => {
@@ -78,8 +85,11 @@ export function Play({ code }: { code: string }) {
 
   const picking = phase === 'select' && !locked && me !== null;
   const eligible = useMemo(
-    () => (picking && hoverCard ? Object.fromEntries(DISTRICT_IDS.map((d) => [d, cardEligibility(hoverCard, d).ok])) : null),
-    [picking, hoverCard],
+    () => {
+      const shown = hoverCard ?? armed;
+      return picking && shown ? Object.fromEntries(DISTRICT_IDS.map((d) => [d, cardEligibility(shown, d).ok])) : null;
+    },
+    [picking, hoverCard, armed],
   );
   const focusDistrict = useMemo(() => state?.board?.proposals.find((p) => p.id === focus)?.district ?? state?.board?.proposals[0]?.district ?? null, [state?.board, focus]);
   const chipNote = useCallback((id: string) => {
@@ -123,15 +133,18 @@ export function Play({ code }: { code: string }) {
     phase === 'crisis' ? crisis?.spotlight[0] ?? null
       : phase === 'reveal' || phase === 'negotiate' ? focusDistrict
         : null;
-  // Room for the HUD at the top and whatever floats beside the focused area.
+  // Room for the HUD at the top, the hand at the bottom, and whatever floats beside the focused area.
   const padding =
     phase === 'crisis' ? { top: 330, bottom: 40, left: 260, right: 80 }
-      : phase === 'reveal' || phase === 'negotiate' ? { top: 150, bottom: 40, left: 260, right: 470 }
-        : phase === 'resolve' ? { top: 150, bottom: 40, left: 260, right: 500 }
-          : { top: 150, bottom: 40, left: 260, right: 60 };
+      : phase === 'reveal' ? { top: 150, bottom: 40, left: 260, right: 470 }
+        : phase === 'negotiate' ? { top: 150, bottom: 210, left: 260, right: 470 } // the hand is out
+          : phase === 'resolve' ? { top: 150, bottom: 40, left: 260, right: 500 }
+            : phase === 'select' ? { top: 150, bottom: 210, left: 260, right: 60 } // the hand is out
+              : { top: 150, bottom: 40, left: 260, right: 60 };
   const stage: CrisisStage = phase === 'crisis' ? 'alert' : phase === 'select' || phase === 'reveal' || phase === 'negotiate' ? 'rest' : 'off';
   const onPick =
     picking ? (id: string) => {
+      if (armed && !cardEligibility(armed, id).ok) return; // a dimmed area: nothing to read there
       setOpen(id);
       setPopKey((k) => k + 1);
     }
@@ -152,7 +165,7 @@ export function Play({ code }: { code: string }) {
           eligible={eligible}
           overlays={overlays}
           onPick={onPick}
-          onBlank={() => setOpen(null)}
+          onBlank={() => (open ? setOpen(null) : setArmed(null))}
           focus={camera}
           free={free}
           recenter={recenter}
@@ -178,7 +191,7 @@ export function Play({ code }: { code: string }) {
         </div>
         <div className="hud-center">
           <CrisisBriefing state={state} />
-          {picking && !open && <p className="hud-pill hud-block lchip lchip-sun">👆 Click an area on the map to see the cards you can play there</p>}
+          {picking && !open && <p className="hud-pill hud-block lchip lchip-sun">{armed ? `👆 Click a lit area to play ${CARDS[armed].name} there` : '👆 Pick a card from your hand, then a lit area (or click an area first)'}</p>}
           {phase === 'select' && locked && (
             <p className="hud-pill hud-block lchip lchip-lime">🂠 Locked in: {CARDS[locked.card].name} on {districtById(locked.district).name} · {waiting ? `waiting for ${waiting} stakeholder${waiting > 1 ? 's' : ''}` : 'revealing…'}</p>
           )}
@@ -195,9 +208,10 @@ export function Play({ code }: { code: string }) {
         {host && state.endsAt !== null && <button type="button" className="gel" onClick={room.skip} title="Host: end this phase now">Skip ⏭</button>}
         {layers && <Legend overlays={overlays} setOverlays={setOverlays} />}
       </div>
-      {picking && open && <DistrictPopover key={popKey} state={state} room={room} map={map} district={open} setDistrict={setOpen} onCard={setHoverCard} />}
+      {picking && open && <DistrictPopover key={popKey} state={state} room={room} map={map} district={open} setDistrict={setOpen} onCard={setHoverCard} initialCard={armed} />}
       {(phase === 'reveal' || phase === 'negotiate') && <CaseFile state={state} room={room} map={map} focus={focus} setFocus={setFocus} />}
       {phase === 'negotiate' && <PingLayer map={map} state={state} pings={room.pings} />}
+      <HandDeck state={state} room={room} armed={armed} setArmed={setArmed} onHoverCard={setHoverCard} focus={focus} />
       <ResultOverlay state={state} room={room} />
       <Flights map={map} state={state} />
       <Stamps map={map} state={state} />

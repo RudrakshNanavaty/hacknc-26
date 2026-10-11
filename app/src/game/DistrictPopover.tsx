@@ -26,7 +26,7 @@ export function playableCount(state: RoomState, district: string): number {
   return handFor(me.persona, state.round).filter((id) => !blocker(id, district, me.influence)).length;
 }
 
-export function DistrictPopover({ state, room, map, district, setDistrict, onCard }: {
+export function DistrictPopover({ state, room, map, district, setDistrict, onCard, initialCard = null }: {
   state: RoomState;
   room: Room;
   map: MapLibreMap | null;
@@ -34,8 +34,10 @@ export function DistrictPopover({ state, room, map, district, setDistrict, onCar
   setDistrict: (d: string | null) => void;
   /** The card being read: the map lights up the other areas it may go to. */
   onCard: (c: CardId | null) => void;
+  /** A card already held in the hand: open straight to it here. */
+  initialCard?: CardId | null;
 }) {
-  const [card, setCard] = useState<CardId | null>(null);
+  const [card, setCard] = useState<CardId | null>(initialCard);
   const me = state.players.find((p) => p.seat === state.you);
   useEffect(() => onCard(card), [card, onCard]);
   useEffect(() => () => onCard(null), [onCard]);

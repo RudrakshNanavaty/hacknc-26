@@ -4,7 +4,7 @@
 // away, or a click on their marker on the map.
 import { useEffect, useMemo } from 'react';
 import type { Map as MapLibreMap } from 'maplibre-gl';
-import { CARDS, NEGOTIATION_COST, PERSONA_INFO, PING_EMOTES, PROJECTS, districtById, resolveRound, type Attachment, type Board, type RoomState } from '@shared';
+import { CARDS, PERSONA_INFO, PING_EMOTES, PROJECTS, districtById, resolveRound, type Attachment, type Board, type RoomState } from '@shared';
 import type { Room } from '../room/useRoom';
 import { MapAnchor } from '../map/MapAnchor';
 import { STATUS_STYLE } from './format';
@@ -52,7 +52,7 @@ export function CaseFile({ state, room, map, focus, setFocus }: { state: RoomSta
       <aside className="float-card side-float flex flex-col gap-2" aria-label="This round's table">
         <h2 className="glow-title !text-[26px]">No proposals this round</h2>
         <Loose list={loose} state={state} />
-        {negotiating && me && !done && <button type="button" className="gel gel-lime gel-big" onClick={() => room.done()}>Done</button>}
+        {negotiating && me && !done && <p className="text-center text-13 font-black">Nothing to negotiate. Pass from your hand below.</p>}
       </aside>
     );
   }
@@ -136,17 +136,9 @@ export function CaseFile({ state, room, map, focus, setFocus }: { state: RoomSta
         )}
 
         {negotiating && me && !done && (
-          <div className="anchor-foot">
-            {!moved && (
-              <div className="grid grid-cols-3 gap-2">
-                <button type="button" className="gel gel-lime" disabled={me.influence < NEGOTIATION_COST.back} onClick={() => room.move('back', p.id)}>👍 Back</button>
-                <button type="button" className="gel gel-coral" disabled={me.influence < NEGOTIATION_COST.oppose || p.seat === state.you} onClick={() => room.move('oppose', p.id)}>👎 Oppose</button>
-                <button type="button" className="gel" disabled={me.influence < NEGOTIATION_COST.fund || PROJECTS[p.kind].budgetCost === 0 || o.funding === 'covered'} onClick={() => room.move('fund', p.id)}>💰 Fund</button>
-              </div>
-            )}
-            <p className="text-center text-[11px] font-black opacity-80">{moved ? 'Move made.' : 'One move per round · back 1 · oppose 1 · fund 2 influence.'} The verdict is the rules engine run on the table as it stands.</p>
-            <button type="button" className="gel gel-lime" onClick={() => room.done()}>{moved ? 'Done ✓' : 'Pass and finish'}</button>
-          </div>
+          <p className="frost p-2 text-center text-[12px] font-black">
+            {moved ? 'Move made. Finish from your hand below.' : 'Play your one move from your hand below: back 1 · oppose 1 · fund 2 influence, or pass.'} The verdict is the rules engine run on the table as it stands.
+          </p>
         )}
         {negotiating && done && <p className="frost p-2 text-center text-13 font-black">You’re done. Waiting for the table…</p>}
       </div>

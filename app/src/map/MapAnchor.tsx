@@ -1,6 +1,6 @@
 // Floating cards pinned to a place on the map: the district popover (your cards), the negotiation case
 // file. The card sits beside the area's center, flips to the other side near the screen edge, follows
-// the camera, and scrolls inside when the window is short.
+// the camera, stays clear of the HUD above and the hand below, and scrolls inside when the window is short.
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import type { Map as MapLibreMap } from 'maplibre-gl';
 import { districtById } from '@shared';
@@ -32,6 +32,15 @@ function hudBottom(left: number, right: number) {
     if (r.width && r.right > left && r.left < right) bottom = Math.max(bottom, r.bottom + 10);
   }
   return bottom;
+}
+/** The hand owns the bottom of the screen while it is out: stop above it where we would overlap it. */
+function deckTop(left: number, right: number) {
+  let top = window.innerHeight;
+  for (const el of document.querySelectorAll('.deck-block')) {
+    const r = el.getBoundingClientRect();
+    if (r.width && r.height && r.right > left && r.left < right) top = Math.min(top, r.top - 8);
+  }
+  return top;
 }
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
@@ -79,9 +88,10 @@ export function MapAnchor({ map, district, width = 380, gap = 96, label, onClose
   const right = p.x + gap + width <= vw - EDGE || p.x - gap - width < EDGE;
   const left = clamp(right ? p.x + gap : p.x - gap - width, EDGE, vw - width - EDGE);
   const ceiling = hudBottom(left, left + width);
-  const maxHeight = vh - ceiling - EDGE;
+  const floor = Math.min(vh, deckTop(left, left + width));
+  const maxHeight = floor - ceiling - EDGE;
   const h = Math.min(height || maxHeight, maxHeight);
-  const top = clamp(p.y - h / 2, ceiling, vh - h - EDGE);
+  const top = clamp(p.y - h / 2, ceiling, floor - h - EDGE);
   const tailY = clamp(p.y - top, 28, h - 28);
   const tailVisible = right ? left > p.x : left + width < p.x;
 
