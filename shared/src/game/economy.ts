@@ -3,7 +3,7 @@
 // previews can never disagree with a resolution (cards.test.ts and economy.test.ts pin that).
 import { CARDS, INDICATORS, PROJECTS, type CardId, type Delta, type Indicators, type PersonaId } from './content';
 import { districtById } from './districts';
-import { crisisFor, resolveRound, treasuryOf, type Board, type CityState, type NegotiationAction, type OutcomeStatus, type PendingEffect } from './engine';
+import { crisisFor, resolveRound, treasuryOf, type AgreementResult, type Board, type CityState, type Funding, type NegotiationAction, type OutcomeStatus, type PendingEffect } from './engine';
 import { Books, chargeUpkeep, cloneTreasury, debtOutstanding, inMillions, millions, settleObligations, usd, walletOf, WALLET_INFO, type Cents, type LedgerEntry, type Obligation, type WalletId } from './money';
 import type { Crisis } from './scenario';
 
@@ -157,3 +157,34 @@ export function ifApproved(board: Board, actions: NegotiationAction[], city: Cit
   return { status: t.status, delta: withCombos(r, t.delta) };
 }
 
+
+export interface AgreementPreview {
+  /** The proposal's verdict with this agreement refused, and with it accepted (the table otherwise as it stands). */
+  without: OutcomeStatus;
+  withIt: OutcomeStatus;
+  /** Who would pay the project with it accepted, and the money that would move under it (simulated). */
+  funding: Funding;
+  entries: LedgerEntry[];
+  /** What it would become: executed, void (payer short), not needed (paid already), not built. */
+  result: AgreementResult['status'] | null;
+  /** Its effect on the meters if built with it. */
+  delta: Delta;
+}
+
+/** Accept or refuse? The real resolution run both ways: the impact preview on the agreement card. */
+export function agreementPreview(board: Board, actions: NegotiationAction[], city: CityState, compromiseId: string): AgreementPreview | null {
+  const c = board.compromises.find((x) => x.id === compromiseId);
+  if (!c?.terms) return null;
+  const run = (accepted: boolean) => resolveRound({ ...board, compromises: board.compromises.map((x) => (x.id === c.id ? { ...x, accepted } : x)) }, actions, city);
+  const no = run(false);
+  const yes = run(true);
+  const o = yes.outcomes.find((x) => x.proposalId === c.proposalId);
+  return {
+    without: no.outcomes.find((x) => x.proposalId === c.proposalId)?.status ?? 'rejected',
+    withIt: o?.status ?? 'rejected',
+    funding: o?.funding ?? null,
+    entries: yes.ledger.filter((e) => e.agreementId === c.id || (e.proposalId === c.proposalId && c.terms!.covers && e.rule === c.terms!.rule)),
+    result: yes.agreements.find((a) => a.compromiseId === c.id)?.status ?? null,
+    delta: o?.delta ?? {},
+  };
+}

@@ -35,6 +35,8 @@ export interface Room {
   select: (card: CardId, district: string) => void;
   move: (move: NegotiationMove, proposalId: string) => void;
   accept: (compromiseId: string) => void;
+  /** Refuse an offer out loud (its owner only). */
+  decline: (compromiseId: string) => void;
   done: () => void;
   respond: (choice: string) => void;
   again: () => void;
@@ -112,6 +114,7 @@ export function useRoom(code: string): Room {
     select: useCallback((card, district) => send({ t: 'select', card, district }), [send]),
     move: useCallback((move, proposalId) => send({ t: 'move', move, proposalId }), [send]),
     accept: useCallback((compromiseId) => send({ t: 'accept', compromiseId }), [send]),
+    decline: useCallback((compromiseId) => send({ t: 'decline', compromiseId }), [send]),
     done: useCallback(() => send({ t: 'done' }), [send]),
     respond: useCallback((choice) => send({ t: 'respond', choice }), [send]),
     again: useCallback(() => send({ t: 'again' }), [send]),

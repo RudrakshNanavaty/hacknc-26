@@ -11,3 +11,4 @@ export * from './game/narrate';
 export * from './game/record';
 export * from './game/money';
 export * from './game/agreements';
+export * from './game/cardfacts';

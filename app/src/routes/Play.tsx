@@ -16,6 +16,7 @@ import { JoinForm, Lobby } from '../game/Lobby';
 import { CardScreen, CrisisScreen, DuelScreen, FinalScreen, ResultScreen } from '../game/screens';
 import { LagoonBubbles } from '../game/ui';
 import { useCountdown } from '../game/format';
+import { LedgerPanel, MoneyToasts } from '../game/money';
 
 function useWide() {
   const q = '(min-width: 1024px)';
@@ -55,6 +56,7 @@ export function Play({ code }: { code: string }) {
   const [focus, setFocus] = useState<string | null>(null);
   const [overlays, setOverlays] = useState<Overlays>({ flood: true, zoning: false });
   const [layers, setLayers] = useState(false);
+  const [ledger, setLedger] = useState(false);
   const sound = useSound();
   const [voiceOn, setVoiceOn] = useState(false);
 
@@ -139,9 +141,12 @@ export function Play({ code }: { code: string }) {
           <button type="button" className="gel gel-icon" onClick={sound.toggle} aria-pressed={sound.on} title="Sound">{sound.on ? '🔊' : '🔇'}</button>
           <button type="button" className={`gel gel-icon ${voiceOn ? 'gel-lime' : ''}`} onClick={() => setVoiceOn((v) => !v)} aria-pressed={voiceOn} title="Read the news aloud">🎙️</button>
           <button type="button" className={`gel gel-icon ${layers ? 'gel-sun' : ''}`} onClick={() => setLayers((v) => !v)} aria-pressed={layers} title="Real data layers">🗺️</button>
+          <button type="button" className={`gel gel-icon ${ledger ? 'gel-sun' : ''}`} onClick={() => setLedger((v) => !v)} aria-pressed={ledger} title="Ledger: every payment and its bank-mirror status">📒</button>
           {host && state.endsAt !== null && <button type="button" className="gel" onClick={room.skip} title="Host: end this phase now">Skip ⏭</button>}
           {layers && <Legend overlays={overlays} setOverlays={setOverlays} />}
         </div>
+        {ledger && <LedgerPanel state={state} onClose={() => setLedger(false)} />}
+        <MoneyToasts state={state} />
       </section>
       <aside className="stage-side lagoon">
         <LagoonBubbles count={12} seed={phase?.length ?? 3} />

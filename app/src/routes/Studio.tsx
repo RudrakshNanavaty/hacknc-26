@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Marker, type Map as MapLibreMap } from 'maplibre-gl';
 import {
-  CARDS, COMBOS, PERSONA_INFO, PROJECTS, districtById, replayMatch, startCity, type MatchRecord, type SessionKind,
+  AGREEMENTS, CARDS, COMBOS, PERSONA_INFO, PROJECTS, WALLET_INFO, districtById, replayMatch, startCity, usd, type MatchRecord, type SessionKind,
 } from '@shared';
 import { brief as fetchBrief, match as fetchMatch, studio as fetchStudio, type StudioData } from '../api';
 import { CityMap } from '../map/CityMap';
@@ -79,10 +79,30 @@ function Timeline({ m }: { m: MatchRecord }) {
               <li key={o.proposalId} className="text-13">
                 <span className="status-pill mr-1" style={{ background: STATUS_STYLE[o.status].bg, color: STATUS_STYLE[o.status].color }}>{STATUS_STYLE[o.status].label}</span>
                 {PROJECTS[o.kind].name}, {districtById(o.district).name} · {o.support} vs {o.opposition}{o.status === 'approved' ? ` · ${deltaText(o.delta)}` : ''}
+                {o.status === 'approved' && o.paidBy && <span className="chip ml-1 text-[11px]">paid by {WALLET_INFO[o.paidBy].short} ({o.funding})</span>}
+                {o.conditions.length > 0 && <span className="block pl-2 text-[11px]">Conditions: {o.conditions.join('; ')}</span>}
                 <span className="block pl-2 text-[11px] opacity-70">Rules: {o.rules.map((id) => r.events.find((e) => e.id === id)?.rule).join(' → ')}</span>
               </li>
             ))}
           </ul>
+          {((r.ledger ?? []).length > 0 || (r.agreements ?? []).length > 0) && (
+            <div className="mt-2 rounded-xl bg-white/70 p-2 text-[12px]">
+              <p className="font-bold">💸 Money this round (simulated)</p>
+              {(r.agreements ?? []).map((a) => <p key={a.compromiseId}>🤝 {AGREEMENTS[a.type].name}: <b>{a.status}</b> · {a.text}</p>)}
+              <ul className="mt-1 flex flex-col gap-0.5">
+                {(r.ledger ?? []).map((e) => {
+                  const sync = m.bank?.items.find((i) => i.kind === 'transfer' && i.entryId === e.id);
+                  return (
+                    <li key={e.id} className="tabular">
+                      <b>{e.rule}</b> {WALLET_INFO[e.from].short} → {WALLET_INFO[e.to].short} {usd(e.amount)}
+                      <span className="opacity-70"> · {m.bank?.mirror === 'nessie' ? `Nessie: ${sync?.status ?? 'pending'}${sync?.externalId ? ` (${sync.externalId})` : ''}` : 'not mirrored'}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+              {r.money && r.money.debt > 0 && <p className="mt-1">🏦 Owed to the lender after this round: {usd(r.money.debt)}</p>}
+            </div>
+          )}
         </li>
       ))}
       {m.responses.length > 0 && (
@@ -269,6 +289,27 @@ export function Studio() {
               )}
             </section>
           </div>
+
+          <section className="glass flex flex-col gap-3 border-2 border-dashed border-sun p-4">
+            <h2 className="font-display text-24 font-black">Money <span className="text-13 font-bold opacity-70">(simulated, illustrative)</span></h2>
+            <p className="text-[12px] font-bold">Who paid for what, the deals, and where the money went, from the engine's ledger. The Nessie mirror only copies it.</p>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <Stat label="Projects paid" value={s.money.funding.reduce((n, f) => n + f.projects, 0)} note={s.money.funding.map((f) => `${f.source} ${f.projects}`).join(' · ') || 'none yet'} />
+              <Stat label="Deals executed" value={s.money.agreements.reduce((n, a) => n + a.executed, 0)} note={`${s.money.agreements.reduce((n, a) => n + a.offered, 0)} offered · ${s.money.agreements.reduce((n, a) => n + a.accepted, 0)} accepted`} />
+              <Stat label="Owed at the end" value={`$${s.money.debtAtEnd}M`} note="bonds and arrears, completed matches" />
+              <Stat label="Mirrored to Nessie" value={s.money.sync.confirmed} note={`${s.money.sync.mirrored} matches mirrored · ${s.money.sync.pending + s.money.sync.uncertain} open · ${s.money.sync.failed} failed`} />
+            </div>
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              <div>
+                <p className="text-13 font-bold">Agreements executed</p>
+                <Bars rows={s.money.agreements.map((a) => ({ label: `🤝 ${a.name}`, value: a.executed, title: `${a.offered} offered, ${a.accepted} accepted, ${a.executed} executed, ${a.void} void, ${a.notNeeded} not needed, ${a.refused} refused` }))} />
+              </div>
+              <div>
+                <p className="text-13 font-bold">Money flows ($M)</p>
+                <Bars rows={s.money.flows.slice(0, 8).map((f) => ({ label: `${WALLET_INFO[f.from].short} → ${WALLET_INFO[f.to].short}`, value: f.amount, title: `${f.entries} entries` }))} color="#8a6a00" />
+              </div>
+            </div>
+          </section>
 
           <section className="glass flex flex-col gap-3 p-4">
             <h2 className="font-display text-24 font-black">Areas</h2>

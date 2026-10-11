@@ -4,8 +4,8 @@
 // here comes from the shared engine or the validated state the server sent; the AI only words things.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  CARDS, COMBOS, INDICATORS, INDICATOR_INFO, NEGOTIATION_COST, PROJECTS, districtById, ifApproved, upcomingCosts,
-  type AcceptedEvent, type CardId, type ComboHit, type Delta, type Outcome, type ProjectPreview, type Proposal, type RoomState, type TableHint,
+  COMBOS, INDICATORS, INDICATOR_INFO, NEGOTIATION_COST, PROJECTS, WALLET_INFO, billFor, districtById, ifApproved, inMillions, upcomingCosts,
+  type AcceptedEvent, type ComboHit, type Delta, type Outcome, type ProjectPreview, type Proposal, type RoomState, type TableHint,
 } from '@shared';
 import type { Room } from '../room/useRoom';
 import type { ExplainAnswer } from '../api';
@@ -147,8 +147,8 @@ export function IfItPasses({ state, p, o }: { state: RoomState; p: Proposal; o: 
   return (
     <p className="frost px-3 py-2 text-center text-13 font-semibold">
       {o.status === 'approved' ? 'Passing now: ' : 'If it passes: '}
-      {would?.status === 'unfunded' ? <b>it would be approved but unfunded (no budget left, nobody covering it)</b> : <b>{deltaText(delta) || 'no change'}</b>}
-      {project.budgetCost > 0 && o.funding !== 'covered' && would?.status !== 'unfunded' ? ` · −$${project.budgetCost}M budget` : ''}
+      {would?.status === 'unfunded' ? <b>it would be approved but unfunded (nobody can pay for it)</b> : <b>{deltaText(delta) || 'no change'}</b>}
+      {o.status === 'approved' && o.paidBy ? ` · paid by ${WALLET_INFO[o.paidBy].short} ($${project.privateCost || project.budgetCost}M)` : project.budgetCost + project.privateCost > 0 && would?.status !== 'unfunded' ? ` · costs $${project.privateCost || project.budgetCost}M` : ''}
       {project.upkeep > 0 ? ` · then $${project.upkeep}M upkeep a round` : ''}
       <span className="opacity-70"> (illustrative)</span>
     </p>
@@ -193,27 +193,17 @@ export function Recap({ state }: { state: RoomState }) {
   );
 }
 
-/** A card's family, trade-off, what answers it, its combos and any delayed consequence. */
-export function CardExtras({ id }: { id: CardId }) {
-  const c = CARDS[id];
-  return (
-    <div className="flex flex-col gap-1 text-13">
-      <p className="font-semibold opacity-85"><b>Trade-off:</b> {c.tradeoff}</p>
-      {c.delayed && <p className="warn-line">⏳ Next round: {c.delayed.text}</p>}
-      {c.counters.length > 0 && <p className="font-semibold opacity-85"><b>Answered by:</b> {c.counters.map((x) => `${CARDS[x].art} ${CARDS[x].name}`).join(', ')}</p>}
-      {c.combos.map((k) => (
-        <p key={k} className="combo-line">✨ <b>{COMBOS[k].name}</b>: {COMBOS[k].recipe} Bonus {deltaText(COMBOS[k].bonus)}.</p>
-      ))}
-    </div>
-  );
-}
-
-/** What the city already owes when this round resolves (upkeep, delayed consequences). */
+/** What the city already owes when this round resolves: upkeep, installments, availability payments, delayed consequences. */
 export function Bill({ state }: { state: RoomState }) {
   if (state.phase === 'resolve' || state.phase === 'final' || state.phase === 'lobby') return null;
+  // The bill as the engine will charge it (reserves first, arrears if the budget is short).
+  const bill = billFor(state.city, state.round);
   const up = upcomingCosts(state.city);
-  const parts = [...(up.upkeep ? [`−$${up.upkeep}M upkeep`] : []), ...up.pending.map((p) => p.text.replace(/\.$/, ''))];
+  const parts = [
+    ...bill.entries.map((e) => `${e.kind === 'arrears' ? '⚠ arrears ' : ''}${e.kind === 'upkeep' ? 'upkeep' : e.kind === 'debt-service' ? 'bond installment' : e.kind === 'availability' ? `partner payment to ${WALLET_INFO[e.to].short}` : e.rule} $${inMillions(e.amount)}M`),
+    ...up.pending.filter((p) => p.dueRound <= state.round).map((p) => p.text.replace(/\.$/, '')),
+  ];
   if (!parts.length) return null;
-  return <p className="lchip lchip-sun bill-chip" title="Charged when this round resolves (hypothetical, illustrative)">⏳ This round’s bill: {parts.join(' · ')}</p>;
+  return <p className="lchip lchip-sun bill-chip" title="Charged when this round resolves (simulated money, illustrative effects)">⏳ This round’s bill: {parts.join(' · ')}</p>;
 }
 

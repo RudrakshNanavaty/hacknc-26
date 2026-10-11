@@ -5,6 +5,8 @@ import { CARDS, CARD_IDS, COMBOS, COMBO_IDS, HANDS, PERSONAS, PROJECTS, START_IN
 import { cardEligibility, cardTargets } from './districts';
 import { buildBoard, resolveRound, startCity, type Play } from './engine';
 import { inMillions } from './money';
+import { cardFacts } from './cardfacts';
+import { AGREEMENTS } from './content';
 
 const seat: Record<PersonaId, number> = { mayor: 0, activist: 1, resort: 2, resident: 3 };
 const play = (persona: PersonaId, card: CardId, district: string): Play => ({ seat: seat[persona], persona, card, district });
@@ -193,5 +195,32 @@ describe('delayed consequences and upkeep', () => {
     const r2 = resolveRound(buildBoard(2, []), [], r1.city);
     expect(r2.after.budget).toBe(r1.after.budget - PROJECTS.drainage.upkeep);
     expect(r2.events.map((e) => e.rule)).toEqual(['U1']);
+  });
+});
+
+describe('card faces say what the rules do', () => {
+  it('every card states its influence, its money (whose and how much), its effects and where it may go, from the rules', () => {
+    for (const id of CARD_IDS) {
+      const c = CARDS[id];
+      const f = cardFacts(id);
+      expect(f.influence).toBe(c.cost);
+      expect(f.effects.length).toBeGreaterThan(0);
+      expect(f.requirement.length).toBeGreaterThan(5);
+      if (c.project) {
+        const p = PROJECTS[c.project];
+        expect(f.money?.amountM ?? 0).toBe(p.privateCost || p.budgetCost);
+        expect(f.money?.kind ?? 'public').toBe(p.privateCost ? 'private' : 'public');
+        expect(f.upkeepM).toBe(p.upkeep);
+        // Where it may go, in words, agrees with the real eligibility: some area passes, and the threshold is named.
+        expect(okIn(id).length).toBeGreaterThan(0);
+      }
+      expect(f.deal?.type ?? null).toBe(c.agreement ?? null);
+      if (c.agreement) expect(f.deal!.name).toBe(AGREEMENTS[c.agreement].name);
+      expect(f.counters.map((x) => x.id)).toEqual(c.counters);
+    }
+    expect(cardFacts('hotel-development').money).toMatchObject({ payer: 'resort', amountM: 6, kind: 'private' });
+    expect(cardFacts('drainage-upgrade').money).toMatchObject({ payer: 'city', amountM: 8, kind: 'public' });
+    expect(cardFacts('habitat-survey').money).toMatchObject({ payer: 'activist', amountM: 1 });
+    expect(cardFacts('hotel-development').requirement).toMatch(/25%\+ hotel\/commercial zoning/);
   });
 });

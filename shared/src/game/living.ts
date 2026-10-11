@@ -2,7 +2,8 @@
 // presentation, never rules: speech bubbles and moods are derived from what the engine already
 // decided. Template lines are always ready (no network); the server may swap in Gemini lines that
 // pass validation (server/src/ai/director.ts), but only from this fixed reaction vocabulary.
-import { CARDS, PERSONA_INFO, PERSONAS, PROJECTS, type CardId, type PersonaId, type ProjectKind } from './content';
+import { CARDS, PERSONA_INFO, PERSONAS, PROJECTS, type AgreementType, type CardId, type PersonaId, type ProjectKind } from './content';
+import { PERSONA_WALLETS } from './money';
 import type { Crisis, CrisisKind } from './scenario';
 import type { Board, FinalResult, OutcomeStatus, Resolution } from './engine';
 
@@ -192,9 +193,26 @@ export function revealBubbles(board: Board): Bubble[] {
 }
 
 /** Resolution: owners react to their verdicts; the fisherman has opinions about his waterfront. */
+/** What a player says when their money moves under a deal (template; the Director may only replace it through validateDialogue). */
+const DEAL_LINES: Record<AgreementType, [string, Reaction]> = {
+  ppp: ['Partnership signed. The city pays me back, and I run the concession.', 'celebrate'],
+  bond: ['We borrowed it. Future me will have opinions about present me.', 'worry'],
+  restoration: ['Our fund, your project, real habitat. That is how deals should work.', 'congratulate'],
+  conditional: ['Amenities paid as promised. Goodwill is a sound investment.', 'mock'],
+  reserve: ['Our reserve keeps the pumps running. The neighbors chipped in.', 'congratulate'],
+};
+
 export function resolutionBubbles(r: Resolution): Bubble[] {
   const moment = `resolve-${r.round}`;
   const out: Bubble[] = [];
+  // Whoever paid under a deal speaks first (the proposal's owner speaks for the outcome below).
+  for (const a of r.agreements ?? []) {
+    if (a.status !== 'executed') continue;
+    const payer = (Object.entries(PERSONA_WALLETS) as [PersonaId, string][]).find(([, w]) => w === r.ledger.find((e) => a.entries.includes(e.id))?.from)?.[0];
+    const o = r.outcomes.find((x) => x.proposalId === a.proposalId);
+    const speaker: PersonaId = a.type === 'bond' ? 'mayor' : payer ?? 'mayor';
+    if (o && speaker !== o.persona) out.push(bubble(moment, speaker, DEAL_LINES[a.type][0], DEAL_LINES[a.type][1], o.district));
+  }
   for (const o of r.outcomes) {
     const [text, reaction] = OUTCOME_LINES[o.status];
     out.push(bubble(moment, o.persona, o.conditions.length && o.status === 'approved' ? `Approved, with conditions. ${o.conditions[0]}. I can live with that.` : text, reaction, o.district));

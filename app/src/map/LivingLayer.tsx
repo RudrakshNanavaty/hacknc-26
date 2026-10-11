@@ -9,7 +9,7 @@ import {
   CARDS, DIRECTOR_EVENTS, PROJECTS, REACTION_MOOD, SCENARIO_ROLES, districtById, resolveRound, roleInfo,
   type Board, type Bubble, type Card, type Mood, type OutcomeStatus, type RoleId, type RoomState,
 } from '@shared';
-import { spriteSvg } from './sprites';
+import { roleColor, spriteSvg } from './sprites';
 
 /** Screen offset of each role around an area's center (px), clear of the area's chip. */
 const SLOT: Record<RoleId, [number, number]> = {
@@ -116,8 +116,9 @@ export function LivingLayer({ map, state }: { map: MapLibreMap | null; state: Ro
       el.className = 'avatar';
       el.dataset.role = role;
       el.dataset.mood = 'idle';
-      el.style.setProperty('--tint', info.color);
-      el.innerHTML = `<div class="avatar-bubble" role="status"></div><div class="avatar-figure">${spriteSvg(role)}</div><div class="avatar-shadow"></div><div class="avatar-name">${info.name.replace('Environmental ', '')}</div>`;
+      el.style.setProperty('--tint', roleColor(role));
+      const short = info.name.replace('Environmental ', '');
+      el.innerHTML = `<div class="avatar-bubble" role="status"><b class="bub-who">${short}</b><span class="bub-text"></span></div><div class="avatar-figure">${spriteSvg(role)}</div><div class="avatar-shadow"></div><div class="avatar-name">${short}</div>`;
       el.title = `${info.name}: ${'title' in info ? info.title : ''}`;
       const marker = new Marker({ element: el, anchor: 'bottom', offset: slot(role) });
       made.set(role, { marker, el, at: null, stop: () => {} });
@@ -188,8 +189,9 @@ export function LivingLayer({ map, state }: { map: MapLibreMap | null; state: Ro
         const a = avatars.current.get(speaker);
         if (!b || !a) return;
         const el = a.el.querySelector<HTMLDivElement>('.avatar-bubble')!;
-        el.textContent = b.text;
+        el.querySelector('.bub-text')!.textContent = b.text;
         el.dataset.source = b.source;
+        el.dataset.reaction = b.reaction;
         a.el.dataset.speaking = 'true';
         a.el.style.zIndex = '6';
         setMood(speaker, REACTION_MOOD[b.reaction]);
@@ -218,9 +220,11 @@ export function LivingLayer({ map, state }: { map: MapLibreMap | null; state: Ro
       const a = avatars.current.get(b.speaker);
       if (!a || a.el.dataset.speaking !== 'true') continue;
       const el = a.el.querySelector<HTMLDivElement>('.avatar-bubble')!;
-      if (el.textContent !== b.text) {
-        el.textContent = b.text;
+      const text = el.querySelector('.bub-text')!;
+      if (text.textContent !== b.text) {
+        text.textContent = b.text;
         el.dataset.source = b.source;
+        el.dataset.reaction = b.reaction;
       }
     }
   }, [state.bubbles]);

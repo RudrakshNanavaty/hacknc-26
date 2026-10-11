@@ -5,6 +5,7 @@ import { INDICATORS, INDICATOR_INFO, PACES, PERSONA_INFO, VIABILITY_FLOOR, type 
 import { playTick } from '../ui/sound';
 import { Pips, Soap, Tube, type Tone } from './ui';
 import { Bill, useTween } from './insights';
+import { WalletOf, Wallets } from './money';
 
 /** A meter's number, counting toward its new value. */
 function Count({ k, value }: { k: Indicator; value: number }) {
@@ -23,13 +24,16 @@ export function Meters({ state }: { state: RoomState }) {
         const low = k !== 'budget' && v[k] < VIABILITY_FLOOR;
         return (
           <Tube
-            key={k} tone={low ? 'coral' : TONE[k]} value={v[k]} max={k === 'budget' ? 40 : 100}
-            title={`${info.label}: ${k === 'budget' ? `$${v[k]}M (hypothetical)` : v[k]}${low ? ` (below ${VIABILITY_FLOOR}: the city is at risk)` : ''}`}
+            key={k} tone={low ? 'coral' : TONE[k]} value={v[k]} max={k === 'budget' ? 30 : 100}
+            title={`${info.label}: ${k === 'budget' ? `$${v[k]}M (simulated)` : v[k]}${low ? ` (below ${VIABILITY_FLOOR}: the city is at risk)` : ''}`}
             label={<><span>{info.icon}</span><span className="nm">{info.short}</span><span className={`v ${low ? 'text-[#d0103a]' : ''}`}><Count k={k} value={v[k]} /></span></>}
           />
         );
       })}
-      <Bill state={state} />
+      <div className="meters-sub">
+        <Bill state={state} />
+        <Wallets state={state} />
+      </div>
     </div>
   );
 }
@@ -67,7 +71,7 @@ export function PlayerBubbles({ state }: { state: RoomState }) {
             <span className="who min-w-0">
               <span className="vr block truncate text-15 leading-tight">{p.name}{p.seat === state.hostSeat ? ' ⭐' : ''}</span>
               <span className="block text-[11px] leading-tight opacity-75">{info.name}</span>
-              <Pips n={p.influence} />
+              <span className="flex items-center gap-1.5"><Pips n={p.influence} /><WalletOf state={state} persona={p.persona} /></span>
             </span>
             {waiting && <span className={`ready-tick ${p.ready ? 'on' : ''}`}>{p.ready ? '✓' : '…'}</span>}
           </div>

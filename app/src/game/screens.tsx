@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { Map as MapLibreMap } from 'maplibre-gl';
 import {
   CARDS, CRISIS_KIND_INFO, INDICATORS, INDICATOR_INFO, NEGOTIATION_COST, PERSONA_INFO, PREFERENCE_QUESTION, PROJECTS,
-  cardEligibility, districtById, districtFacts, projectPreview, resolveRound,
+  cardEligibility, checkFund, districtById, districtFacts, projectPreview, resolveRound,
   type Attachment, type Board, type CardId, type Delta, type Outcome, type Proposal, type RoomState, type RuleEvent,
 } from '@shared';
 import type { Room } from '../room/useRoom';
@@ -13,9 +13,10 @@ import { Link } from '../router';
 import { explain } from '../api';
 import { CharacterCard } from './GameCard';
 import { Deck } from './Deck';
-import { CardExtras, ComboBanners, Hints, IfItPasses, PreviewBox, Recap, TwistCard, WhyButton } from './insights';
+import { ComboBanners, Hints, IfItPasses, PreviewBox, Recap, TwistCard, WhyButton } from './insights';
 import { RoundDots, Soap, Tube } from './ui';
 import { STATUS_STYLE } from './format';
+import { AgreementCard, LoanCard, RoundMoney } from './money';
 import { playDeal } from '../ui/sound';
 
 const placeName = (id: string) => districtById(id).name;
@@ -121,7 +122,6 @@ export function CardScreen({ state, room, card, setCard, target, setTarget, map,
       {shown ? (
         <>
           <CharacterCard id={shown} quip={state.quips[shown]} note={CARDS[shown].cost > me.influence ? 'Not enough influence for this one.' : null} />
-          <div className="frost p-3"><CardExtras id={shown} /></div>
         </>
       ) : (
         <div className="wet flex flex-col items-center gap-2 p-6 text-center">
@@ -222,6 +222,8 @@ export function DuelScreen({ state, room, focus, setFocus }: { state: RoomState;
   const offers = board.compromises.filter((c) => c.proposalId === p.id);
   const done = !!me && state.players.find((x) => x.seat === me.seat)?.ready;
   const moved = !!state.mine?.moved;
+  // The same check the server runs: your own wallet pays, and money already promised cannot be promised again.
+  const fundProblem = me ? checkFund(state.city.treasury, board, state.actions, me.persona, p.id) : null;
 
   return (
     <div className="flex flex-col gap-2.5">
@@ -260,7 +262,8 @@ export function DuelScreen({ state, room, focus, setFocus }: { state: RoomState;
       <IfItPasses state={state} p={p} o={o} />
       {moves.length > 0 && <p className="text-center text-13 font-black text-white drop-shadow">{moves.map((m) => `${who(state, m.seat)?.name} ${m.move === 'back' ? 'backs it 👍' : m.move === 'oppose' ? 'opposes it 👎' : 'funds it 💰'}`).join(' · ')}</p>}
 
-      {offers.map((c) => (
+      {offers.filter((c) => c.terms).map((c) => <AgreementCard key={c.id} c={c} state={state} room={room} />)}
+      {offers.filter((c) => !c.terms).map((c) => (
         <div key={c.id} className={`frost p-3 ${c.accepted ? 'ring-2 ring-[#8bd346]' : ''}`}>
           <p className="vr text-16">🤝 {c.title} {c.accepted ? <span className="lchip lchip-lime ml-1">Accepted</span> : <span className="lchip ml-1">offered by {who(state, c.offeredBy)?.name}</span>}</p>
           <p className="mt-1 text-13 font-semibold">{c.text}</p>
@@ -279,10 +282,15 @@ export function DuelScreen({ state, room, focus, setFocus }: { state: RoomState;
             <div className="grid grid-cols-3 gap-2">
               <button type="button" className="gel gel-lime" disabled={me.influence < NEGOTIATION_COST.back} onClick={() => room.move('back', p.id)}>👍 Back</button>
               <button type="button" className="gel gel-coral" disabled={me.influence < NEGOTIATION_COST.oppose || p.seat === state.you} onClick={() => room.move('oppose', p.id)}>👎 Oppose</button>
-              <button type="button" className="gel" disabled={me.influence < NEGOTIATION_COST.fund || PROJECTS[p.kind].budgetCost === 0 || o.funding === 'covered'} onClick={() => room.move('fund', p.id)}>💰 Fund</button>
+              <button
+                type="button" className="gel" title={fundProblem ?? `Pay the $${PROJECTS[p.kind].budgetCost}M public cost from your own wallet if it is approved (simulated)`}
+                disabled={me.influence < NEGOTIATION_COST.fund || !!fundProblem} onClick={() => room.move('fund', p.id)}
+              >
+                💰 Fund{PROJECTS[p.kind].budgetCost ? ` $${PROJECTS[p.kind].budgetCost}M` : ''}
+              </button>
             </div>
           )}
-          <p className="hint">{moved ? 'Move made.' : 'One move per round · back 1 · oppose 1 · fund 2 influence.'} The verdict is the rules engine run on the table as it stands.</p>
+          <p className="hint">{moved ? 'Move made.' : `One move per round · back 1 · oppose 1 · fund ${NEGOTIATION_COST.fund} influence plus the cost from your own wallet.`}{fundProblem && !moved ? ` Fund: ${fundProblem}` : ''} The verdict is the rules engine run on the table as it stands.</p>
           <button type="button" className="gel gel-lime gel-big" onClick={() => room.done()}>{moved ? 'Done ✓' : 'Pass and finish'}</button>
         </div>
       )}
@@ -350,6 +358,8 @@ export function ResultScreen({ state, host, onNext }: { state: RoomState; host: 
       <h2 className="glow-title">The city changes</h2>
       {r.outcomes.map((o, i) => <OutcomeCard key={o.proposalId} o={o} state={state} events={r.events} i={i} />)}
       <ComboBanners combos={r.combos ?? []} />
+      <RoundMoney state={state} />
+      <LoanCard state={state} />
       {loose.length > 0 && <ol className="frost flex flex-col gap-1 p-3">{loose.map((e) => <Rule key={e.id} e={e} />)}</ol>}
       <Narration state={state} />
       <p className="text-center text-[12px] font-bold text-white drop-shadow">Effects are illustrative scenario values. The geography (zoning, FEMA zones) and the live readings are real.</p>

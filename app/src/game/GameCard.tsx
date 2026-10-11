@@ -1,94 +1,68 @@
-// Cards, Pocket Rivals style: the full character card (big art in a soap bubble, name, chips, four
-// stat pills, this match's line in the persona's voice) and the mini card in the deck tray.
+// Cards, Pocket Rivals style: the full character card and the mini card in the deck tray. Everything the card
+// says comes from cardFacts() in shared/ (the authored rules): influence, whose money and how much, upkeep, effects,
+// where it may go, the money deal it offers, what answers it and its combos. Nothing on a card is typed by hand here.
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react';
-import { CARDS, FAMILY_INFO, INDICATOR_INFO, PERSONA_INFO, PROJECTS, type CardId, type Delta, type Indicator } from '@shared';
+import { CARDS, FAMILY_INFO, PERSONA_INFO, cardFacts, type CardId } from '@shared';
 import { Soap } from './ui';
 
 const CATEGORY = { project: 'Project', support: 'Support', opposition: 'Opposition', negotiation: 'Deal' } as const;
 const CATEGORY_TONE = { project: 'lchip-lime', support: 'lchip-aqua', opposition: 'lchip-coral', negotiation: 'lchip-sun' } as const;
 
-interface Stat {
-  label: string;
-  value: string;
-  tone?: 'neg' | 'zero';
-}
-
-const sign = (n: number) => (n > 0 ? `+${n}` : n < 0 ? `−${-n}` : '0');
-const fromDelta = (label: string, n: number | undefined): Stat => ({ label, value: sign(n ?? 0), tone: !n ? 'zero' : n < 0 ? 'neg' : undefined });
-
-/** The four stat pills: what the card does, from the authored rules. */
-export function cardStats(id: CardId): Stat[] {
-  const c = CARDS[id];
-  if (c.project) {
-    const d = PROJECTS[c.project].delta;
-    return [fromDelta('Flood', d.flood), fromDelta('Nature', d.environment), fromDelta('Econ', d.economy), fromDelta('Access', d.access)];
-  }
-  const S: Partial<Record<CardId, Stat[]>> = {
-    'emergency-funding': [{ label: 'Support', value: '+1' }, { label: 'Pays cost', value: '✓' }, { label: 'Shore', value: '🌿+2' }, { label: 'Else', value: '🌊+2' }],
-    'fast-track': [{ label: 'Support', value: '+1' }, { label: 'Ignores', value: '1 opp' }, { label: 'Ties', value: '✓' }, { label: 'VE block', value: '✗', tone: 'neg' }],
-    'public-campaign': [{ label: 'Support', value: '+2' }, { label: 'Hotels', value: '✗', tone: 'neg' }, { label: 'Else', value: '🌿+1' }, { label: 'Cost', value: '1' }],
-    'environmental-challenge': [{ label: 'Oppose', value: '+2' }, { label: 'VE zone', value: 'Block' }, { label: 'Deal', value: 'Setback' }, { label: 'Public', value: '✗', tone: 'neg' }],
-    'private-investment': [{ label: 'Support', value: '+1' }, { label: 'Pays cost', value: '✓' }, { label: 'Hotel', value: '💼+2' }, { label: 'Else', value: '💼+1' }],
-    'tourism-campaign': [{ label: 'Support', value: '+1' }, { label: 'Hotel', value: '💼+3' }, { label: 'Else', value: '💼+2' }, { label: 'Nature', value: '−1', tone: 'neg' }],
-    'neighborhood-petition': [{ label: 'Oppose', value: '+2' }, { label: 'First', value: '🏨' }, { label: 'Else', value: '🏖️+1' }, { label: 'Cost', value: '1' }],
-    'public-access-guarantee': [{ label: 'Deal', value: '✓' }, { label: 'Accept', value: '🏖️+4' }, { label: 'Refuse', value: 'opp +1' }, { label: 'Else', value: '🏖️+2' }],
-  };
-  return S[id] ?? derivedStats(id);
-}
-
-const ICON = (k: Indicator) => INDICATOR_INFO[k].icon;
-/** The biggest effect in a delta, as "icon±n" (budget as $M). */
-const lead = (d: Delta): string => {
-  const [k, v] = (Object.entries(d) as [Indicator, number][]).filter(([, n]) => n).sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))[0] ?? [];
-  if (!k || !v) return '0';
-  return k === 'budget' ? `${v > 0 ? '+' : '−'}$${Math.abs(v)}M` : `${ICON(k)}${v > 0 ? '+' : '−'}${Math.abs(v)}`;
-};
-
-/** Stat pills for cards described by data (attach / offer / delayed / fallback) rather than a special rule. */
-function derivedStats(id: CardId): Stat[] {
-  const c = CARDS[id];
-  const out: Stat[] = [];
-  if (c.offer) {
-    out.push({ label: 'Deal', value: '✓' }, { label: 'Accept', value: lead(c.offer.accepted.ifBuilt) }, { label: 'Refuse', value: `opp +${c.offer.refused.opposition}`, tone: 'neg' });
-  }
-  if (c.attach?.support) out.push({ label: 'Support', value: `+${c.attach.support}` });
-  if (c.attach?.opposition) out.push({ label: 'Oppose', value: `+${c.attach.opposition}` });
-  if (c.attach?.cover) out.push({ label: 'Pays cost', value: '✓' });
-  if (c.attach?.ifBuilt) out.push({ label: 'If built', value: lead(c.attach.ifBuilt) });
-  if (c.delayed) out.push({ label: 'Next round', value: lead(c.delayed.delta), tone: 'neg' });
-  if (c.fallback && Object.keys(c.fallback.delta).length) out.push({ label: 'Else', value: lead(c.fallback.delta) });
-  return out.slice(0, 4);
-}
-
 export function CharacterCard({ id, quip, note }: { id: CardId; quip?: string | null; note?: string | null }) {
   const c = CARDS[id];
   const p = PERSONA_INFO[c.persona];
-  const cost = c.project ? PROJECTS[c.project].budgetCost : 0;
+  const f = cardFacts(id);
   return (
     <article className="flex flex-col gap-2" aria-label={`${c.name} card`}>
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-1">
         <span className="lchip">{p.emoji} {p.name}</span>
         <span className="flex gap-1">
           <span className="lchip" style={{ color: `color-mix(in srgb, ${FAMILY_INFO[c.family].color} 60%, #0b3d5c)` }}>{FAMILY_INFO[c.family].label}</span>
           <span className={`lchip ${CATEGORY_TONE[c.category]}`}>{CATEGORY[c.category]}</span>
         </span>
       </div>
-      <div className="ccard-art wet !aspect-[16/8]">
+      <div className="ccard-art wet !aspect-[16/7]" style={{ ['--tint' as string]: p.color }}>
         <span className="cost-orb" aria-label={`${c.cost} influence`}>{c.cost}</span>
-        <Soap size={124} tint={p.color} className="bob">{c.art}</Soap>
-        {cost > 0 && <span className="lchip lchip-sun absolute right-3 bottom-3">Public cost ${cost}M{c.project && PROJECTS[c.project].upkeep ? ` + $${PROJECTS[c.project].upkeep}M/round` : ''}</span>}
-        {c.project && cost === 0 && <span className="lchip lchip-lime absolute right-3 bottom-3">Privately funded</span>}
+        <Soap size={112} tint={p.color} className="bob">{c.art}</Soap>
       </div>
       <h2 className="glow-title">{c.name}</h2>
-      <div className="wet flex flex-col gap-2 p-3">
+      <div className="wet card-face flex flex-col gap-2 p-3">
+        {/* What it costs: influence always; money only from the wallet the rules name. */}
+        <div className="card-cost">
+          <span className="cost-pill infl" title="Influence: political capital to play the card">⚡ {f.influence} influence</span>
+          {f.money && <span className={`cost-pill ${f.money.kind}`} title="Simulated money, paid only if it happens">{f.money.kind === 'public' ? '🏛️' : '💼'} ${f.money.amountM}M · {f.money.payerName}</span>}
+          {f.upkeepM > 0 && <span className="cost-pill upkeep" title="Charged every later round once built">🔧 ${f.upkeepM}M/round</span>}
+        </div>
         <div className="stats4">
-          {cardStats(id).map((s) => (
-            <span key={s.label} className={`stat ${s.tone ?? ''}`}>{s.label}<b>{s.value}</b></span>
+          {f.effects.map((s) => (
+            <span key={s.label} className={`stat ${s.tone === 'down' ? 'neg' : s.tone === 'deal' ? 'deal' : ''}`}>{s.label}<b>{s.value}</b></span>
           ))}
         </div>
+        <p className="card-line">📍 <b>Needs</b> {f.requirement}</p>
+        {f.deal && (
+          <div className="card-deal">
+            <p className="vr text-13">🤝 {f.deal.name} <span className="lchip lchip-sun !py-0 text-[10px]">{f.deal.payerName} pays</span></p>
+            <p className="text-12 font-semibold">{f.deal.text}</p>
+            <p className="text-12 font-semibold opacity-80">{f.deal.strings}</p>
+          </div>
+        )}
+        <p className="card-line">⚖️ <b>Trade-off</b> {f.tradeoff}</p>
+        {f.later && <p className="warn-line">⏳ Next round: {f.later}</p>}
+        {(f.counters.length > 0 || f.combos.length > 0) && (
+          <div className="flex flex-wrap items-center gap-1">
+            {f.counters.length > 0 && <span className="text-[11px] font-black uppercase opacity-70">Answered by</span>}
+            {f.counters.map((x) => <span key={x.id} className="chip-mini">{x.art} {x.name}</span>)}
+            {f.combos.length > 0 && <span className="text-[11px] font-black uppercase opacity-70">Combos</span>}
+            {f.combos.map((x) => <span key={x.id} className="chip-mini combo">✨ {x.name}</span>)}
+          </div>
+        )}
         {quip && <p className="quip">“{quip}”</p>}
-        <p className="text-13 font-semibold opacity-85">{c.rule}</p>
+        <details className="text-12">
+          <summary className="cursor-pointer font-black opacity-75">The exact rule</summary>
+          <p className="mt-1 font-semibold opacity-85">{c.rule}</p>
+        </details>
         {note && <p className="text-13 font-black text-[#c0392b]">{note}</p>}
+        <p className="text-[10px] font-bold opacity-60">Effects are illustrative; money is simulated.</p>
       </div>
     </article>
   );
@@ -103,12 +77,15 @@ export function GameCard({ id, selected = false, disabled = false, onClick, onPo
   style?: CSSProperties; compact?: boolean; note?: string | null;
 }) {
   const c = CARDS[id];
-  const cls = `mini wet ${selected ? 'is-on' : ''} ${disabled ? 'is-off' : ''}`;
+  const cls = `mini wet cat-${c.category} ${selected ? 'is-on' : ''} ${disabled ? 'is-off' : ''}`;
+  const money = cardFacts(id).money;
   const body = (
     <>
       <span className="cost-orb">{c.cost}</span>
       <span className="art">{c.art}</span>
       <span className="nm">{c.name}</span>
+      {money && <span className={`mini-money ${money.kind}`} title={`${money.payerName} pays $${money.amountM}M if it happens (simulated)`}>${money.amountM}M</span>}
+      {c.agreement && <span className="mini-deal" title="Puts a money deal on the table">🤝</span>}
     </>
   );
   if (!onClick && !onPointerDown) return <div className={`mini-card wet`} style={style} title={c.rule}>{body}</div>;

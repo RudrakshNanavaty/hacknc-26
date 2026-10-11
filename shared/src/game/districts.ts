@@ -111,6 +111,21 @@ export function projectEligibility(kind: ProjectKind, d: District): Eligibility 
   }
 }
 
+/** Where a project kind may go, in words, from the same thresholds projectEligibility applies (for the card face). */
+export function requirementText(kind: ProjectKind): string {
+  const pct = (x: number) => `${Math.round(x * 100)}%`;
+  switch (kind) {
+    case 'hotel': return `Needs ${pct(GEO_RULES.hotelZoning)}+ hotel/commercial zoning.`;
+    case 'elevate': return `Needs ${pct(GEO_RULES.residentialZoning)}+ residential zoning and ${pct(GEO_RULES.sfhaForFloodProjects)}+ in FEMA's 1% flood area.`;
+    case 'drainage':
+    case 'seawall': return `Needs ${pct(GEO_RULES.sfhaForFloodProjects)}+ of the area in FEMA's 1% flood area.`;
+    case 'shoreline': return 'Any shore, ocean or bay.';
+    case 'dune': return 'Needs an Atlantic shore.';
+    case 'marina': return `Needs a Biscayne Bay shore and ${pct(GEO_RULES.hotelZoning)}+ hotel/commercial zoning.`;
+    case 'housing': return `Needs ${pct(GEO_RULES.residentialZoning)}+ residential zoning.`;
+  }
+}
+
 /** Can this card target this district? Support and opposition cards can go anywhere (they act on what is proposed there). */
 export function cardEligibility(card: CardId, districtId: string): Eligibility {
   if (!isDistrictId(districtId)) return { ok: false, reason: 'That place is not one of the playable areas.' };
